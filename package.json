@@ -1,0 +1,51 @@
+{
+  "name": "@bunary/http",
+  "version": "0.0.1",
+  "description": "HTTP routing and middleware for Bunary - a Bun-first backend framework inspired by Laravel",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "bun build ./src/index.ts --outdir ./dist --target bun && bunx tsc -p tsconfig.build.json",
+    "typecheck": "bunx tsc --noEmit",
+    "test": "bun test",
+    "lint": "bunx biome check ./src"
+  },
+  "keywords": [
+    "bunary",
+    "bun",
+    "http",
+    "router",
+    "middleware",
+    "framework"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bunary-dev/http.git"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "dependencies": {
+    "@bunary/core": "^0.0.2"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "bun-types": "^1.0.0",
+    "typescript": "^5.0.0"
+  }
+}
