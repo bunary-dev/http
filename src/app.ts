@@ -24,7 +24,7 @@ import type {
 	RequestContext,
 	Route,
 	RouteHandler,
-} from "./types.js";
+} from "./types/index.js";
 
 /**
  * Compile a path pattern into a regex and extract parameter names.

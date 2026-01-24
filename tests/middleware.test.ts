@@ -196,7 +196,7 @@ describe("Middleware Pipeline", () => {
 
 			const response = await app.fetch(new Request("http://localhost/test"));
 			expect(response.status).toBe(500);
-			const data = await response.json();
+			const data = (await response.json()) as { error: string };
 			expect(data.error).toBe("Middleware failed");
 		});
 
