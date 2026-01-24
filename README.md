@@ -144,6 +144,77 @@ const data = await response.json();
 // { message: 'hi' }
 ```
 
+## Middleware
+
+Add middleware to handle cross-cutting concerns like logging, authentication, and error handling.
+
+### Basic Middleware
+
+```typescript
+// Logging middleware
+app.use(async (ctx, next) => {
+  const start = Date.now();
+  const result = await next();
+  console.log(`${ctx.request.method} ${new URL(ctx.request.url).pathname} - ${Date.now() - start}ms`);
+  return result;
+});
+```
+
+### Middleware Chain
+
+Middleware executes in registration order. Each middleware can:
+- Run code before calling `next()`
+- Call `next()` to continue the chain
+- Run code after `next()` returns
+- Return early without calling `next()`
+
+```typescript
+app
+  .use(async (ctx, next) => {
+    console.log('First - before');
+    const result = await next();
+    console.log('First - after');
+    return result;
+  })
+  .use(async (ctx, next) => {
+    console.log('Second - before');
+    const result = await next();
+    console.log('Second - after');
+    return result;
+  });
+
+// Output order: First-before, Second-before, handler, Second-after, First-after
+```
+
+### Error Handling Middleware
+
+```typescript
+app.use(async (ctx, next) => {
+  try {
+    return await next();
+  } catch (error) {
+    console.error('Error:', error);
+    return new Response(JSON.stringify({ error: error.message }), { 
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+});
+```
+
+### Auth Middleware (Example)
+
+```typescript
+app.use(async (ctx, next) => {
+  const token = ctx.request.headers.get('Authorization');
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  }
+  // Validate token...
+  return await next();
+});
+```
+
 ## Error Handling
 
 Uncaught errors in handlers return a 500 response:

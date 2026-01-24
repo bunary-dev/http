@@ -5,7 +5,27 @@ All notable changes to `@bunary/http` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.0.1] - 2025-01-27
+## [0.0.2] - 2026-01-24
+
+### Added
+
+- Comprehensive middleware test suite (19 tests)
+- Middleware documentation in README with examples:
+  - Basic logging middleware
+  - Error handling middleware
+  - Authentication middleware pattern
+  - Middleware chain execution order
+
+### Verified
+
+- Middleware pipeline executes in registration order (FR-016)
+- `app.use(middleware)` adds middleware to pipeline (FR-015)
+- Middleware can call `next()` for chain continuation
+- Middleware can return early without calling `next()`
+- Middleware can catch and handle errors from `next()`
+- Middleware errors return 500 response
+
+## [0.0.1] - 2026-01-24
 
 ### Added
 
