@@ -32,7 +32,7 @@ export type {
 	RequestContext,
 	Route,
 	RouteHandler,
-} from "./types.js";
+} from "./types/index.js";
 
 // Export app factory (to be implemented)
 export { createApp } from "./app.js";

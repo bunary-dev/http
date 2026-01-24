@@ -129,7 +129,7 @@ describe("Error Handling", () => {
 		const response = await app.fetch(new Request("http://localhost/error"));
 
 		expect(response.status).toBe(500);
-		const body = await response.json();
+		const body = (await response.json()) as { error: string };
 		expect(body.error).toBeDefined();
 	});
 
@@ -155,7 +155,7 @@ describe("Request Context", () => {
 
 		const response = await app.fetch(new Request("http://localhost/request-info"));
 
-		const body = await response.json();
+		const body = (await response.json()) as { method: string; url: string };
 		expect(body.method).toBe("GET");
 		expect(body.url).toBe("http://localhost/request-info");
 	});
