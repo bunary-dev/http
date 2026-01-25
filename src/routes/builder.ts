@@ -140,15 +140,19 @@ export function createRouteBuilder(
 
 /**
  * Wrap a route builder to auto-apply name prefix.
+ * Uses a Proxy to maintain dynamic getter behavior from the original builder.
  */
 export function wrapBuilderWithNamePrefix(builder: RouteBuilder, namePrefix: string): RouteBuilder {
 	if (!namePrefix) return builder;
 
-	const originalName = builder.name;
-	return {
-		...builder,
-		name: (name: string) => {
-			return originalName(namePrefix + name);
+	return new Proxy(builder, {
+		get(target, prop) {
+			if (prop === "name") {
+				return (name: string) => {
+					return target.name(namePrefix + name);
+				};
+			}
+			return target[prop as keyof RouteBuilder];
 		},
-	};
+	});
 }
