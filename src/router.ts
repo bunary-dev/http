@@ -41,6 +41,13 @@ export function compilePath(path: string): CompiledPath {
 	regexString = regexString.replace(
 		/\/:([a-zA-Z_][a-zA-Z0-9_]*)(\\\?)?/g,
 		(_match, paramName, isOptional) => {
+			// Check for duplicate parameter names
+			if (paramNames.includes(paramName)) {
+				throw new Error(
+					`Duplicate parameter name ":${paramName}" in route pattern "${path}". Each parameter name must be unique within a route.`,
+				);
+			}
+
 			paramNames.push(paramName);
 			if (isOptional) {
 				optionalParams.push(paramName);
