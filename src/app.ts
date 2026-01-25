@@ -101,7 +101,7 @@ export function createApp(): BunaryApp {
 			pattern,
 			paramNames,
 			handler,
-			optionalParams,
+			optionalParams: optionalParams.length > 0 ? optionalParams : undefined,
 			middleware: groupMiddleware.length > 0 ? [...groupMiddleware] : undefined,
 		};
 		routes.push(route);
