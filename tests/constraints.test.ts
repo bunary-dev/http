@@ -1,8 +1,8 @@
 /**
  * Route Constraints Tests
  *
- * TDD Red Phase: These tests define the expected behavior for route
- * parameter constraints. Tests should FAIL until the feature is implemented.
+ * These tests define and verify the expected behavior for route
+ * parameter constraints in the implemented feature.
  */
 import { describe, expect, it } from "bun:test";
 import { createApp } from "../src/index.js";
