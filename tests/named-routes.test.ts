@@ -177,4 +177,52 @@ describe("Named Routes", () => {
 			});
 		});
 	});
+
+	describe("deferred builder usage", () => {
+		it("should correctly name the original route when builder is stored and used later", () => {
+			const app = createApp();
+
+			// Store the builder for route1
+			const route1Builder = app.get("/route1", () => ({ route: 1 }));
+
+			// Register another route
+			app.get("/route2", () => ({ route: 2 }));
+
+			// Now name route1 using the stored builder
+			route1Builder.name("route1.name");
+
+			// The name should be applied to route1, not route2
+			const url = app.route("route1.name");
+			expect(url).toBe("/route1");
+
+			// Verify with getRoutes
+			const routes = app.getRoutes();
+			const namedRoute = routes.find((r) => r.name === "route1.name");
+			expect(namedRoute?.path).toBe("/route1");
+		});
+
+		it("should correctly apply constraints when builder is stored and used later", async () => {
+			const app = createApp();
+
+			// Store the builder for route1
+			const route1Builder = app.get("/users/:id", (ctx) => ({ id: ctx.params.id }));
+
+			// Register another route
+			app.get("/posts/:slug", (ctx) => ({ slug: ctx.params.slug }));
+
+			// Now add constraint to route1 using the stored builder
+			route1Builder.whereNumber("id");
+
+			// route1 should have the constraint
+			const valid = await app.fetch(new Request("http://localhost/users/123"));
+			expect(valid.status).toBe(200);
+
+			const invalid = await app.fetch(new Request("http://localhost/users/abc"));
+			expect(invalid.status).toBe(404);
+
+			// route2 should NOT have the constraint
+			const slugRoute = await app.fetch(new Request("http://localhost/posts/my-post"));
+			expect(slugRoute.status).toBe(200);
+		});
+	});
 });
