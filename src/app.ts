@@ -1,29 +1,16 @@
-import { joinPaths } from "./pathUtils.js";
 import { toResponse } from "./response.js";
-import { checkConstraints, compilePath, extractParams } from "./router.js";
-/**
- * Create a new Bunary HTTP application instance.
- *
- * @returns BunaryApp instance with routing and middleware support
- *
- * @example
- * ```ts
- * import { createApp } from "@bunary/http";
- *
- * const app = createApp();
- *
- * app.get("/", () => ({ message: "Hello!" }));
- * app.get("/users/:id", (ctx) => ({ id: ctx.params.id }));
- *
- * app.listen(3000);
- * ```
- */
+import { compilePath } from "./router.js";
+import {
+	createGroupRouter,
+	createRouteBuilder,
+	findRoute,
+	hasMatchingPath,
+} from "./routes/index.js";
 import type {
 	BunaryApp,
 	BunaryServer,
 	GroupCallback,
 	GroupOptions,
-	GroupRouter,
 	HandlerResponse,
 	HttpMethod,
 	Middleware,
@@ -74,137 +61,6 @@ export function createApp(): BunaryApp {
 	const namedRoutes: Map<string, Route> = new Map();
 
 	/**
-	 * Safely compile a string pattern to RegExp with error handling.
-	 * Provides better error messages for invalid regex patterns.
-	 */
-	function compilePattern(pattern: string, param: string): RegExp {
-		try {
-			return new RegExp(pattern);
-		} catch (error) {
-			const message = error instanceof Error ? error.message : "Invalid pattern";
-			throw new Error(`Invalid regex pattern for parameter "${param}": ${message}`);
-		}
-	}
-
-	/**
-	 * Create a RouteBuilder for a specific route.
-	 * Each builder captures its own route reference to avoid shared mutable state issues.
-	 */
-	function createRouteBuilder(route: Route): RouteBuilder {
-		function addConstraint(param: string, pattern: RegExp): void {
-			if (!route.constraints) {
-				route.constraints = {};
-			}
-			route.constraints[param] = pattern;
-		}
-
-		const builder: RouteBuilder = {
-			// Forward all BunaryApp methods
-			get get() {
-				return app.get;
-			},
-			get post() {
-				return app.post;
-			},
-			get put() {
-				return app.put;
-			},
-			get delete() {
-				return app.delete;
-			},
-			get patch() {
-				return app.patch;
-			},
-			get use() {
-				return app.use;
-			},
-			get group() {
-				return app.group;
-			},
-			get route() {
-				return app.route;
-			},
-			get hasRoute() {
-				return app.hasRoute;
-			},
-			get getRoutes() {
-				return app.getRoutes;
-			},
-			get listen() {
-				return app.listen;
-			},
-			get fetch() {
-				return app.fetch;
-			},
-
-			// Route-specific methods that capture this specific route
-			name: (name: string) => {
-				if (namedRoutes.has(name)) {
-					throw new Error(`Route name "${name}" is already defined`);
-				}
-				route.name = name;
-				namedRoutes.set(name, route);
-				return builder;
-			},
-
-			where: ((
-				paramOrConstraints: string | Record<string, RegExp | string>,
-				pattern?: RegExp | string,
-			) => {
-				if (typeof paramOrConstraints === "string") {
-					// Single constraint: where("id", /^\d+$/)
-					if (!pattern) {
-						throw new Error(`Pattern is required for constraint on "${paramOrConstraints}"`);
-					}
-					const regex =
-						typeof pattern === "string" ? compilePattern(pattern, paramOrConstraints) : pattern;
-					addConstraint(paramOrConstraints, regex);
-				} else {
-					// Multiple constraints: where({ id: /^\d+$/, slug: /^[a-z-]+$/ })
-					for (const [param, pat] of Object.entries(paramOrConstraints)) {
-						const regex = typeof pat === "string" ? compilePattern(pat, param) : pat;
-						addConstraint(param, regex);
-					}
-				}
-				return builder;
-			}) as RouteBuilder["where"],
-
-			whereNumber: (param: string) => {
-				addConstraint(param, /^\d+$/);
-				return builder;
-			},
-
-			whereAlpha: (param: string) => {
-				addConstraint(param, /^[a-zA-Z]+$/);
-				return builder;
-			},
-
-			whereAlphaNumeric: (param: string) => {
-				addConstraint(param, /^[a-zA-Z0-9]+$/);
-				return builder;
-			},
-
-			whereUuid: (param: string) => {
-				addConstraint(param, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
-				return builder;
-			},
-
-			whereUlid: (param: string) => {
-				addConstraint(param, /^[0-9A-HJKMNP-TV-Z]{26}$/);
-				return builder;
-			},
-
-			whereIn: (param: string, values: string[]) => {
-				const escaped = values.map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-				addConstraint(param, new RegExp(`^(${escaped.join("|")})$`));
-				return builder;
-			},
-		};
-
-		return builder;
-	}
-
-	/**
 	 * Register a route for a specific HTTP method.
 	 */
 	function addRoute(
@@ -224,40 +80,7 @@ export function createApp(): BunaryApp {
 			middleware: groupMiddleware.length > 0 ? [...groupMiddleware] : undefined,
 		};
 		routes.push(route);
-		return createRouteBuilder(route);
-	}
-
-	/**
-	 * Find a matching route for the given method and path.
-	 */
-	function findRoute(
-		method: string,
-		path: string,
-	): { route: Route; params: Record<string, string | undefined> } | null {
-		for (const route of routes) {
-			if (route.pattern.test(path)) {
-				if (route.method === method) {
-					const params = extractParams(path, route);
-					// Check constraints
-					if (!checkConstraints(params, route.constraints)) {
-						continue;
-					}
-					return { route, params };
-				}
-			}
-		}
-		return null;
-	}
-
-	/**
-	 * Check if any route matches the path (regardless of method).
-	 */
-	function hasMatchingPath(path: string): boolean {
-		return routes.some((route) => {
-			if (!route.pattern.test(path)) return false;
-			const params = extractParams(path, route);
-			return checkConstraints(params, route.constraints);
-		});
+		return createRouteBuilder(route, namedRoutes, app);
 	}
 
 	/**
@@ -269,11 +92,11 @@ export function createApp(): BunaryApp {
 		const method = request.method as HttpMethod;
 
 		// Find matching route
-		const match = findRoute(method, path);
+		const match = findRoute(routes, method, path);
 
 		if (!match) {
 			// Check if path exists with different method → 405
-			if (hasMatchingPath(path)) {
+			if (hasMatchingPath(routes, path)) {
 				return new Response(JSON.stringify({ error: "Method not allowed" }), {
 					status: 405,
 					headers: { "Content-Type": "application/json" },
@@ -322,78 +145,6 @@ export function createApp(): BunaryApp {
 		}
 	}
 
-	/**
-	 * Create a group router for defining routes within a group.
-	 */
-	function createGroupRouter(
-		prefix: string,
-		groupMiddleware: Middleware[],
-		namePrefix: string,
-	): GroupRouter {
-		const router: GroupRouter = {
-			get: (path, handler) => {
-				const fullPath = joinPaths(prefix, path);
-				const builder = addRoute("GET", fullPath, handler, groupMiddleware);
-				// Auto-apply name prefix if route gets named
-				return wrapBuilderWithNamePrefix(builder, namePrefix);
-			},
-			post: (path, handler) => {
-				const fullPath = joinPaths(prefix, path);
-				return wrapBuilderWithNamePrefix(
-					addRoute("POST", fullPath, handler, groupMiddleware),
-					namePrefix,
-				);
-			},
-			put: (path, handler) => {
-				const fullPath = joinPaths(prefix, path);
-				return wrapBuilderWithNamePrefix(
-					addRoute("PUT", fullPath, handler, groupMiddleware),
-					namePrefix,
-				);
-			},
-			delete: (path, handler) => {
-				const fullPath = joinPaths(prefix, path);
-				return wrapBuilderWithNamePrefix(
-					addRoute("DELETE", fullPath, handler, groupMiddleware),
-					namePrefix,
-				);
-			},
-			patch: (path, handler) => {
-				const fullPath = joinPaths(prefix, path);
-				return wrapBuilderWithNamePrefix(
-					addRoute("PATCH", fullPath, handler, groupMiddleware),
-					namePrefix,
-				);
-			},
-			group: ((prefixOrOptions: string | GroupOptions, callback: GroupCallback) => {
-				const opts =
-					typeof prefixOrOptions === "string" ? { prefix: prefixOrOptions } : prefixOrOptions;
-				const nestedPrefix = joinPaths(prefix, opts.prefix);
-				const nestedMiddleware = [...groupMiddleware, ...(opts.middleware ?? [])];
-				const nestedNamePrefix = namePrefix + (opts.name ?? "");
-				const nestedRouter = createGroupRouter(nestedPrefix, nestedMiddleware, nestedNamePrefix);
-				callback(nestedRouter);
-				return router;
-			}) as GroupRouter["group"],
-		};
-		return router;
-	}
-
-	/**
-	 * Wrap a route builder to auto-apply name prefix.
-	 */
-	function wrapBuilderWithNamePrefix(builder: RouteBuilder, namePrefix: string): RouteBuilder {
-		if (!namePrefix) return builder;
-
-		const originalName = builder.name;
-		return {
-			...builder,
-			name: (name: string) => {
-				return originalName(namePrefix + name);
-			},
-		};
-	}
-
 	const app: BunaryApp = {
 		get: (path: string, handler: RouteHandler) => addRoute("GET", path, handler),
 		post: (path: string, handler: RouteHandler) => addRoute("POST", path, handler),
@@ -409,7 +160,12 @@ export function createApp(): BunaryApp {
 		group: ((prefixOrOptions: string | GroupOptions, callback: GroupCallback) => {
 			const opts =
 				typeof prefixOrOptions === "string" ? { prefix: prefixOrOptions } : prefixOrOptions;
-			const groupRouter = createGroupRouter(opts.prefix, opts.middleware ?? [], opts.name ?? "");
+			const groupRouter = createGroupRouter(
+				opts.prefix,
+				opts.middleware ?? [],
+				opts.name ?? "",
+				addRoute,
+			);
 			callback(groupRouter);
 			return app;
 		}) as BunaryApp["group"],
