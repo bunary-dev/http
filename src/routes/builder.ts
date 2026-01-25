@@ -126,6 +126,9 @@ export function createRouteBuilder(
 		},
 
 		whereIn: (param: string, values: string[]) => {
+			if (values.length === 0) {
+				throw new Error(`whereIn requires at least one value for parameter "${param}"`);
+			}
 			const escaped = values.map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
 			addConstraint(param, new RegExp(`^(${escaped.join("|")})$`));
 			return builder;

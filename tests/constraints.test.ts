@@ -230,5 +230,13 @@ describe("Route Constraints", () => {
 				});
 			}).toThrow('Invalid regex pattern for parameter "slug"');
 		});
+
+		it("should throw error when whereIn is called with empty array", () => {
+			const app = createApp();
+
+			expect(() => {
+				app.get("/status/:status", () => ({})).whereIn("status", []);
+			}).toThrow('whereIn requires at least one value for parameter "status"');
+		});
 	});
 });
