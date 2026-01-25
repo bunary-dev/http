@@ -8,6 +8,19 @@ export interface RouteMatch {
 
 /**
  * Find a matching route for the given method and path.
+ *
+ * **Complexity**: O(n) where n is the number of registered routes.
+ * Routes are tested sequentially until a match is found.
+ *
+ * This linear search is suitable for most applications (up to ~100 routes).
+ * For applications with hundreds of routes, consider:
+ * - Grouping routes by common prefixes (reduces regex tests per request)
+ * - Using method-based route maps (the 405 "Method Not Allowed" check already
+ *   iterates separately, so grouping by method could help)
+ * - Implementing a radix/prefix tree for static path segments
+ *
+ * The current design prioritizes simplicity and correctness. Route order matters:
+ * the first matching route wins, allowing intentional route shadowing.
  */
 export function findRoute(routes: Route[], method: string, path: string): RouteMatch | null {
 	for (const route of routes) {
