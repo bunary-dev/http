@@ -54,7 +54,7 @@ describe("Optional Route Parameters", () => {
 			}));
 
 			const res = await app.fetch(new Request("http://localhost/users"));
-			const data = await res.json();
+			const data = (await res.json()) as { id?: string };
 			expect(data.id).toBeUndefined();
 		});
 	});

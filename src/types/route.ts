@@ -1,4 +1,5 @@
 import type { HttpMethod } from "./httpMethod.js";
+import type { Middleware } from "./middleware.js";
 import type { RouteHandler } from "./routeHandler.js";
 
 /**
@@ -15,4 +16,12 @@ export interface Route {
 	paramNames: string[];
 	/** Handler function for this route */
 	handler: RouteHandler;
+	/** Optional route name for URL generation */
+	name?: string;
+	/** Parameter constraints (regex patterns) */
+	constraints?: Record<string, RegExp>;
+	/** Route-specific middleware */
+	middleware?: Middleware[];
+	/** Names of optional parameters */
+	optionalParams?: string[];
 }

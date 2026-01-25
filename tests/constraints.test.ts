@@ -88,7 +88,11 @@ describe("Route Constraints", () => {
 				.get("/posts/:id", () => ({}))
 				.where("id", /^\d+$/);
 
-			expect(result).toBe(app);
+			// RouteBuilder should have all the same methods
+			expect(typeof result.get).toBe("function");
+			expect(typeof result.where).toBe("function");
+			expect(typeof result.name).toBe("function");
+			expect(typeof result.listen).toBe("function");
 		});
 	});
 

@@ -128,7 +128,10 @@ describe("Middleware Pipeline", () => {
 				.use(async (_ctx, next) => await next())
 				.get("/test", () => ({ ok: true }));
 
-			expect(result).toBe(app);
+			// RouteBuilder should have all the same methods as the app
+			expect(typeof result.get).toBe("function");
+			expect(typeof result.use).toBe("function");
+			expect(typeof result.listen).toBe("function");
 		});
 	});
 

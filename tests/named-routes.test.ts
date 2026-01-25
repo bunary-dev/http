@@ -22,14 +22,17 @@ describe("Named Routes", () => {
 		it("should allow chaining after name()", async () => {
 			const app = createApp();
 
-			// name() should return the app for chaining
+			// name() should return a builder for chaining
 			const result = app
 				.get("/users", () => ({ users: [] }))
 				.name("users.index")
 				.get("/posts", () => ({ posts: [] }))
 				.name("posts.index");
 
-			expect(result).toBe(app);
+			// RouteBuilder should have all the same methods
+			expect(typeof result.get).toBe("function");
+			expect(typeof result.name).toBe("function");
+			expect(typeof result.listen).toBe("function");
 		});
 
 		it("should throw on duplicate route names", () => {

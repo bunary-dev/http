@@ -18,60 +18,139 @@
 import type {
 	BunaryApp,
 	BunaryServer,
+	GroupCallback,
+	GroupOptions,
+	GroupRouter,
 	HandlerResponse,
 	HttpMethod,
 	Middleware,
 	RequestContext,
 	Route,
+	RouteBuilder,
 	RouteHandler,
+	RouteInfo,
 } from "./types/index.js";
 
 /**
  * Compile a path pattern into a regex and extract parameter names.
+ * Supports optional parameters with :param? syntax.
  *
- * @param path - Route path pattern (e.g., "/users/:id")
- * @returns Object with regex pattern and parameter names
+ * @param path - Route path pattern (e.g., "/users/:id" or "/users/:id?")
+ * @returns Object with regex pattern, parameter names, and optional param names
  *
  * @example
  * ```ts
- * const { pattern, paramNames } = compilePath("/users/:id/posts/:postId");
- * // pattern matches "/users/123/posts/456"
- * // paramNames = ["id", "postId"]
+ * const { pattern, paramNames, optionalParams } = compilePath("/users/:id?");
+ * // pattern matches "/users" and "/users/123"
+ * // paramNames = ["id"]
+ * // optionalParams = ["id"]
  * ```
  */
-function compilePath(path: string): { pattern: RegExp; paramNames: string[] } {
+function compilePath(path: string): {
+	pattern: RegExp;
+	paramNames: string[];
+	optionalParams: string[];
+} {
 	const paramNames: string[] = [];
+	const optionalParams: string[] = [];
 
 	// Escape special regex chars except : which we use for params
-	const regexString = path
-		.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-		.replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, (_match, paramName) => {
+	let regexString = path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+	// Process all params in order of appearance, handling both required and optional
+	regexString = regexString.replace(
+		/\/:([a-zA-Z_][a-zA-Z0-9_]*)(\\\?)?/g,
+		(_match, paramName, isOptional) => {
 			paramNames.push(paramName);
-			return "([^/]+)";
-		});
+			if (isOptional) {
+				optionalParams.push(paramName);
+				return "(?:/([^/]+))?";
+			}
+			return "/([^/]+)";
+		},
+	);
+
+	// Allow optional trailing slash at the end
+	regexString += "/?";
 
 	return {
 		pattern: new RegExp(`^${regexString}$`),
 		paramNames,
+		optionalParams,
 	};
 }
 
 /**
  * Extract path parameters from a matched route.
+ * Handles optional parameters by only including them if they have values.
  *
  * @param path - The request path
  * @param route - The matched route
- * @returns Record of parameter names to values
+ * @returns Record of parameter names to values (undefined for missing optional params)
  */
-function extractParams(path: string, route: Route): Record<string, string> {
+function extractParams(path: string, route: Route): Record<string, string | undefined> {
 	const match = path.match(route.pattern);
 	if (!match) return {};
 
-	const params: Record<string, string> = {};
+	const params: Record<string, string | undefined> = {};
 	for (let i = 0; i < route.paramNames.length; i++) {
-		params[route.paramNames[i]] = match[i + 1];
+		const value = match[i + 1];
+		// Only set value if it exists (for optional params)
+		if (value !== undefined && value !== "") {
+			params[route.paramNames[i]] = value;
+		}
 	}
 	return params;
+}
+
+/**
+ * Check if route constraints are satisfied.
+ *
+ * @param params - Extracted route parameters
+ * @param constraints - Parameter constraints (regex patterns)
+ * @returns True if all constraints pass
+ */
+function checkConstraints(
+	params: Record<string, string | undefined>,
+	constraints?: Record<string, RegExp>,
+): boolean {
+	if (!constraints) return true;
+
+	for (const [param, pattern] of Object.entries(constraints)) {
+		const value = params[param];
+		// Skip constraint check for missing optional params
+		if (value === undefined) continue;
+		if (!pattern.test(value)) return false;
+	}
+	return true;
+}
+
+/**
+ * Normalize a path prefix (ensure leading slash, no trailing slash).
+ */
+function normalizePrefix(prefix: string): string {
+	let normalized = prefix;
+	if (!normalized.startsWith("/")) {
+		normalized = `/${normalized}`;
+	}
+	if (normalized.endsWith("/") && normalized.length > 1) {
+		normalized = normalized.slice(0, -1);
+	}
+	return normalized;
+}
+
+/**
+ * Join path segments, handling slashes correctly.
+ */
+function joinPaths(prefix: string, path: string): string {
+	const normalizedPrefix = normalizePrefix(prefix);
+	let normalizedPath = path;
+
+	if (!normalizedPath.startsWith("/") && normalizedPath !== "") {
+		normalizedPath = `/${normalizedPath}`;
+	}
+
+	return normalizedPrefix + normalizedPath;
 }
 
 /**
@@ -136,15 +215,14 @@ function toResponse(result: HandlerResponse): Response {
  *   return { id: ctx.params.id };
  * });
  *
- * // Query parameters
- * app.get("/search", (ctx) => {
- *   return { query: ctx.query.get("q") };
+ * // Route groups
+ * app.group("/api", (router) => {
+ *   router.get("/users", () => ({ users: [] }));
  * });
  *
- * // Custom Response
- * app.get("/custom", () => {
- *   return new Response("Custom", { status: 201 });
- * });
+ * // Named routes
+ * app.get("/users/:id", (ctx) => ({ id: ctx.params.id })).name("users.show");
+ * const url = app.route("users.show", { id: 123 });
  *
  * app.listen(3000);
  * ```
@@ -152,14 +230,33 @@ function toResponse(result: HandlerResponse): Response {
 export function createApp(): BunaryApp {
 	const routes: Route[] = [];
 	const middlewares: Middleware[] = [];
+	const namedRoutes: Map<string, Route> = new Map();
+
+	// Track the last registered route for chaining (name, where, etc.)
+	let lastRoute: Route | null = null;
 
 	/**
 	 * Register a route for a specific HTTP method.
 	 */
-	function addRoute(method: HttpMethod, path: string, handler: RouteHandler): BunaryApp {
-		const { pattern, paramNames } = compilePath(path);
-		routes.push({ method, path, pattern, paramNames, handler });
-		return app;
+	function addRoute(
+		method: HttpMethod,
+		path: string,
+		handler: RouteHandler,
+		groupMiddleware: Middleware[] = [],
+	): RouteBuilder {
+		const { pattern, paramNames, optionalParams } = compilePath(path);
+		const route: Route = {
+			method,
+			path,
+			pattern,
+			paramNames,
+			handler,
+			optionalParams,
+			middleware: groupMiddleware.length > 0 ? [...groupMiddleware] : undefined,
+		};
+		routes.push(route);
+		lastRoute = route;
+		return routeBuilder;
 	}
 
 	/**
@@ -168,11 +265,16 @@ export function createApp(): BunaryApp {
 	function findRoute(
 		method: string,
 		path: string,
-	): { route: Route; params: Record<string, string> } | null {
+	): { route: Route; params: Record<string, string | undefined> } | null {
 		for (const route of routes) {
 			if (route.pattern.test(path)) {
 				if (route.method === method) {
-					return { route, params: extractParams(path, route) };
+					const params = extractParams(path, route);
+					// Check constraints
+					if (!checkConstraints(params, route.constraints)) {
+						continue;
+					}
+					return { route, params };
 				}
 			}
 		}
@@ -183,7 +285,11 @@ export function createApp(): BunaryApp {
 	 * Check if any route matches the path (regardless of method).
 	 */
 	function hasMatchingPath(path: string): boolean {
-		return routes.some((route) => route.pattern.test(path));
+		return routes.some((route) => {
+			if (!route.pattern.test(path)) return false;
+			const params = extractParams(path, route);
+			return checkConstraints(params, route.constraints);
+		});
 	}
 
 	/**
@@ -215,17 +321,21 @@ export function createApp(): BunaryApp {
 		// Build request context
 		const ctx: RequestContext = {
 			request,
-			params: match.params,
+			params: match.params as Record<string, string>,
 			query: url.searchParams,
 		};
 
 		try {
-			// Execute middleware chain and handler
-			let index = 0;
+			// Build middleware chain: global -> route-specific
+			const allMiddleware = [...middlewares];
+			if (match.route.middleware) {
+				allMiddleware.push(...match.route.middleware);
+			}
 
+			let index = 0;
 			const next = async (): Promise<HandlerResponse> => {
-				if (index < middlewares.length) {
-					const middleware = middlewares[index++];
+				if (index < allMiddleware.length) {
+					const middleware = allMiddleware[index++];
 					return await middleware(ctx, next);
 				}
 				// All middleware done, call handler
@@ -244,107 +354,270 @@ export function createApp(): BunaryApp {
 		}
 	}
 
+	/**
+	 * Create a group router for defining routes within a group.
+	 */
+	function createGroupRouter(
+		prefix: string,
+		groupMiddleware: Middleware[],
+		namePrefix: string,
+	): GroupRouter {
+		const router: GroupRouter = {
+			get: (path, handler) => {
+				const fullPath = joinPaths(prefix, path);
+				const builder = addRoute("GET", fullPath, handler, groupMiddleware);
+				// Auto-apply name prefix if route gets named
+				return wrapBuilderWithNamePrefix(builder, namePrefix);
+			},
+			post: (path, handler) => {
+				const fullPath = joinPaths(prefix, path);
+				return wrapBuilderWithNamePrefix(
+					addRoute("POST", fullPath, handler, groupMiddleware),
+					namePrefix,
+				);
+			},
+			put: (path, handler) => {
+				const fullPath = joinPaths(prefix, path);
+				return wrapBuilderWithNamePrefix(
+					addRoute("PUT", fullPath, handler, groupMiddleware),
+					namePrefix,
+				);
+			},
+			delete: (path, handler) => {
+				const fullPath = joinPaths(prefix, path);
+				return wrapBuilderWithNamePrefix(
+					addRoute("DELETE", fullPath, handler, groupMiddleware),
+					namePrefix,
+				);
+			},
+			patch: (path, handler) => {
+				const fullPath = joinPaths(prefix, path);
+				return wrapBuilderWithNamePrefix(
+					addRoute("PATCH", fullPath, handler, groupMiddleware),
+					namePrefix,
+				);
+			},
+			group: ((prefixOrOptions: string | GroupOptions, callback: GroupCallback) => {
+				const opts =
+					typeof prefixOrOptions === "string" ? { prefix: prefixOrOptions } : prefixOrOptions;
+				const nestedPrefix = joinPaths(prefix, opts.prefix);
+				const nestedMiddleware = [...groupMiddleware, ...(opts.middleware ?? [])];
+				const nestedNamePrefix = namePrefix + (opts.name ?? "");
+				const nestedRouter = createGroupRouter(nestedPrefix, nestedMiddleware, nestedNamePrefix);
+				callback(nestedRouter);
+				return router;
+			}) as GroupRouter["group"],
+		};
+		return router;
+	}
+
+	/**
+	 * Wrap a route builder to auto-apply name prefix.
+	 */
+	function wrapBuilderWithNamePrefix(builder: RouteBuilder, namePrefix: string): RouteBuilder {
+		if (!namePrefix) return builder;
+
+		const originalName = builder.name;
+		return {
+			...builder,
+			name: (name: string) => {
+				return originalName(namePrefix + name);
+			},
+		};
+	}
+
+	/**
+	 * Add a constraint to a route parameter.
+	 */
+	function addConstraint(param: string, pattern: RegExp): void {
+		if (!lastRoute) return;
+		if (!lastRoute.constraints) {
+			lastRoute.constraints = {};
+		}
+		lastRoute.constraints[param] = pattern;
+	}
+
+	// Route builder provides fluent methods for the last registered route
+	const routeBuilder: RouteBuilder = {
+		// Forward all BunaryApp methods
+		get get() {
+			return app.get;
+		},
+		get post() {
+			return app.post;
+		},
+		get put() {
+			return app.put;
+		},
+		get delete() {
+			return app.delete;
+		},
+		get patch() {
+			return app.patch;
+		},
+		get use() {
+			return app.use;
+		},
+		get group() {
+			return app.group;
+		},
+		get route() {
+			return app.route;
+		},
+		get hasRoute() {
+			return app.hasRoute;
+		},
+		get getRoutes() {
+			return app.getRoutes;
+		},
+		get listen() {
+			return app.listen;
+		},
+		get fetch() {
+			return app.fetch;
+		},
+
+		// Route-specific methods
+		name: (name: string) => {
+			if (!lastRoute) {
+				throw new Error("No route to name");
+			}
+			if (namedRoutes.has(name)) {
+				throw new Error(`Route name "${name}" is already defined`);
+			}
+			lastRoute.name = name;
+			namedRoutes.set(name, lastRoute);
+			return routeBuilder;
+		},
+
+		where: ((
+			paramOrConstraints: string | Record<string, RegExp | string>,
+			pattern?: RegExp | string,
+		) => {
+			if (typeof paramOrConstraints === "string") {
+				// Single constraint: where("id", /^\d+$/)
+				if (!pattern) {
+					throw new Error(`Pattern is required for constraint on "${paramOrConstraints}"`);
+				}
+				const regex = typeof pattern === "string" ? new RegExp(pattern) : pattern;
+				addConstraint(paramOrConstraints, regex);
+			} else {
+				// Multiple constraints: where({ id: /^\d+$/, slug: /^[a-z-]+$/ })
+				for (const [param, pat] of Object.entries(paramOrConstraints)) {
+					const regex = typeof pat === "string" ? new RegExp(pat) : pat;
+					addConstraint(param, regex);
+				}
+			}
+			return routeBuilder;
+		}) as RouteBuilder["where"],
+
+		whereNumber: (param: string) => {
+			addConstraint(param, /^\d+$/);
+			return routeBuilder;
+		},
+
+		whereAlpha: (param: string) => {
+			addConstraint(param, /^[a-zA-Z]+$/);
+			return routeBuilder;
+		},
+
+		whereAlphaNumeric: (param: string) => {
+			addConstraint(param, /^[a-zA-Z0-9]+$/);
+			return routeBuilder;
+		},
+
+		whereUuid: (param: string) => {
+			addConstraint(param, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+			return routeBuilder;
+		},
+
+		whereUlid: (param: string) => {
+			addConstraint(param, /^[0-9A-HJKMNP-TV-Z]{26}$/);
+			return routeBuilder;
+		},
+
+		whereIn: (param: string, values: string[]) => {
+			const escaped = values.map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+			addConstraint(param, new RegExp(`^(${escaped.join("|")})$`));
+			return routeBuilder;
+		},
+	};
+
 	const app: BunaryApp = {
-		/**
-		 * Register a GET route.
-		 *
-		 * @param path - URL path pattern (supports :param syntax)
-		 * @param handler - Function to handle requests
-		 * @returns The app instance for chaining
-		 *
-		 * @example
-		 * ```ts
-		 * app.get("/users/:id", (ctx) => {
-		 *   return { id: ctx.params.id };
-		 * });
-		 * ```
-		 */
 		get: (path: string, handler: RouteHandler) => addRoute("GET", path, handler),
-
-		/**
-		 * Register a POST route.
-		 *
-		 * @param path - URL path pattern (supports :param syntax)
-		 * @param handler - Function to handle requests
-		 * @returns The app instance for chaining
-		 *
-		 * @example
-		 * ```ts
-		 * app.post("/users", async (ctx) => {
-		 *   const body = await ctx.request.json();
-		 *   return { created: true, data: body };
-		 * });
-		 * ```
-		 */
 		post: (path: string, handler: RouteHandler) => addRoute("POST", path, handler),
-
-		/**
-		 * Register a PUT route.
-		 *
-		 * @param path - URL path pattern (supports :param syntax)
-		 * @param handler - Function to handle requests
-		 * @returns The app instance for chaining
-		 */
 		put: (path: string, handler: RouteHandler) => addRoute("PUT", path, handler),
-
-		/**
-		 * Register a DELETE route.
-		 *
-		 * @param path - URL path pattern (supports :param syntax)
-		 * @param handler - Function to handle requests
-		 * @returns The app instance for chaining
-		 */
 		delete: (path: string, handler: RouteHandler) => addRoute("DELETE", path, handler),
-
-		/**
-		 * Register a PATCH route.
-		 *
-		 * @param path - URL path pattern (supports :param syntax)
-		 * @param handler - Function to handle requests
-		 * @returns The app instance for chaining
-		 */
 		patch: (path: string, handler: RouteHandler) => addRoute("PATCH", path, handler),
 
-		/**
-		 * Add middleware to the request pipeline.
-		 *
-		 * Middleware executes in registration order before route handlers.
-		 * Call `next()` to continue the chain.
-		 *
-		 * @param middleware - Middleware function
-		 * @returns The app instance for chaining
-		 *
-		 * @example
-		 * ```ts
-		 * app.use(async (ctx, next) => {
-		 *   console.log(`${ctx.request.method} ${ctx.request.url}`);
-		 *   const result = await next();
-		 *   console.log("Response sent");
-		 *   return result;
-		 * });
-		 * ```
-		 */
 		use: (middleware: Middleware) => {
 			middlewares.push(middleware);
 			return app;
 		},
 
-		/**
-		 * Start the HTTP server using Bun.serve.
-		 *
-		 * @param port - Port number to listen on (default: 3000)
-		 * @param hostname - Hostname to bind to (default: "localhost")
-		 * @returns Server instance with stop() method
-		 *
-		 * @example
-		 * ```ts
-		 * const server = app.listen(3000);
-		 * console.log(`Server running on http://localhost:${server.port}`);
-		 *
-		 * // Later...
-		 * server.stop();
-		 * ```
-		 */
+		group: ((prefixOrOptions: string | GroupOptions, callback: GroupCallback) => {
+			const opts =
+				typeof prefixOrOptions === "string" ? { prefix: prefixOrOptions } : prefixOrOptions;
+			const groupRouter = createGroupRouter(opts.prefix, opts.middleware ?? [], opts.name ?? "");
+			callback(groupRouter);
+			return app;
+		}) as BunaryApp["group"],
+
+		route: (name: string, params?: Record<string, string | number>) => {
+			const route = namedRoutes.get(name);
+			if (!route) {
+				throw new Error(`Route "${name}" not found`);
+			}
+
+			let url = route.path;
+			const queryParams: Record<string, string> = {};
+			const usedParams = new Set<string>();
+
+			// Replace path parameters
+			for (const paramName of route.paramNames) {
+				const isOptional = route.optionalParams?.includes(paramName);
+				const value = params?.[paramName];
+
+				if (value !== undefined) {
+					url = url.replace(new RegExp(`:${paramName}\\??`), encodeURIComponent(String(value)));
+					usedParams.add(paramName);
+				} else if (isOptional) {
+					// Remove optional param placeholder
+					url = url.replace(new RegExp(`/:${paramName}\\?`), "");
+				} else {
+					throw new Error(`Missing required param "${paramName}" for route "${name}"`);
+				}
+			}
+
+			// Add extra params as query string
+			if (params) {
+				for (const [key, value] of Object.entries(params)) {
+					if (!usedParams.has(key)) {
+						queryParams[key] = String(value);
+					}
+				}
+			}
+
+			if (Object.keys(queryParams).length > 0) {
+				const qs = new URLSearchParams(queryParams).toString();
+				url += `?${qs}`;
+			}
+
+			return url;
+		},
+
+		hasRoute: (name: string) => {
+			return namedRoutes.has(name);
+		},
+
+		getRoutes: (): RouteInfo[] => {
+			return routes.map((route) => ({
+				name: route.name ?? null,
+				method: route.method,
+				path: route.path,
+			}));
+		},
+
 		listen: (port = 3000, hostname = "localhost"): BunaryServer => {
 			const server = Bun.serve({
 				port,
@@ -360,22 +633,6 @@ export function createApp(): BunaryApp {
 			};
 		},
 
-		/**
-		 * Handle an incoming request directly.
-		 *
-		 * Useful for testing without starting a server.
-		 *
-		 * @param request - The incoming Request object
-		 * @returns Response object
-		 *
-		 * @example
-		 * ```ts
-		 * const response = await app.fetch(
-		 *   new Request("http://localhost/users/123")
-		 * );
-		 * const data = await response.json();
-		 * ```
-		 */
 		fetch: handleRequest,
 	};
 
