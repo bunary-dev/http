@@ -375,7 +375,7 @@ app.get('/posts/:id?', (ctx) => ({})).whereNumber('id');
 
 ## Error Handling
 
-Uncaught errors in handlers return a 500 response:
+Uncaught errors in handlers return a 500 response with the error message:
 
 ```typescript
 app.get('/error', () => {
@@ -383,7 +383,7 @@ app.get('/error', () => {
 });
 
 // Returns: 500 Internal Server Error
-// Body: { error: "Internal Server Error" }
+// Body: { error: "Something went wrong" }
 ```
 
 ## Types
