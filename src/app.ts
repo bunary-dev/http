@@ -60,6 +60,31 @@ export function createApp(): BunaryApp {
 	const middlewares: Middleware[] = [];
 	const namedRoutes: Map<string, Route> = new Map();
 
+	// Cache for combined middleware chains per route
+	// Invalidated when global middleware changes
+	let globalMiddlewareVersion = 0;
+	const middlewareCache = new WeakMap<Route, { version: number; chain: Middleware[] }>();
+
+	/**
+	 * Get the combined middleware chain for a route (cached).
+	 */
+	function getMiddlewareChain(route: Route): Middleware[] {
+		const cached = middlewareCache.get(route);
+		if (cached && cached.version === globalMiddlewareVersion) {
+			return cached.chain;
+		}
+
+		// Build and cache the chain
+		const chain = route.middleware
+			? [...middlewares, ...route.middleware]
+			: middlewares.length > 0
+				? [...middlewares]
+				: [];
+
+		middlewareCache.set(route, { version: globalMiddlewareVersion, chain });
+		return chain;
+	}
+
 	/**
 	 * Register a route for a specific HTTP method.
 	 */
@@ -117,11 +142,8 @@ export function createApp(): BunaryApp {
 		};
 
 		try {
-			// Build middleware chain: global -> route-specific
-			const allMiddleware = [...middlewares];
-			if (match.route.middleware) {
-				allMiddleware.push(...match.route.middleware);
-			}
+			// Get cached middleware chain for this route
+			const allMiddleware = getMiddlewareChain(match.route);
 
 			let index = 0;
 			const next = async (): Promise<HandlerResponse> => {
@@ -154,6 +176,8 @@ export function createApp(): BunaryApp {
 
 		use: (middleware: Middleware) => {
 			middlewares.push(middleware);
+			// Invalidate cached middleware chains
+			globalMiddlewareVersion++;
 			return app;
 		},
 
