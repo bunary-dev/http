@@ -45,7 +45,7 @@ describe("Optional Route Parameters", () => {
 			expect(await res.json()).toEqual({ id: null });
 		});
 
-		it("should set undefined for omitted optional param", async () => {
+		it("should omit optional param from params when not provided", async () => {
 			const app = createApp();
 
 			app.get("/users/:id?", (ctx) => ({
@@ -54,7 +54,8 @@ describe("Optional Route Parameters", () => {
 			}));
 
 			const res = await app.fetch(new Request("http://localhost/users"));
-			const data = (await res.json()) as { id?: string };
+			const data = (await res.json()) as { hasId: boolean; id?: string };
+			expect(data.hasId).toBe(false);
 			expect(data.id).toBeUndefined();
 		});
 	});
