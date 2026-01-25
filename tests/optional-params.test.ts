@@ -1,8 +1,5 @@
 /**
  * Optional Parameters Tests
- *
- * TDD Red Phase: These tests define the expected behavior for optional
- * route parameters. Tests should FAIL until the feature is implemented.
  */
 import { describe, expect, it } from "bun:test";
 import { createApp } from "../src/index.js";
