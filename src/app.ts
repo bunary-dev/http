@@ -1,4 +1,4 @@
-import { joinPaths, normalizePrefix } from "./pathUtils.js";
+import { joinPaths } from "./pathUtils.js";
 import { toResponse } from "./response.js";
 import { checkConstraints, compilePath, extractParams } from "./router.js";
 /**
