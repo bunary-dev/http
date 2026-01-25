@@ -225,4 +225,49 @@ describe("Named Routes", () => {
 			expect(slugRoute.status).toBe(200);
 		});
 	});
+
+	describe("parameter validation", () => {
+		it("should reject parameter values with newlines", () => {
+			const app = createApp();
+			app.get("/users/:id", () => ({})).name("users.show");
+
+			expect(() => app.route("users.show", { id: "123\n456" })).toThrow(
+				/Invalid character in parameter "id"/,
+			);
+		});
+
+		it("should reject parameter values with carriage returns", () => {
+			const app = createApp();
+			app.get("/users/:id", () => ({})).name("users.show");
+
+			expect(() => app.route("users.show", { id: "123\r456" })).toThrow(
+				/Invalid character in parameter "id"/,
+			);
+		});
+
+		it("should reject parameter values with null bytes", () => {
+			const app = createApp();
+			app.get("/users/:id", () => ({})).name("users.show");
+
+			expect(() => app.route("users.show", { id: "123\x00456" })).toThrow(
+				/Invalid character in parameter "id"/,
+			);
+		});
+
+		it("should allow normal parameter values", () => {
+			const app = createApp();
+			app.get("/users/:id", () => ({})).name("users.show");
+
+			expect(app.route("users.show", { id: "user-123_abc" })).toBe("/users/user-123_abc");
+		});
+
+		it("should validate query parameters too", () => {
+			const app = createApp();
+			app.get("/users", () => ({})).name("users.index");
+
+			expect(() => app.route("users.index", { sort: "name\ninjected" })).toThrow(
+				/Invalid character in parameter "sort"/,
+			);
+		});
+	});
 });

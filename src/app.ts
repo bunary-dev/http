@@ -176,6 +176,20 @@ export function createApp(): BunaryApp {
 				throw new Error(`Route "${name}" not found`);
 			}
 
+			// Validate parameter values to prevent injection attacks
+			// Reject control characters that could cause HTTP header injection
+			if (params) {
+				for (const [key, value] of Object.entries(params)) {
+					const strValue = String(value);
+					// Check for CR, LF, or NUL characters (HTTP header injection vectors)
+					if (strValue.includes("\r") || strValue.includes("\n") || strValue.includes("\0")) {
+						throw new Error(
+							`Invalid character in parameter "${key}": control characters are not allowed`,
+						);
+					}
+				}
+			}
+
 			let url = route.path;
 			const queryParams: Record<string, string> = {};
 			const usedParams = new Set<string>();
