@@ -278,6 +278,19 @@ export function createApp(): BunaryApp {
 		lastRoute.constraints[param] = pattern;
 	}
 
+	/**
+	 * Safely compile a string pattern to RegExp with error handling.
+	 * Provides better error messages for invalid regex patterns.
+	 */
+	function compilePattern(pattern: string, param: string): RegExp {
+		try {
+			return new RegExp(pattern);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Invalid pattern";
+			throw new Error(`Invalid regex pattern for parameter "${param}": ${message}`);
+		}
+	}
+
 	// Route builder provides fluent methods for the last registered route
 	const routeBuilder: RouteBuilder = {
 		// Forward all BunaryApp methods
@@ -340,12 +353,13 @@ export function createApp(): BunaryApp {
 				if (!pattern) {
 					throw new Error(`Pattern is required for constraint on "${paramOrConstraints}"`);
 				}
-				const regex = typeof pattern === "string" ? new RegExp(pattern) : pattern;
+				const regex =
+					typeof pattern === "string" ? compilePattern(pattern, paramOrConstraints) : pattern;
 				addConstraint(paramOrConstraints, regex);
 			} else {
 				// Multiple constraints: where({ id: /^\d+$/, slug: /^[a-z-]+$/ })
 				for (const [param, pat] of Object.entries(paramOrConstraints)) {
-					const regex = typeof pat === "string" ? new RegExp(pat) : pat;
+					const regex = typeof pat === "string" ? compilePattern(pat, param) : pat;
 					addConstraint(param, regex);
 				}
 			}

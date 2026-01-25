@@ -210,4 +210,25 @@ describe("Route Constraints", () => {
 			expect(invalid.status).toBe(404);
 		});
 	});
+
+	describe("error handling", () => {
+		it("should throw descriptive error for invalid regex pattern", () => {
+			const app = createApp();
+
+			expect(() => {
+				app.get("/users/:id", () => ({})).where("id", "(?<");
+			}).toThrow('Invalid regex pattern for parameter "id"');
+		});
+
+		it("should throw descriptive error for invalid pattern in object syntax", () => {
+			const app = createApp();
+
+			expect(() => {
+				app.get("/users/:id/posts/:slug", () => ({})).where({
+					id: "^\\d+$",
+					slug: "[invalid",
+				});
+			}).toThrow('Invalid regex pattern for parameter "slug"');
+		});
+	});
 });
