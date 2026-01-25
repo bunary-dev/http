@@ -38,6 +38,7 @@ export function normalizePrefix(prefix: string): string {
  * joinPaths("/api", "/users")  // "/api/users"
  * joinPaths("/api", "users")   // "/api/users"
  * joinPaths("/api/", "/users") // "/api/users"
+ * joinPaths("/", "/")          // "/"
  * ```
  */
 export function joinPaths(prefix: string, path: string): string {
@@ -46,6 +47,11 @@ export function joinPaths(prefix: string, path: string): string {
 
 	if (!normalizedPath.startsWith("/") && normalizedPath !== "") {
 		normalizedPath = `/${normalizedPath}`;
+	}
+
+	// Handle edge case: path is just "/" - treat as empty (root)
+	if (normalizedPath === "/") {
+		return normalizedPrefix;
 	}
 
 	return normalizedPrefix + normalizedPath;
