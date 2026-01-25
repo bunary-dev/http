@@ -24,6 +24,9 @@ export type {
 	AppOptions,
 	BunaryApp,
 	BunaryServer,
+	GroupCallback,
+	GroupOptions,
+	GroupRouter,
 	HandlerResponse,
 	HttpMethod,
 	Middleware,
@@ -31,7 +34,9 @@ export type {
 	QueryParams,
 	RequestContext,
 	Route,
+	RouteBuilder,
 	RouteHandler,
+	RouteInfo,
 } from "./types/index.js";
 
 // Export app factory (to be implemented)
