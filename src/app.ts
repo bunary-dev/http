@@ -112,7 +112,7 @@ export function createApp(): BunaryApp {
 		// Build request context
 		const ctx: RequestContext = {
 			request,
-			params: match.params as Record<string, string>,
+			params: match.params,
 			query: url.searchParams,
 		};
 
