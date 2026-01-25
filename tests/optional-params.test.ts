@@ -183,4 +183,66 @@ describe("Optional Route Parameters", () => {
 			expect(await res.json()).toEqual({ query: null });
 		});
 	});
+
+	describe("trailing slash handling with multiple optional params", () => {
+		/**
+		 * The regex pattern for optional parameters (?:/([^/]+))? matches "/" followed by
+		 * any non-slash characters, or nothing. With multiple consecutive optional params,
+		 * trailing slashes are handled consistently by the trailing slash normalization.
+		 *
+		 * For /archive/:year?/:month?, the pattern becomes /archive(?:/([^/]+))?(?:/([^/]+))?
+		 * All trailing slash variations are treated the same as their non-trailing equivalents.
+		 */
+
+		it("should handle trailing slashes consistently with no optional params provided", async () => {
+			const app = createApp();
+
+			app.get("/archive/:year?/:month?", (ctx) => ({
+				year: ctx.params.year,
+				month: ctx.params.month,
+			}));
+
+			const noSlash = await app.fetch(new Request("http://localhost/archive"));
+			const withSlash = await app.fetch(new Request("http://localhost/archive/"));
+
+			expect(noSlash.status).toBe(200);
+			expect(withSlash.status).toBe(200);
+			expect(await noSlash.json()).toEqual({ year: undefined, month: undefined });
+			expect(await withSlash.json()).toEqual({ year: undefined, month: undefined });
+		});
+
+		it("should handle trailing slashes consistently with one optional param provided", async () => {
+			const app = createApp();
+
+			app.get("/archive/:year?/:month?", (ctx) => ({
+				year: ctx.params.year,
+				month: ctx.params.month,
+			}));
+
+			const noSlash = await app.fetch(new Request("http://localhost/archive/2024"));
+			const withSlash = await app.fetch(new Request("http://localhost/archive/2024/"));
+
+			expect(noSlash.status).toBe(200);
+			expect(withSlash.status).toBe(200);
+			expect(await noSlash.json()).toEqual({ year: "2024", month: undefined });
+			expect(await withSlash.json()).toEqual({ year: "2024", month: undefined });
+		});
+
+		it("should handle trailing slashes consistently with all optional params provided", async () => {
+			const app = createApp();
+
+			app.get("/archive/:year?/:month?", (ctx) => ({
+				year: ctx.params.year,
+				month: ctx.params.month,
+			}));
+
+			const noSlash = await app.fetch(new Request("http://localhost/archive/2024/12"));
+			const withSlash = await app.fetch(new Request("http://localhost/archive/2024/12/"));
+
+			expect(noSlash.status).toBe(200);
+			expect(withSlash.status).toBe(200);
+			expect(await noSlash.json()).toEqual({ year: "2024", month: "12" });
+			expect(await withSlash.json()).toEqual({ year: "2024", month: "12" });
+		});
+	});
 });
