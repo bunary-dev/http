@@ -11,6 +11,10 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem - a Bun-first back
 - 🔒 **Type-safe** - Full TypeScript support with strict types
 - ⚡ **Fast** - Minimal overhead, direct routing
 - 🧩 **Simple API** - Chainable route registration with automatic JSON serialization
+- 📂 **Route Groups** - Organize routes with shared prefixes, middleware, and name prefixes
+- 🏷️ **Named Routes** - URL generation with route names
+- ✅ **Route Constraints** - Validate parameters with regex patterns
+- ❓ **Optional Parameters** - Flexible routes with optional path segments
 
 ## Installation
 
@@ -215,9 +219,163 @@ app.use(async (ctx, next) => {
 });
 ```
 
+## Route Groups
+
+Group routes together with shared prefixes, middleware, and name prefixes.
+
+### Basic Groups
+
+```typescript
+// Simple prefix
+app.group('/api', (router) => {
+  router.get('/users', () => ({ users: [] }));     // /api/users
+  router.get('/posts', () => ({ posts: [] }));     // /api/posts
+});
+```
+
+### Groups with Options
+
+```typescript
+// Auth middleware for protected routes
+const authMiddleware = async (ctx, next) => {
+  const token = ctx.request.headers.get('Authorization');
+  if (!token) return new Response('Unauthorized', { status: 401 });
+  return await next();
+};
+
+app.group({
+  prefix: '/admin',
+  middleware: [authMiddleware],
+  name: 'admin.'
+}, (router) => {
+  router.get('/dashboard', () => ({})).name('dashboard');  // name: admin.dashboard
+  router.get('/users', () => ({})).name('users');          // name: admin.users
+});
+```
+
+### Nested Groups
+
+```typescript
+app.group('/api', (api) => {
+  api.group('/v1', (v1) => {
+    v1.get('/users', () => ({}));  // /api/v1/users
+  });
+  api.group('/v2', (v2) => {
+    v2.get('/users', () => ({}));  // /api/v2/users
+  });
+});
+```
+
+## Named Routes
+
+Assign names to routes for URL generation.
+
+### Naming Routes
+
+```typescript
+app.get('/users/:id', (ctx) => ({})).name('users.show');
+app.get('/posts/:slug', (ctx) => ({})).name('posts.show');
+```
+
+### Generating URLs
+
+```typescript
+// Basic URL generation
+const url = app.route('users.show', { id: 42 });
+// "/users/42"
+
+// With query string
+const searchUrl = app.route('users.show', { id: 42, tab: 'profile' });
+// "/users/42?tab=profile"
+
+// Check if route exists
+if (app.hasRoute('users.show')) {
+  // ...
+}
+
+// List all routes
+const routes = app.getRoutes();
+// [{ name: 'users.show', method: 'GET', path: '/users/:id' }, ...]
+```
+
+## Route Constraints
+
+Add regex constraints to validate route parameters.
+
+### Basic Constraints
+
+```typescript
+// Only match if :id is numeric
+app.get('/users/:id', (ctx) => ({}))
+  .where('id', /^\d+$/);
+
+// Using string pattern
+app.get('/posts/:slug', (ctx) => ({}))
+  .where('slug', '^[a-z0-9-]+$');
+
+// Multiple constraints
+app.get('/users/:id/posts/:postId', (ctx) => ({}))
+  .where({ id: /^\d+$/, postId: /^\d+$/ });
+```
+
+### Helper Methods
+
+```typescript
+// whereNumber - digits only
+app.get('/users/:id', () => ({})).whereNumber('id');
+
+// whereAlpha - letters only (a-zA-Z)
+app.get('/categories/:name', () => ({})).whereAlpha('name');
+
+// whereAlphaNumeric - letters and digits
+app.get('/codes/:code', () => ({})).whereAlphaNumeric('code');
+
+// whereUuid - UUID format
+app.get('/items/:uuid', () => ({})).whereUuid('uuid');
+
+// whereUlid - ULID format
+app.get('/records/:ulid', () => ({})).whereUlid('ulid');
+
+// whereIn - specific allowed values
+app.get('/status/:status', () => ({})).whereIn('status', ['active', 'pending', 'archived']);
+```
+
+### Chaining Constraints
+
+```typescript
+app.get('/users/:id/posts/:slug', (ctx) => ({}))
+  .whereNumber('id')
+  .whereAlpha('slug')
+  .name('users.posts');
+```
+
+## Optional Parameters
+
+Use `?` to mark route parameters as optional.
+
+```typescript
+// :id is optional
+app.get('/users/:id?', (ctx) => {
+  if (ctx.params.id) {
+    return { user: ctx.params.id };
+  }
+  return { users: [] };
+});
+
+// Multiple optional params
+app.get('/archive/:year?/:month?', (ctx) => {
+  const { year, month } = ctx.params;
+  // year and month may be undefined
+  return { year, month };
+});
+
+// Constraints work with optional params
+app.get('/posts/:id?', (ctx) => ({})).whereNumber('id');
+```
+
 ## Error Handling
 
-Uncaught errors in handlers return a 500 response:
+Uncaught errors in handlers return a 500 response with the error message:
 
 ```typescript
 app.get('/error', () => {
@@ -225,7 +383,7 @@ app.get('/error', () => {
 });
 
 // Returns: 500 Internal Server Error
-// Body: { error: "Internal Server Error" }
+// Body: { error: "Something went wrong" }
 ```
 
 ## Types
@@ -238,7 +396,12 @@ import type {
   BunaryServer,
   RequestContext, 
   RouteHandler,
-  Middleware 
+  Middleware,
+  RouteBuilder,
+  GroupOptions,
+  GroupRouter,
+  GroupCallback,
+  RouteInfo
 } from '@bunary/http';
 ```
 

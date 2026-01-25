@@ -16,7 +16,7 @@ describe("createApp()", () => {
 		expect(typeof app.fetch).toBe("function");
 	});
 
-	test("routing methods return the app for chaining", () => {
+	test("routing methods return a chainable builder", () => {
 		const app = createApp();
 
 		const result = app
@@ -26,7 +26,15 @@ describe("createApp()", () => {
 			.delete("/", () => ({}))
 			.patch("/", () => ({}));
 
-		expect(result).toBe(app);
+		// RouteBuilder should have all the same methods as the app
+		expect(typeof result.get).toBe("function");
+		expect(typeof result.post).toBe("function");
+		expect(typeof result.put).toBe("function");
+		expect(typeof result.delete).toBe("function");
+		expect(typeof result.patch).toBe("function");
+		expect(typeof result.use).toBe("function");
+		expect(typeof result.listen).toBe("function");
+		expect(typeof result.fetch).toBe("function");
 	});
 });
 

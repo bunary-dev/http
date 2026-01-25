@@ -111,4 +111,12 @@ describe("Query Parameters", () => {
 		expect(response.status).toBe(200);
 		expect(await response.json()).toEqual({ userId: "123", sort: "date" });
 	});
+
+	test("throws error for duplicate parameter names", () => {
+		const app = createApp();
+
+		expect(() => {
+			app.get("/users/:id/posts/:id", () => ({}));
+		}).toThrow('Duplicate parameter name ":id" in route pattern "/users/:id/posts/:id"');
+	});
 });
