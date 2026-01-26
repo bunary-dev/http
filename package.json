@@ -37,6 +37,10 @@
     "type": "git",
     "url": "https://github.com/bunary-dev/http.git"
   },
+  "homepage": "https://github.com/bunary-dev/http#readme",
+  "bugs": {
+    "url": "https://github.com/bunary-dev/http/issues"
+  },
   "engines": {
     "bun": ">=1.0.0"
   },

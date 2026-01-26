@@ -5,6 +5,40 @@ All notable changes to `@bunary/http` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.4] - 2026-01-26
+
+### Added
+
+- Optional route parameters using `:param?` syntax
+  - Routes can match with or without optional parameters
+  - Optional params are `undefined` in `ctx.params` when not provided
+  - Supports multiple optional parameters in a single route
+  - Works with route constraints
+- Comprehensive test suite for optional parameters
+
+## [0.0.3] - 2026-01-26
+
+### Added
+
+- Route Groups with `app.group()` method
+  - Prefix routes with shared path prefix
+  - Apply middleware to groups of routes
+  - Add name prefixes for named routes in groups
+  - Support nested groups
+- Named Routes with `.name()` method
+  - Assign names to routes for URL generation
+  - Generate URLs with `app.route(name, params)`
+  - Check route existence with `app.hasRoute(name)`
+  - List all routes with `app.getRoutes()`
+  - Support query string parameters in URL generation
+- Route Constraints with `.where()` method
+  - Validate route parameters with regex patterns
+  - Helper methods: `whereNumber()`, `whereAlpha()`, `whereAlphaNumeric()`, `whereUuid()`, `whereUlid()`, `whereIn()`
+  - Support string or RegExp patterns
+  - Multiple constraints per route
+  - Constraints work with optional parameters
+- Comprehensive test suites for groups, named routes, and constraints
+
 ## [0.0.2] - 2026-01-24
 
 ### Added
