@@ -1,6 +1,6 @@
 {
   "name": "@bunary/http",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "HTTP routing and middleware for Bunary - a Bun-first backend framework inspired by Laravel",
   "type": "module",
   "main": "./dist/index.js",
@@ -36,6 +36,10 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/bunary-dev/http.git"
+  },
+  "homepage": "https://github.com/bunary-dev/http#readme",
+  "bugs": {
+    "url": "https://github.com/bunary-dev/http/issues"
   },
   "engines": {
     "bun": ">=1.0.0"
