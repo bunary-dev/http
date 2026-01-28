@@ -5,6 +5,16 @@ All notable changes to `@bunary/http` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.8] - 2026-01-29
+
+### Added
+
+- `createApp({ basePath })` option to prefix all routes (feature #18)
+  - Base path is automatically normalized (leading slash added, trailing slash removed)
+  - Composes correctly with route groups: `basePath + group prefix + route path`
+  - Included in `app.route()` URL generation for named routes
+  - Useful when mounting the app behind a reverse proxy
+
 ## [0.0.7] - 2026-01-29
 
 ### Added

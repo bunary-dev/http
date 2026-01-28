@@ -1,3 +1,4 @@
+import { joinPaths, normalizePrefix } from "./pathUtils.js";
 import { toResponse } from "./response.js";
 import { compilePath } from "./router.js";
 import {
@@ -7,6 +8,7 @@ import {
 	hasMatchingPath,
 } from "./routes/index.js";
 import type {
+	AppOptions,
 	BunaryApp,
 	BunaryServer,
 	GroupCallback,
@@ -54,11 +56,29 @@ import type {
  *
  * app.listen(3000);
  * ```
+ *
+ * @param options - Optional configuration
+ * @param options.basePath - Base path prefix for all routes (e.g., "/api")
+ * @returns BunaryApp instance
+ *
+ * @example
+ * ```ts
+ * // Without basePath
+ * const app = createApp();
+ * app.get("/users", () => ({})); // Matches /users
+ *
+ * // With basePath
+ * const apiApp = createApp({ basePath: "/api" });
+ * apiApp.get("/users", () => ({})); // Matches /api/users
+ * ```
  */
-export function createApp(): BunaryApp {
+export function createApp(options?: AppOptions): BunaryApp {
 	const routes: Route[] = [];
 	const middlewares: Middleware[] = [];
 	const namedRoutes: Map<string, Route> = new Map();
+	// Normalize basePath: "/" is treated as empty (no prefix)
+	const normalizedBasePath = options?.basePath ? normalizePrefix(options.basePath) : "";
+	const basePath = normalizedBasePath === "/" ? "" : normalizedBasePath;
 
 	// Cache for combined middleware chains per route
 	// Invalidated when global middleware changes
@@ -94,10 +114,12 @@ export function createApp(): BunaryApp {
 		handler: RouteHandler,
 		groupMiddleware: Middleware[] = [],
 	): RouteBuilder {
-		const { pattern, paramNames, optionalParams } = compilePath(path);
+		// Apply basePath prefix to the route path
+		const fullPath = basePath ? joinPaths(basePath, path) : path;
+		const { pattern, paramNames, optionalParams } = compilePath(fullPath);
 		const route: Route = {
 			method,
-			path,
+			path: fullPath,
 			pattern,
 			paramNames,
 			handler,
@@ -185,6 +207,8 @@ export function createApp(): BunaryApp {
 		group: ((prefixOrOptions: string | GroupOptions, callback: GroupCallback) => {
 			const opts =
 				typeof prefixOrOptions === "string" ? { prefix: prefixOrOptions } : prefixOrOptions;
+			// Groups work relative to basePath - createGroupRouter will call addRoute
+			// which applies basePath, so we pass the group prefix as-is
 			const groupRouter = createGroupRouter(
 				opts.prefix,
 				opts.middleware ?? [],

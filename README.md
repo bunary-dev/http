@@ -40,15 +40,26 @@ app.listen({ port: 3000 });
 
 ## API
 
-### `createApp()`
+### `createApp(options?)`
 
 Creates a new Bunary application instance.
 
 ```typescript
 import { createApp } from '@bunary/http';
 
+// Without basePath
 const app = createApp();
+
+// With basePath (prefixes all routes)
+const apiApp = createApp({ basePath: '/api' });
+apiApp.get('/users', () => ({})); // Matches /api/users
 ```
+
+**Options:**
+- `basePath` - Optional base path prefix for all routes (useful when mounting behind a reverse proxy)
+  - Automatically normalized (leading slash added, trailing slash removed)
+  - Composes with route groups: `basePath + group prefix + route path`
+  - Included in `app.route()` URL generation
 
 ### Route Registration
 
