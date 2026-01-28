@@ -155,4 +155,40 @@ describe("listen()", () => {
 
 		server.stop();
 	});
+
+	test("listen() with no arguments uses defaults", () => {
+		const app = createApp();
+		app.get("/", () => ({}));
+
+		const server = app.listen();
+
+		expect(server.port).toBe(3000);
+		expect(server.hostname).toBe("localhost");
+
+		server.stop();
+	});
+
+	test("listen(port) with only port argument uses default hostname", () => {
+		const app = createApp();
+		app.get("/", () => ({}));
+
+		const server = app.listen(0);
+
+		expect(server.port).toBeGreaterThanOrEqual(0);
+		expect(server.hostname).toBe("localhost");
+
+		server.stop();
+	});
+
+	test("listen({}) with empty object uses defaults", () => {
+		const app = createApp();
+		app.get("/", () => ({}));
+
+		const server = app.listen({});
+
+		expect(server.port).toBe(3000);
+		expect(server.hostname).toBe("localhost");
+
+		server.stop();
+	});
 });
