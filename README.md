@@ -4,6 +4,10 @@ A lightweight, type-safe HTTP framework built exclusively for [Bun](https://bun.
 
 Part of the [Bunary](https://github.com/bunary-dev) ecosystem - a Bun-first backend platform inspired by Laravel.
 
+## Documentation
+
+Canonical documentation for this package lives in [`docs/index.md`](./docs/index.md).
+
 ## Features
 
 - 🚀 **Bun-native** - Uses `Bun.serve()` directly, no Node.js compatibility layer
