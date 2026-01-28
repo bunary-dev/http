@@ -5,9 +5,14 @@ import type { AppOptions, RequestContext } from "../types/index.js";
  * Handle 500 Internal Server Error responses.
  * Uses custom onError handler if provided, otherwise returns default JSON response.
  */
-export function handleError(ctx: RequestContext, error: unknown, options?: AppOptions): Response {
+export async function handleError(
+	ctx: RequestContext,
+	error: unknown,
+	options?: AppOptions,
+): Promise<Response> {
 	if (options?.onError) {
-		return toResponse(options.onError(ctx, error));
+		const result = await options.onError(ctx, error);
+		return toResponse(result);
 	}
 	const message = error instanceof Error ? error.message : "Internal server error";
 	return new Response(JSON.stringify({ error: message }), {

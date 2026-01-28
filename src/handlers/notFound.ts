@@ -5,7 +5,11 @@ import type { AppOptions, RequestContext } from "../types/index.js";
  * Handle 404 Not Found responses.
  * Uses custom onNotFound handler if provided, otherwise returns default JSON response.
  */
-export function handleNotFound(request: Request, _path: string, options?: AppOptions): Response {
+export async function handleNotFound(
+	request: Request,
+	_path: string,
+	options?: AppOptions,
+): Promise<Response> {
 	const url = new URL(request.url);
 	const notFoundCtx: RequestContext = {
 		request,
@@ -14,7 +18,8 @@ export function handleNotFound(request: Request, _path: string, options?: AppOpt
 		locals: {},
 	};
 	if (options?.onNotFound) {
-		return toResponse(options.onNotFound(notFoundCtx));
+		const result = await options.onNotFound(notFoundCtx);
+		return toResponse(result);
 	}
 	return new Response(JSON.stringify({ error: "Not found" }), {
 		status: 404,

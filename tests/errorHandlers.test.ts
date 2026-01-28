@@ -334,6 +334,87 @@ describe("Configurable Error Handlers", () => {
 		});
 	});
 
+	describe("Async handlers", () => {
+		test("onNotFound supports async handlers", async () => {
+			let logged = false;
+			const app = createApp({
+				onNotFound: async (ctx) => {
+					// Simulate async operation (e.g., logging to external service)
+					await new Promise((resolve) => setTimeout(resolve, 10));
+					logged = true;
+					return new Response("Async 404", { status: 404 });
+				},
+			});
+			app.get("/users", () => ({ users: [] }));
+
+			const response = await app.fetch(new Request("http://localhost/posts"));
+
+			expect(response.status).toBe(404);
+			expect(await response.text()).toBe("Async 404");
+			expect(logged).toBe(true);
+		});
+
+		test("onMethodNotAllowed supports async handlers", async () => {
+			let logged = false;
+			const app = createApp({
+				onMethodNotAllowed: async (ctx, allowed) => {
+					await new Promise((resolve) => setTimeout(resolve, 10));
+					logged = true;
+					return new Response(
+						JSON.stringify({ error: "Method not allowed", allowed }),
+						{ status: 405, headers: { "Content-Type": "application/json" } },
+					);
+				},
+			});
+			app.get("/users", () => ({ users: [] }));
+
+			const response = await app.fetch(new Request("http://localhost/users", { method: "PUT" }));
+
+			expect(response.status).toBe(405);
+			const body = (await response.json()) as { error: string; allowed: string[] };
+			expect(body.error).toBe("Method not allowed");
+			expect(logged).toBe(true);
+		});
+
+		test("onError supports async handlers", async () => {
+			let logged = false;
+			const app = createApp({
+				onError: async (ctx, error) => {
+					// Simulate async error logging
+					await new Promise((resolve) => setTimeout(resolve, 10));
+					logged = true;
+					return new Response("Async error", { status: 500 });
+				},
+			});
+			app.get("/error", () => {
+				throw new Error("Test error");
+			});
+
+			const response = await app.fetch(new Request("http://localhost/error"));
+
+			expect(response.status).toBe(500);
+			expect(await response.text()).toBe("Async error");
+			expect(logged).toBe(true);
+		});
+
+		test("async handlers can return HandlerResponse objects", async () => {
+			const app = createApp({
+				onNotFound: async () => {
+					await new Promise((resolve) => setTimeout(resolve, 10));
+					return { error: "Not found", async: true };
+				},
+			});
+			app.get("/users", () => ({ users: [] }));
+
+			const response = await app.fetch(new Request("http://localhost/posts"));
+
+			expect(response.status).toBe(200);
+			const body = (await response.json()) as { error: string; async: boolean };
+			expect(body.error).toBe("Not found");
+			expect(body.async).toBe(true);
+		});
+	});
+
 	describe("Combined handlers", () => {
 		test("all handlers can be used together", async () => {
 			const app = createApp({
