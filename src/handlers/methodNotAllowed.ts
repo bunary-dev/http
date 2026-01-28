@@ -7,12 +7,12 @@ import type { AppOptions, RequestContext, Route } from "../types/index.js";
  * Uses custom onMethodNotAllowed handler if provided, otherwise returns default JSON response.
  * Ensures Allow header is always present.
  */
-export function handleMethodNotAllowed(
+export async function handleMethodNotAllowed(
 	request: Request,
 	path: string,
 	routes: Route[],
 	options?: AppOptions,
-): Response {
+): Promise<Response> {
 	const url = new URL(request.url);
 	const allowedMethods = getAllowedMethods(routes, path);
 	const methodNotAllowedCtx: RequestContext = {
@@ -22,7 +22,8 @@ export function handleMethodNotAllowed(
 		locals: {},
 	};
 	if (options?.onMethodNotAllowed) {
-		const response = toResponse(options.onMethodNotAllowed(methodNotAllowedCtx, allowedMethods));
+		const result = await options.onMethodNotAllowed(methodNotAllowedCtx, allowedMethods);
+		const response = toResponse(result);
 		// Ensure Allow header is present even with custom handler
 		const allowHeader = response.headers.get("Allow");
 		if (!allowHeader) {

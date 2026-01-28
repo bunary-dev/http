@@ -147,7 +147,7 @@ export function createApp(options?: AppOptions): BunaryApp {
 
 		// Handle OPTIONS requests
 		if (method === "OPTIONS") {
-			return handleOptions(request, path, routes, options);
+			return await handleOptions(request, path, routes, options);
 		}
 
 		// Normalize HEAD requests to use GET route if no explicit HEAD route exists
@@ -159,10 +159,10 @@ export function createApp(options?: AppOptions): BunaryApp {
 		if (!match) {
 			// Check if path exists with different method → 405
 			if (hasMatchingPath(routes, path)) {
-				return handleMethodNotAllowed(request, path, routes, options);
+				return await handleMethodNotAllowed(request, path, routes, options);
 			}
 			// No route at all → 404
-			return handleNotFound(request, path, options);
+			return await handleNotFound(request, path, options);
 		}
 
 		// Build request context
@@ -184,7 +184,7 @@ export function createApp(options?: AppOptions): BunaryApp {
 			return response;
 		} catch (error) {
 			// Error handling - return 500
-			return handleError(ctx, error, options);
+			return await handleError(ctx, error, options);
 		}
 	}
 

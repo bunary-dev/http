@@ -12,30 +12,34 @@ export interface AppOptions {
 	 * Called when no route matches the request path.
 	 *
 	 * @param ctx - Request context (params will be empty, query available)
-	 * @returns Response or HandlerResponse (will be converted to Response)
+	 * @returns Response, HandlerResponse, or Promise of either (will be converted to Response)
 	 *
 	 * @example
 	 * ```ts
 	 * const app = createApp({
-	 *   onNotFound: (ctx) => {
+	 *   onNotFound: async (ctx) => {
+	 *     await logToExternalService(ctx.request.url);
 	 *     return new Response("Custom 404", { status: 404 });
 	 *   }
 	 * });
 	 * ```
 	 */
-	onNotFound?: (ctx: RequestContext) => Response | HandlerResponse;
+	onNotFound?: (
+		ctx: RequestContext,
+	) => Response | HandlerResponse | Promise<Response | HandlerResponse>;
 	/**
 	 * Custom handler for 405 Method Not Allowed responses.
 	 * Called when a route matches the path but not the HTTP method.
 	 *
 	 * @param ctx - Request context (params will be empty, query available)
 	 * @param allowedMethods - Array of allowed HTTP methods for this path
-	 * @returns Response or HandlerResponse (will be converted to Response)
+	 * @returns Response, HandlerResponse, or Promise of either (will be converted to Response)
 	 *
 	 * @example
 	 * ```ts
 	 * const app = createApp({
-	 *   onMethodNotAllowed: (ctx, allowed) => {
+	 *   onMethodNotAllowed: async (ctx, allowed) => {
+	 *     await logMethodNotAllowed(ctx.request.url, allowed);
 	 *     return new Response(
 	 *       JSON.stringify({ error: "Method not allowed", allowed }),
 	 *       { status: 405, headers: { "Content-Type": "application/json" } }
@@ -47,20 +51,20 @@ export interface AppOptions {
 	onMethodNotAllowed?: (
 		ctx: RequestContext,
 		allowedMethods: string[],
-	) => Response | HandlerResponse;
+	) => Response | HandlerResponse | Promise<Response | HandlerResponse>;
 	/**
 	 * Custom handler for 500 Internal Server Error responses.
 	 * Called when a route handler or middleware throws an error.
 	 *
 	 * @param ctx - Request context
 	 * @param error - The error that was thrown
-	 * @returns Response or HandlerResponse (will be converted to Response)
+	 * @returns Response, HandlerResponse, or Promise of either (will be converted to Response)
 	 *
 	 * @example
 	 * ```ts
 	 * const app = createApp({
-	 *   onError: (ctx, error) => {
-	 *     console.error("Request error:", error);
+	 *   onError: async (ctx, error) => {
+	 *     await logErrorToExternalService(error, ctx.request.url);
 	 *     return new Response(
 	 *       JSON.stringify({ error: "Internal server error" }),
 	 *       { status: 500, headers: { "Content-Type": "application/json" } }
@@ -69,5 +73,8 @@ export interface AppOptions {
 	 * });
 	 * ```
 	 */
-	onError?: (ctx: RequestContext, error: unknown) => Response | HandlerResponse;
+	onError?: (
+		ctx: RequestContext,
+		error: unknown,
+	) => Response | HandlerResponse | Promise<Response | HandlerResponse>;
 }
