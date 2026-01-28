@@ -5,6 +5,7 @@ import {
 	createGroupRouter,
 	createRouteBuilder,
 	findRoute,
+	getAllowedMethods,
 	hasMatchingPath,
 } from "./routes/index.js";
 import type {
@@ -138,15 +139,51 @@ export function createApp(options?: AppOptions): BunaryApp {
 		const path = url.pathname;
 		const method = request.method as HttpMethod;
 
+		// Handle OPTIONS requests
+		if (method === "OPTIONS") {
+			if (hasMatchingPath(routes, path)) {
+				const allowedMethods = getAllowedMethods(routes, path);
+				return new Response(null, {
+					status: 204,
+					headers: { Allow: allowedMethods.join(", ") },
+				});
+			}
+			// No route at all → 404
+			return new Response(JSON.stringify({ error: "Not found" }), {
+				status: 404,
+				headers: { "Content-Type": "application/json" },
+			});
+		}
+
+		// Handle HEAD requests - treat as GET but with empty body
+		let actualMethod = method;
+		if (method === "HEAD") {
+			// First check if there's an explicit HEAD route
+			const headMatch = findRoute(routes, "HEAD", path);
+			if (headMatch) {
+				actualMethod = "HEAD";
+			} else {
+				// Fall back to GET route
+				const getMatch = findRoute(routes, "GET", path);
+				if (getMatch) {
+					actualMethod = "GET";
+				}
+			}
+		}
+
 		// Find matching route
-		const match = findRoute(routes, method, path);
+		const match = findRoute(routes, actualMethod, path);
 
 		if (!match) {
 			// Check if path exists with different method → 405
 			if (hasMatchingPath(routes, path)) {
+				const allowedMethods = getAllowedMethods(routes, path);
 				return new Response(JSON.stringify({ error: "Method not allowed" }), {
 					status: 405,
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						Allow: allowedMethods.join(", "),
+					},
 				});
 			}
 			// No route at all → 404
@@ -179,7 +216,18 @@ export function createApp(options?: AppOptions): BunaryApp {
 			};
 
 			const result = await next();
-			return toResponse(result);
+			const response = toResponse(result);
+
+			// For HEAD requests, return response with empty body
+			if (method === "HEAD") {
+				return new Response(null, {
+					status: response.status,
+					statusText: response.statusText,
+					headers: response.headers,
+				});
+			}
+
+			return response;
 		} catch (error) {
 			// Error handling - return 500
 			const message = error instanceof Error ? error.message : "Internal server error";

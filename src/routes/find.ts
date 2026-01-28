@@ -48,3 +48,25 @@ export function hasMatchingPath(routes: Route[], path: string): boolean {
 		return checkConstraints(params, route.constraints);
 	});
 }
+
+/**
+ * Get all allowed HTTP methods for a given path.
+ * Respects route constraints when determining matches.
+ *
+ * @param routes - All registered routes
+ * @param path - Path to check
+ * @returns Array of allowed HTTP methods
+ */
+export function getAllowedMethods(routes: Route[], path: string): string[] {
+	const methods = new Set<string>();
+	for (const route of routes) {
+		if (route.pattern.test(path)) {
+			const params = extractParams(path, route);
+			// Only include method if constraints pass
+			if (checkConstraints(params, route.constraints)) {
+				methods.add(route.method);
+			}
+		}
+	}
+	return Array.from(methods).sort();
+}
