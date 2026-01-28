@@ -187,6 +187,33 @@ describe("Middleware Pipeline", () => {
 		});
 	});
 
+	describe("RequestContext.locals", () => {
+		test("middleware can store per-request values on ctx.locals", async () => {
+			const app = createApp();
+			const localsRefs: Array<Record<string, unknown>> = [];
+
+			app.use(async (ctx, next) => {
+				localsRefs.push(ctx.locals);
+				ctx.locals.user = ctx.request.headers.get("x-user") ?? null;
+				return await next();
+			});
+
+			app.get("/whoami", (ctx) => ({ user: ctx.locals.user }));
+
+			const [resA, resB] = await Promise.all([
+				app.fetch(new Request("http://localhost/whoami", { headers: { "x-user": "a" } })),
+				app.fetch(new Request("http://localhost/whoami", { headers: { "x-user": "b" } })),
+			]);
+
+			expect(await resA.json()).toEqual({ user: "a" });
+			expect(await resB.json()).toEqual({ user: "b" });
+
+			// Must be per-request (no shared object).
+			expect(localsRefs.length).toBe(2);
+			expect(localsRefs[0]).not.toBe(localsRefs[1]);
+		});
+	});
+
 	describe("Middleware Error Handling", () => {
 		test("middleware errors return 500 response", async () => {
 			const app = createApp();
