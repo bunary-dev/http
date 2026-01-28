@@ -1,11 +1,18 @@
+import {
+	executeRoute,
+	handleError,
+	handleMethodNotAllowed,
+	handleNotFound,
+	handleOptions,
+	normalizeHeadMethod,
+	toHeadResponse,
+} from "./handlers/index.js";
 import { joinPaths, normalizePrefix } from "./pathUtils.js";
-import { toResponse } from "./response.js";
 import { compilePath } from "./router.js";
 import {
 	createGroupRouter,
 	createRouteBuilder,
 	findRoute,
-	getAllowedMethods,
 	hasMatchingPath,
 } from "./routes/index.js";
 import type {
@@ -14,7 +21,6 @@ import type {
 	BunaryServer,
 	GroupCallback,
 	GroupOptions,
-	HandlerResponse,
 	HttpMethod,
 	Middleware,
 	RequestContext,
@@ -141,35 +147,11 @@ export function createApp(options?: AppOptions): BunaryApp {
 
 		// Handle OPTIONS requests
 		if (method === "OPTIONS") {
-			if (hasMatchingPath(routes, path)) {
-				const allowedMethods = getAllowedMethods(routes, path);
-				return new Response(null, {
-					status: 204,
-					headers: { Allow: allowedMethods.join(", ") },
-				});
-			}
-			// No route at all → 404
-			return new Response(JSON.stringify({ error: "Not found" }), {
-				status: 404,
-				headers: { "Content-Type": "application/json" },
-			});
+			return handleOptions(request, path, routes, options);
 		}
 
-		// Handle HEAD requests - treat as GET but with empty body
-		let actualMethod = method;
-		if (method === "HEAD") {
-			// First check if there's an explicit HEAD route
-			const headMatch = findRoute(routes, "HEAD", path);
-			if (headMatch) {
-				actualMethod = "HEAD";
-			} else {
-				// Fall back to GET route
-				const getMatch = findRoute(routes, "GET", path);
-				if (getMatch) {
-					actualMethod = "GET";
-				}
-			}
-		}
+		// Normalize HEAD requests to use GET route if no explicit HEAD route exists
+		const actualMethod = normalizeHeadMethod(method, path, routes);
 
 		// Find matching route
 		const match = findRoute(routes, actualMethod, path);
@@ -177,20 +159,10 @@ export function createApp(options?: AppOptions): BunaryApp {
 		if (!match) {
 			// Check if path exists with different method → 405
 			if (hasMatchingPath(routes, path)) {
-				const allowedMethods = getAllowedMethods(routes, path);
-				return new Response(JSON.stringify({ error: "Method not allowed" }), {
-					status: 405,
-					headers: {
-						"Content-Type": "application/json",
-						Allow: allowedMethods.join(", "),
-					},
-				});
+				return handleMethodNotAllowed(request, path, routes, options);
 			}
 			// No route at all → 404
-			return new Response(JSON.stringify({ error: "Not found" }), {
-				status: 404,
-				headers: { "Content-Type": "application/json" },
-			});
+			return handleNotFound(request, path, options);
 		}
 
 		// Build request context
@@ -202,39 +174,17 @@ export function createApp(options?: AppOptions): BunaryApp {
 		};
 
 		try {
-			// Get cached middleware chain for this route
-			const allMiddleware = getMiddlewareChain(match.route);
-
-			let index = 0;
-			const next = async (): Promise<HandlerResponse> => {
-				if (index < allMiddleware.length) {
-					const middleware = allMiddleware[index++];
-					return await middleware(ctx, next);
-				}
-				// All middleware done, call handler
-				return await match.route.handler(ctx);
-			};
-
-			const result = await next();
-			const response = toResponse(result);
+			const response = await executeRoute(match, ctx, getMiddlewareChain);
 
 			// For HEAD requests, return response with empty body
 			if (method === "HEAD") {
-				return new Response(null, {
-					status: response.status,
-					statusText: response.statusText,
-					headers: response.headers,
-				});
+				return toHeadResponse(response);
 			}
 
 			return response;
 		} catch (error) {
 			// Error handling - return 500
-			const message = error instanceof Error ? error.message : "Internal server error";
-			return new Response(JSON.stringify({ error: message }), {
-				status: 500,
-				headers: { "Content-Type": "application/json" },
-			});
+			return handleError(ctx, error, options);
 		}
 	}
 
