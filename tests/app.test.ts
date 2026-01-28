@@ -117,3 +117,78 @@ describe("Route Registration", () => {
 		expect(await response.json()).toEqual({ first: true });
 	});
 });
+
+describe("listen()", () => {
+	test("listen({ port }) returns server with correct port and hostname", () => {
+		const app = createApp();
+		app.get("/", () => ({}));
+
+		const server = app.listen({ port: 0 }); // 0 = let OS pick port
+
+		expect(server.port).toBeGreaterThanOrEqual(0);
+		expect(server.hostname).toBe("localhost");
+		expect(typeof server.stop).toBe("function");
+
+		server.stop();
+	});
+
+	test("listen({ port, hostname }) returns server with correct values", () => {
+		const app = createApp();
+		app.get("/", () => ({}));
+
+		const server = app.listen({ port: 0, hostname: "localhost" });
+
+		expect(server.port).toBeGreaterThanOrEqual(0);
+		expect(server.hostname).toBe("localhost");
+
+		server.stop();
+	});
+
+	test("listen(port, hostname) positional form still works", () => {
+		const app = createApp();
+		app.get("/", () => ({}));
+
+		const server = app.listen(0, "localhost");
+
+		expect(server.port).toBeGreaterThanOrEqual(0);
+		expect(server.hostname).toBe("localhost");
+
+		server.stop();
+	});
+
+	test("listen() with no arguments uses defaults", () => {
+		const app = createApp();
+		app.get("/", () => ({}));
+
+		const server = app.listen();
+
+		expect(server.port).toBe(3000);
+		expect(server.hostname).toBe("localhost");
+
+		server.stop();
+	});
+
+	test("listen(port) with only port argument uses default hostname", () => {
+		const app = createApp();
+		app.get("/", () => ({}));
+
+		const server = app.listen(0);
+
+		expect(server.port).toBeGreaterThanOrEqual(0);
+		expect(server.hostname).toBe("localhost");
+
+		server.stop();
+	});
+
+	test("listen({}) with empty object uses defaults", () => {
+		const app = createApp();
+		app.get("/", () => ({}));
+
+		const server = app.listen({});
+
+		expect(server.port).toBe(3000);
+		expect(server.hostname).toBe("localhost");
+
+		server.stop();
+	});
+});

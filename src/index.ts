@@ -19,6 +19,8 @@
  * @packageDocumentation
  */
 
+// Export app factory (to be implemented)
+export { createApp } from "./app.js";
 // Export types
 export type {
 	AppOptions,
@@ -29,6 +31,7 @@ export type {
 	GroupRouter,
 	HandlerResponse,
 	HttpMethod,
+	ListenOptions,
 	Middleware,
 	PathParams,
 	RequestContext,
@@ -37,6 +40,3 @@ export type {
 	RouteHandler,
 	RouteInfo,
 } from "./types/index.js";
-
-// Export app factory (to be implemented)
-export { createApp } from "./app.js";

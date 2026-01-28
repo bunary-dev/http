@@ -1,6 +1,7 @@
 import type { BunaryServer } from "./bunaryServer.js";
 import type { GroupOptions } from "./groupOptions.js";
 import type { GroupCallback } from "./groupRouter.js";
+import type { ListenOptions } from "./listenOptions.js";
 import type { Middleware } from "./middleware.js";
 import type { RouteBuilder } from "./routeBuilder.js";
 import type { RouteHandler } from "./routeHandler.js";
@@ -94,11 +95,17 @@ export interface BunaryApp {
 
 	/**
 	 * Start the HTTP server.
-	 * @param port - Port number to listen on (default: 3000)
-	 * @param hostname - Hostname to bind to (default: "localhost")
+	 *
+	 * Supports two call styles:
+	 * - `listen(port?, hostname?)` - positional arguments
+	 * - `listen({ port?, hostname? })` - options object
+	 *
+	 * @param portOrOptions - Port number, or options object with port and hostname
+	 * @param hostname - Hostname to bind to (when using positional form)
 	 * @returns Server instance with stop() method
 	 */
-	listen: (port?: number, hostname?: string) => BunaryServer;
+	listen: ((port?: number, hostname?: string) => BunaryServer) &
+		((options: ListenOptions) => BunaryServer);
 
 	/**
 	 * Handle an incoming request (used internally and for testing).
