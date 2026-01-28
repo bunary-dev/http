@@ -5,11 +5,11 @@
 export type { AppOptions } from "./appOptions.js";
 export type { BunaryApp } from "./bunaryApp.js";
 export type { BunaryServer } from "./bunaryServer.js";
-export type { GroupCallback, GroupRouter } from "./groupRouter.js";
 export type { GroupOptions } from "./groupOptions.js";
-export type { ListenOptions } from "./listenOptions.js";
+export type { GroupCallback, GroupRouter } from "./groupRouter.js";
 export type { HandlerResponse } from "./handlerResponse.js";
 export type { HttpMethod } from "./httpMethod.js";
+export type { ListenOptions } from "./listenOptions.js";
 export type { Middleware } from "./middleware.js";
 export type { PathParams } from "./pathParams.js";
 export type { RequestContext } from "./requestContext.js";
