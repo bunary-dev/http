@@ -5,6 +5,14 @@ All notable changes to `@bunary/http` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.11] - 2026-01-29
+
+### Removed
+
+- Removed unused `@bunary/core` dependency (chore #21)
+  - Package now has zero runtime dependencies
+  - Updated README and documentation to reflect this change
+
 ## [0.0.10] - 2026-01-29
 
 ### Added

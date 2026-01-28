@@ -24,7 +24,7 @@ app.listen({ port: 3000 });
 
 ## Notes
 
-- This package depends on `@bunary/core`, but you only need to install `@bunary/http` (dependencies install transitively).
+- This package has zero runtime dependencies - just install `@bunary/http`.
 
 ## Requirements
 
