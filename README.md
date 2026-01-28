@@ -132,6 +132,48 @@ interface RequestContext {
 }
 ```
 
+### HTTP Method Handling
+
+#### HEAD Requests
+
+HEAD requests are automatically handled for GET routes. They return the same status code and headers as the corresponding GET request, but with an empty body:
+
+```typescript
+app.get('/users', () => ({ users: [] }));
+
+// HEAD /users returns 200 with empty body
+// Preserves all headers from GET handler
+```
+
+#### OPTIONS Requests
+
+OPTIONS requests return `204 No Content` with an `Allow` header listing all permitted methods for the path:
+
+```typescript
+app.get('/users', () => ({}));
+app.post('/users', () => ({}));
+app.delete('/users', () => ({}));
+
+// OPTIONS /users returns:
+// Status: 204
+// Allow: DELETE, GET, POST
+```
+
+If no route matches the path, OPTIONS returns `404`.
+
+#### Method Not Allowed (405)
+
+When a path exists but the requested method is not allowed, the response includes an `Allow` header:
+
+```typescript
+app.get('/users', () => ({}));
+app.post('/users', () => ({}));
+
+// PUT /users returns:
+// Status: 405 Method Not Allowed
+// Allow: GET, POST
+```
+
 ### Response Handling
 
 Handlers can return various types - they're automatically serialized:

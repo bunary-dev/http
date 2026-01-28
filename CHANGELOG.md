@@ -5,6 +5,16 @@ All notable changes to `@bunary/http` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.9] - 2026-01-29
+
+### Fixed
+
+- Proper HEAD and OPTIONS request handling (bug #16)
+  - HEAD requests to GET routes now return 200 with empty body (preserves headers and status)
+  - OPTIONS requests return 204 with `Allow` header listing permitted methods
+  - 405 Method Not Allowed responses now include `Allow` header
+  - Route constraints are respected when determining allowed methods
+
 ## [0.0.8] - 2026-01-29
 
 ### Added
