@@ -141,8 +141,14 @@ app.get('/empty', () => null);
 
 ### Starting the Server
 
+Both object and positional forms are supported:
+
 ```typescript
+// Object form (recommended)
 const server = app.listen({ port: 3000, hostname: 'localhost' });
+
+// Positional form
+const server = app.listen(3000, 'localhost');
 
 console.log(`Server running on ${server.hostname}:${server.port}`);
 

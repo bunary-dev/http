@@ -7,6 +7,7 @@ export type { BunaryApp } from "./bunaryApp.js";
 export type { BunaryServer } from "./bunaryServer.js";
 export type { GroupCallback, GroupRouter } from "./groupRouter.js";
 export type { GroupOptions } from "./groupOptions.js";
+export type { ListenOptions } from "./listenOptions.js";
 export type { HandlerResponse } from "./handlerResponse.js";
 export type { HttpMethod } from "./httpMethod.js";
 export type { Middleware } from "./middleware.js";

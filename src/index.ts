@@ -29,6 +29,7 @@ export type {
 	GroupRouter,
 	HandlerResponse,
 	HttpMethod,
+	ListenOptions,
 	Middleware,
 	PathParams,
 	RequestContext,

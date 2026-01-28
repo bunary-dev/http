@@ -264,7 +264,25 @@ export function createApp(): BunaryApp {
 			}));
 		},
 
-		listen: (port = 3000, hostname = "localhost"): BunaryServer => {
+		listen: (
+			portOrOptions?: number | { port?: number; hostname?: string },
+			hostnameArg?: string,
+		): BunaryServer => {
+			let port = 3000;
+			let hostname = "localhost";
+
+			if (
+				portOrOptions !== undefined &&
+				typeof portOrOptions === "object" &&
+				portOrOptions !== null
+			) {
+				port = portOrOptions.port ?? 3000;
+				hostname = portOrOptions.hostname ?? "localhost";
+			} else if (typeof portOrOptions === "number") {
+				port = portOrOptions;
+				hostname = hostnameArg ?? "localhost";
+			}
+
 			const server = Bun.serve({
 				port,
 				hostname,
