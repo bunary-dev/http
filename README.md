@@ -11,7 +11,7 @@ Canonical documentation for this package lives in [`docs/index.md`](./docs/index
 ## Features
 
 - 🚀 **Bun-native** - Uses `Bun.serve()` directly, no Node.js compatibility layer
-- 📦 **Zero dependencies** - Only depends on `@bunary/core`
+- 📦 **Zero dependencies** - No runtime dependencies
 - 🔒 **Type-safe** - Full TypeScript support with strict types
 - ⚡ **Fast** - Minimal overhead, direct routing
 - 🧩 **Simple API** - Chainable route registration with automatic JSON serialization
