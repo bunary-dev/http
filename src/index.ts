@@ -31,7 +31,6 @@ export type {
 	HttpMethod,
 	Middleware,
 	PathParams,
-	QueryParams,
 	RequestContext,
 	Route,
 	RouteBuilder,

@@ -5,6 +5,19 @@ All notable changes to `@bunary/http` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.6] - 2026-01-29
+
+### Fixed
+
+- Aligned query parameter API with actual implementation (bug #17)
+  - Removed misleading `QueryParams` type export that didn't match runtime `URLSearchParams`
+  - Updated README examples to use `ctx.query.get()` and `ctx.query.getAll()` instead of destructuring
+  - Fixed `RequestContext` interface documentation to show `query: URLSearchParams`
+
+### Removed
+
+- `QueryParams` type export (was inconsistent with actual `URLSearchParams` runtime type)
+
 ## [0.0.5] - 2026-01-28
 
 ### Added

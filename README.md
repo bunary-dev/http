@@ -89,12 +89,23 @@ app.get('/posts/:postId/comments/:commentId', (ctx) => {
 
 ### Query Parameters
 
-Query parameters are parsed from the URL:
+Query parameters are accessed via `URLSearchParams` API:
 
 ```typescript
 app.get('/search', (ctx) => {
-  const { q, page, limit } = ctx.query;
+  const q = ctx.query.get('q');
+  const page = ctx.query.get('page');
+  const limit = ctx.query.get('limit');
   return { query: q, page, limit };
+});
+```
+
+For multi-value query parameters (e.g., `?tag=a&tag=b`), use `getAll()`:
+
+```typescript
+app.get('/filter', (ctx) => {
+  const tags = ctx.query.getAll('tag');
+  return { tags };
 });
 ```
 
@@ -106,7 +117,7 @@ Route handlers receive a `RequestContext` object:
 interface RequestContext {
   request: Request;  // Original Bun Request object
   params: Record<string, string>;  // Path parameters
-  query: Record<string, string>;   // Query parameters
+  query: URLSearchParams;  // Query parameters (use .get() and .getAll())
 }
 ```
 
