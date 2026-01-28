@@ -268,18 +268,15 @@ export function createApp(): BunaryApp {
 			portOrOptions?: number | { port?: number; hostname?: string },
 			hostnameArg?: string,
 		): BunaryServer => {
-			let port = 3000;
-			let hostname = "localhost";
-
-			if (
-				portOrOptions !== undefined &&
-				typeof portOrOptions === "object" &&
-				portOrOptions !== null
-			) {
+			let port: number;
+			let hostname: string;
+			const isOptionsObject =
+				portOrOptions !== undefined && portOrOptions !== null && typeof portOrOptions === "object";
+			if (isOptionsObject) {
 				port = portOrOptions.port ?? 3000;
 				hostname = portOrOptions.hostname ?? "localhost";
-			} else if (typeof portOrOptions === "number") {
-				port = portOrOptions;
+			} else {
+				port = typeof portOrOptions === "number" ? portOrOptions : 3000;
 				hostname = hostnameArg ?? "localhost";
 			}
 
