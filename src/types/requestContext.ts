@@ -19,4 +19,18 @@ export interface RequestContext {
 	params: PathParams;
 	/** Query parameters from the URL search string */
 	query: URLSearchParams;
+	/**
+	 * Per-request storage for middleware and handlers.
+	 *
+	 * This object is **initialized per request** (never shared across requests).
+	 *
+	 * @example
+	 * ```ts
+	 * app.use(async (ctx, next) => {
+	 *   ctx.locals.userId = "123";
+	 *   return await next();
+	 * });
+	 * ```
+	 */
+	locals: Record<string, unknown>;
 }

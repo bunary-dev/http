@@ -139,6 +139,7 @@ export function createApp(): BunaryApp {
 			request,
 			params: match.params,
 			query: url.searchParams,
+			locals: {},
 		};
 
 		try {
