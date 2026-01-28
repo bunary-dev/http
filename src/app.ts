@@ -149,6 +149,15 @@ export function createApp(options?: AppOptions): BunaryApp {
 				});
 			}
 			// No route at all → 404
+			const notFoundCtx: RequestContext = {
+				request,
+				params: {},
+				query: url.searchParams,
+				locals: {},
+			};
+			if (options?.onNotFound) {
+				return toResponse(options.onNotFound(notFoundCtx));
+			}
 			return new Response(JSON.stringify({ error: "Not found" }), {
 				status: 404,
 				headers: { "Content-Type": "application/json" },
@@ -178,6 +187,29 @@ export function createApp(options?: AppOptions): BunaryApp {
 			// Check if path exists with different method → 405
 			if (hasMatchingPath(routes, path)) {
 				const allowedMethods = getAllowedMethods(routes, path);
+				const methodNotAllowedCtx: RequestContext = {
+					request,
+					params: {},
+					query: url.searchParams,
+					locals: {},
+				};
+				if (options?.onMethodNotAllowed) {
+					const response = toResponse(
+						options.onMethodNotAllowed(methodNotAllowedCtx, allowedMethods),
+					);
+					// Ensure Allow header is present even with custom handler
+					const allowHeader = response.headers.get("Allow");
+					if (!allowHeader) {
+						const headers = new Headers(response.headers);
+						headers.set("Allow", allowedMethods.join(", "));
+						return new Response(response.body, {
+							status: response.status,
+							statusText: response.statusText,
+							headers,
+						});
+					}
+					return response;
+				}
 				return new Response(JSON.stringify({ error: "Method not allowed" }), {
 					status: 405,
 					headers: {
@@ -187,6 +219,15 @@ export function createApp(options?: AppOptions): BunaryApp {
 				});
 			}
 			// No route at all → 404
+			const notFoundCtx: RequestContext = {
+				request,
+				params: {},
+				query: url.searchParams,
+				locals: {},
+			};
+			if (options?.onNotFound) {
+				return toResponse(options.onNotFound(notFoundCtx));
+			}
 			return new Response(JSON.stringify({ error: "Not found" }), {
 				status: 404,
 				headers: { "Content-Type": "application/json" },
@@ -230,6 +271,15 @@ export function createApp(options?: AppOptions): BunaryApp {
 			return response;
 		} catch (error) {
 			// Error handling - return 500
+			const errorCtx: RequestContext = {
+				request,
+				params: match.params,
+				query: url.searchParams,
+				locals: {},
+			};
+			if (options?.onError) {
+				return toResponse(options.onError(errorCtx, error));
+			}
 			const message = error instanceof Error ? error.message : "Internal server error";
 			return new Response(JSON.stringify({ error: message }), {
 				status: 500,

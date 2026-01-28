@@ -5,6 +5,18 @@ All notable changes to `@bunary/http` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.10] - 2026-01-29
+
+### Added
+
+- Configurable error handlers in `createApp()` options (feature #20)
+  - `onNotFound` - Custom handler for 404 Not Found responses
+  - `onMethodNotAllowed` - Custom handler for 405 Method Not Allowed responses
+  - `onError` - Custom handler for 500 Internal Server Error responses
+  - All handlers receive `RequestContext` and can return `Response` or `HandlerResponse`
+  - Default behavior unchanged when handlers are not provided
+  - `Allow` header automatically added to 405 responses if custom handler doesn't set it
+
 ## [0.0.9] - 2026-01-29
 
 ### Fixed

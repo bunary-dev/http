@@ -60,6 +60,40 @@ apiApp.get('/users', () => ({})); // Matches /api/users
   - Automatically normalized (leading slash added, trailing slash removed)
   - Composes with route groups: `basePath + group prefix + route path`
   - Included in `app.route()` URL generation
+- `onNotFound` - Custom handler for 404 Not Found responses
+  - Called when no route matches the request path
+  - Receives `RequestContext` (params empty, query available)
+  - Can return `Response` or `HandlerResponse`
+- `onMethodNotAllowed` - Custom handler for 405 Method Not Allowed responses
+  - Called when a route matches the path but not the HTTP method
+  - Receives `RequestContext` and array of allowed methods
+  - Can return `Response` or `HandlerResponse`
+  - `Allow` header is automatically added if not present
+- `onError` - Custom handler for 500 Internal Server Error responses
+  - Called when a route handler or middleware throws an error
+  - Receives `RequestContext` and the error object
+  - Can return `Response` or `HandlerResponse`
+
+**Example with custom error handlers:**
+
+```typescript
+const app = createApp({
+  basePath: '/api',
+  onNotFound: (ctx) => {
+    return new Response('Not Found', { status: 404 });
+  },
+  onMethodNotAllowed: (ctx, allowed) => {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed', allowed }),
+      { status: 405, headers: { 'Content-Type': 'application/json' } }
+    );
+  },
+  onError: (ctx, error) => {
+    console.error('Request error:', error);
+    return new Response('Internal Server Error', { status: 500 });
+  }
+});
+```
 
 ### Route Registration
 
