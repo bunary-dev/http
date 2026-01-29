@@ -157,8 +157,9 @@ Route handlers receive a `RequestContext` object:
 ```typescript
 interface RequestContext {
   request: Request;  // Original Bun Request object
-  params: Record<string, string>;  // Path parameters
+  params: Record<string, string | undefined>;  // Path parameters (optional params may be undefined)
   query: URLSearchParams;  // Query parameters (use .get() and .getAll())
+  locals: Record<string, unknown>;  // Per-request storage for middleware and handlers
 }
 ```
 
@@ -302,7 +303,8 @@ app.use(async (ctx, next) => {
     return await next();
   } catch (error) {
     console.error('Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), { 
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
@@ -479,15 +481,16 @@ app.get('/posts/:id?', (ctx) => ({})).whereNumber('id');
 
 ## Error Handling
 
-Uncaught errors in handlers return a 500 response with the error message:
+Uncaught errors in handlers return a 500 response. By default the body includes the error message (via the built-in handler). **Security note:** Returning `error.message` in production can leak internal details (e.g. database errors, file paths) to clients. Use a custom `onError` handler in production that returns a generic message to the client while logging the full error server-side, or expose detailed messages only in a trusted debug mode.
 
 ```typescript
-app.get('/error', () => {
-  throw new Error('Something went wrong');
+// Default: 500 with error message. For production, prefer custom onError:
+createApp({
+  onError: (ctx, error) => {
+    console.error('Request error:', error);
+    return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });
+  }
 });
-
-// Returns: 500 Internal Server Error
-// Body: { error: "Something went wrong" }
 ```
 
 ## Types

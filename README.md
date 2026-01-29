@@ -8,13 +8,13 @@ Lightweight, type-safe HTTP framework for [Bun](https://bun.sh). Routes, middlew
 bun add @bunary/http
 ```
 
-## Quick start
+## Quick Start
 
 ```typescript
-import { createApp } from "@bunary/http";
+import { createApp } from '@bunary/http';
 
 const app = createApp();
-app.get("/hello", () => ({ message: "Hello, Bun!" }));
+app.get('/hello', () => ({ message: 'Hello, Bun!' }));
 app.listen({ port: 3000 });
 ```
 
