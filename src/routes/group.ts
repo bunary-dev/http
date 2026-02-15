@@ -25,34 +25,37 @@ export function createGroupRouter(
 	namePrefix: string,
 	addRoute: AddRouteFn,
 ): GroupRouter {
-	const router: GroupRouter = {
-		get: (path, handler) => {
+	// Internal implementation uses non-generic RouteHandler for storage.
+	// The cast to GroupRouter is safe — handler generics only exist at the
+	// public API boundary and are erased at runtime.
+	const router = {
+		get: (path: string, handler: RouteHandler) => {
 			const fullPath = joinPaths(prefix, path);
 			const builder = addRoute("GET", fullPath, handler, groupMiddleware);
 			return wrapBuilderWithNamePrefix(builder, namePrefix);
 		},
-		post: (path, handler) => {
+		post: (path: string, handler: RouteHandler) => {
 			const fullPath = joinPaths(prefix, path);
 			return wrapBuilderWithNamePrefix(
 				addRoute("POST", fullPath, handler, groupMiddleware),
 				namePrefix,
 			);
 		},
-		put: (path, handler) => {
+		put: (path: string, handler: RouteHandler) => {
 			const fullPath = joinPaths(prefix, path);
 			return wrapBuilderWithNamePrefix(
 				addRoute("PUT", fullPath, handler, groupMiddleware),
 				namePrefix,
 			);
 		},
-		delete: (path, handler) => {
+		delete: (path: string, handler: RouteHandler) => {
 			const fullPath = joinPaths(prefix, path);
 			return wrapBuilderWithNamePrefix(
 				addRoute("DELETE", fullPath, handler, groupMiddleware),
 				namePrefix,
 			);
 		},
-		patch: (path, handler) => {
+		patch: (path: string, handler: RouteHandler) => {
 			const fullPath = joinPaths(prefix, path);
 			return wrapBuilderWithNamePrefix(
 				addRoute("PATCH", fullPath, handler, groupMiddleware),
@@ -74,6 +77,6 @@ export function createGroupRouter(
 			callback(nestedRouter);
 			return router;
 		}) as GroupRouter["group"],
-	};
+	} as unknown as GroupRouter;
 	return router;
 }

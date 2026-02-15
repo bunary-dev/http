@@ -92,6 +92,32 @@ const app = createApp({
 });
 ```
 
+#### Typed Locals
+
+Pass a type parameter to `createApp()` to get type-safe `ctx.locals`:
+
+```typescript
+interface AppLocals {
+  user: { id: number; name: string };
+  requestId: string;
+}
+
+const app = createApp<AppLocals>();
+
+app.use(async (ctx, next) => {
+  ctx.locals.user = await getUser(ctx.request);  // typed
+  ctx.locals.requestId = crypto.randomUUID();     // typed
+  return next();
+});
+
+app.get('/me', (ctx) => ({
+  name: ctx.locals.user.name,       // typed as string
+  requestId: ctx.locals.requestId,  // typed as string
+}));
+```
+
+The generic defaults to `Record<string, unknown>`, so existing code is fully backward-compatible.
+
 ### Route Registration
 
 Register routes using chainable HTTP method helpers:
@@ -127,6 +153,33 @@ app.get('/posts/:postId/comments/:commentId', (ctx) => {
   const { postId, commentId } = ctx.params;
   return { postId, commentId };
 });
+```
+
+#### Typed Parameters
+
+Pass a type parameter to any route method for typed `ctx.params`:
+
+```typescript
+app.get<{ id: string }>('/users/:id', (ctx) => {
+  ctx.params.id;  // string (not string | undefined)
+  return { userId: ctx.params.id };
+});
+
+app.get<{ org: string; repo: string }>('/orgs/:org/repos/:repo', (ctx) => {
+  ctx.params.org;   // string
+  ctx.params.repo;  // string
+  return { org: ctx.params.org, repo: ctx.params.repo };
+});
+
+// Optional params
+app.get<{ format?: string }>('/data/:format?', (ctx) => {
+  return { format: ctx.params.format ?? 'json' };
+});
+```
+
+Values remain strings at runtime — no automatic coercion. The generic only narrows the TypeScript type.
+
+When no type parameter is provided, `ctx.params` defaults to `Record<string, string | undefined>`.
 ```
 
 #### URL Encoding and Unicode
@@ -179,16 +232,24 @@ app.get('/filter', (ctx) => {
 
 ### Request Context
 
-Route handlers receive a `RequestContext` object:
+Route handlers receive a `RequestContext<TLocals, TParams>` object:
 
 ```typescript
-interface RequestContext {
+interface RequestContext<
+  TLocals extends Record<string, unknown> = Record<string, unknown>,
+  TParams extends PathParams = PathParams,
+> {
   request: Request;  // Original Bun Request object
-  params: Record<string, string | undefined>;  // Path parameters (optional params may be undefined)
+  params: TParams;   // Path parameters (narrowed by route generic)
   query: URLSearchParams;  // Query parameters (use .get() and .getAll())
-  locals: Record<string, unknown>;  // Per-request storage for middleware and handlers
+  locals: TLocals;   // Per-request storage (narrowed by createApp generic)
 }
 ```
+
+`TLocals` is set once via `createApp<TLocals>()` and flows to all handlers and middleware.
+`TParams` is set per-route via `app.get<TParams>()` and only affects that handler's `ctx.params`.
+
+Both default to their untyped forms for full backward compatibility.
 
 ### HTTP Method Handling
 

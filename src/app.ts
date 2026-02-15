@@ -60,6 +60,7 @@ import type {
  *
  * @param options - Optional configuration
  * @param options.basePath - Base path prefix for all routes (e.g., "/api")
+ * @typeParam TLocals — Shape of `ctx.locals`. Defaults to `Record<string, unknown>`.
  * @returns BunaryApp instance
  *
  * @example
@@ -71,14 +72,25 @@ import type {
  * // With basePath
  * const apiApp = createApp({ basePath: "/api" });
  * apiApp.get("/users", () => ({})); // Matches /api/users
+ *
+ * // With typed locals
+ * interface Locals { user: User; requestId: string }
+ * const typedApp = createApp<Locals>();
+ * typedApp.get("/me", (ctx) => ({ user: ctx.locals.user })); // typed
  * ```
  */
-export function createApp(options?: AppOptions): BunaryApp {
+export function createApp<TLocals extends object = Record<string, unknown>>(
+	options?: AppOptions<TLocals>,
+): BunaryApp<TLocals> {
+	// Cast options to internal type — TLocals generic only affects compile-time
+	// type checking at the public API boundary, not runtime behaviour.
+	const internalOpts = options as AppOptions | undefined;
+
 	const routes: Route[] = [];
 	const middlewares: Middleware[] = [];
 	const namedRoutes: Map<string, Route> = new Map();
 	// Normalize basePath: "/" is treated as empty (no prefix)
-	const normalizedBasePath = options?.basePath ? normalizePrefix(options.basePath) : "";
+	const normalizedBasePath = internalOpts?.basePath ? normalizePrefix(internalOpts.basePath) : "";
 	const basePath = normalizedBasePath === "/" ? "" : normalizedBasePath;
 
 	// Cache for combined middleware chains per route
@@ -141,7 +153,7 @@ export function createApp(options?: AppOptions): BunaryApp {
 
 		// Handle OPTIONS requests — single pass via resolveRoute
 		if (method === "OPTIONS") {
-			return await handleOptions(request, path, routes, options);
+			return await handleOptions(request, path, routes, internalOpts);
 		}
 
 		// Single-pass route resolution: finds match, handles HEAD→GET
@@ -151,10 +163,10 @@ export function createApp(options?: AppOptions): BunaryApp {
 		if (!match) {
 			if (allowedMethods.length > 0) {
 				// Path exists for other methods → 405
-				return await handleMethodNotAllowed(request, path, routes, options, allowedMethods);
+				return await handleMethodNotAllowed(request, path, routes, internalOpts, allowedMethods);
 			}
 			// No route at all → 404
-			return await handleNotFound(request, path, options);
+			return await handleNotFound(request, path, internalOpts);
 		}
 
 		// Build request context
@@ -176,11 +188,14 @@ export function createApp(options?: AppOptions): BunaryApp {
 			return response;
 		} catch (error) {
 			// Error handling - return 500
-			return await handleError(ctx, error, options);
+			return await handleError(ctx, error, internalOpts);
 		}
 	}
 
-	const app: BunaryApp = {
+	// Internal implementation uses non-generic RouteHandler for storage.
+	// The cast to BunaryApp is safe — handler generics only exist at the
+	// public API boundary and are erased at runtime.
+	const app = {
 		get: (path: string, handler: RouteHandler) => addRoute("GET", path, handler),
 		post: (path: string, handler: RouteHandler) => addRoute("POST", path, handler),
 		put: (path: string, handler: RouteHandler) => addRoute("PUT", path, handler),
@@ -195,14 +210,14 @@ export function createApp(options?: AppOptions): BunaryApp {
 		},
 
 		group: ((prefixOrOptions: string | GroupOptions, callback: GroupCallback) => {
-			const opts =
+			const groupOpts =
 				typeof prefixOrOptions === "string" ? { prefix: prefixOrOptions } : prefixOrOptions;
 			// Groups work relative to basePath - createGroupRouter will call addRoute
 			// which applies basePath, so we pass the group prefix as-is
 			const groupRouter = createGroupRouter(
-				opts.prefix,
-				opts.middleware ?? [],
-				opts.name ?? "",
+				groupOpts.prefix,
+				groupOpts.middleware ?? [],
+				groupOpts.name ?? "",
 				addRoute,
 			);
 			callback(groupRouter);
@@ -309,7 +324,10 @@ export function createApp(options?: AppOptions): BunaryApp {
 		},
 
 		fetch: handleRequest,
-	};
+	} as unknown as BunaryApp;
 
-	return app;
+	// The cast is safe: TLocals only narrows handler/middleware context types
+	// at compile time. At runtime, ctx.locals starts as {} and is populated
+	// by middleware before handlers run — no generic information is needed.
+	return app as unknown as BunaryApp<TLocals>;
 }

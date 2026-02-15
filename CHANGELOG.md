@@ -5,6 +5,23 @@ All notable changes to `@bunary/http` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-02-15
+
+### Added
+
+- Typed `ctx.locals` via `createApp<TLocals>()` generic (#43)
+  - `RequestContext<TLocals, TParams>` now accepts two type parameters with backward-compatible defaults
+  - `createApp<{ user: User }>()` propagates `TLocals` to all handlers, middleware, groups, and options callbacks
+  - `Middleware<TLocals>`, `BunaryApp<TLocals>`, `GroupRouter<TLocals>`, `GroupOptions<TLocals>`, `AppOptions<TLocals>` all generic
+  - Fully backward-compatible — omitting the generic keeps the existing `Record<string, unknown>` behaviour
+
+- Typed route parameters via per-route `<TParams>` generic (#50)
+  - `app.get<{ id: string }>("/users/:id", handler)` narrows `ctx.params` to `{ id: string }` inside the handler
+  - Works on all HTTP methods: `get`, `post`, `put`, `patch`, `delete`
+  - Works inside route groups: `router.get<{ id: string }>(...)`
+  - Values remain strings at runtime — the generic only narrows the TypeScript type
+  - Default `PathParams` (`Record<string, string | undefined>`) preserved when no generic is provided
+
 ## [0.1.3] - 2026-02-15
 
 ### Fixed
