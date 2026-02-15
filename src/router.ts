@@ -68,12 +68,27 @@ export function compilePath(path: string): CompiledPath {
 }
 
 /**
+ * Safely decode a URI component, returning the raw value if decoding fails.
+ *
+ * @param value - The possibly-encoded string
+ * @returns The decoded string, or the original if decoding throws
+ */
+function safeDecodeURIComponent(value: string): string {
+	try {
+		return decodeURIComponent(value);
+	} catch {
+		return value;
+	}
+}
+
+/**
  * Extract path parameters from a matched route.
  * Handles optional parameters by only including them if they have values.
+ * Applies `decodeURIComponent` to each captured value (standard behaviour).
  *
  * @param path - The request path
  * @param route - The matched route
- * @returns Record of parameter names to values (undefined for missing optional params)
+ * @returns Record of parameter names to decoded values (undefined for missing optional params)
  */
 export function extractParams(path: string, route: Route): Record<string, string | undefined> {
 	const match = path.match(route.pattern);
@@ -84,7 +99,7 @@ export function extractParams(path: string, route: Route): Record<string, string
 		const value = match[i + 1];
 		// Only set value if it exists (for optional params)
 		if (value !== undefined && value !== "") {
-			params[route.paramNames[i]] = value;
+			params[route.paramNames[i]] = safeDecodeURIComponent(value);
 		}
 	}
 	return params;

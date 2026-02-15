@@ -116,7 +116,7 @@ app
 
 ### Path Parameters
 
-Path parameters are extracted automatically:
+Path parameters are extracted automatically and decoded with `decodeURIComponent`:
 
 ```typescript
 app.get('/users/:id', (ctx) => {
@@ -128,6 +128,32 @@ app.get('/posts/:postId/comments/:commentId', (ctx) => {
   return { postId, commentId };
 });
 ```
+
+#### URL Encoding and Unicode
+
+Path parameters are automatically decoded from their URL-encoded form:
+
+```typescript
+app.get('/users/:name', (ctx) => {
+  return { name: ctx.params.name };
+});
+
+// GET /users/hello%20world → { name: "hello world" }
+// GET /users/caf%C3%A9     → { name: "café" }
+// GET /users/日本語         → { name: "日本語" }
+```
+
+Encoded slashes (`%2F`) are captured within a single segment and decoded:
+
+```typescript
+app.get('/files/:path', (ctx) => {
+  return { path: ctx.params.path };
+});
+
+// GET /files/dir%2Ffile.txt → { path: "dir/file.txt" }
+```
+
+> **Note:** Route constraints (`.where()`) are checked against the **decoded** parameter value.
 
 ### Query Parameters
 
