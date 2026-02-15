@@ -577,11 +577,17 @@ app.get('/*', (ctx) => {
   return new Response(Bun.file('public/index.html'));
 });
 
-// Static file serving
+// Static file serving (with path traversal protection)
 app.get('/assets/*', (ctx) => {
   const filePath = ctx.params['*'];
   if (!filePath) return new Response('Not Found', { status: 404 });
-  return new Response(Bun.file(`public/${filePath}`));
+
+  const resolved = Bun.resolveSync(`public/${filePath}`, process.cwd());
+  const root = Bun.resolveSync('public', process.cwd());
+  if (!resolved.startsWith(root)) {
+    return new Response('Forbidden', { status: 403 });
+  }
+  return new Response(Bun.file(resolved));
 });
 
 // GET /assets/css/style.css → ctx.params["*"] = "css/style.css"

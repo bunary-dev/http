@@ -288,6 +288,39 @@ describe("Wildcard routes", () => {
 		expect(res.status).toBe(405);
 		expect(res.headers.get("Allow")).toContain("GET");
 	});
+
+	test("bare ../ is resolved by URL parser before reaching router", async () => {
+		const app = createApp();
+		app.get("/files/*", (ctx) => ({ path: ctx.params["*"] }));
+
+		// The URL constructor resolves /files/../../etc/passwd → /etc/passwd,
+		// which no longer matches /files/*, so it 404s. This is safe, but
+		// the encoded form below is the real traversal vector to guard against.
+		const res = await req(app, "/files/../../etc/passwd");
+		expect(res.status).toBe(404);
+	});
+
+	test("wildcard captures encoded path traversal sequences", async () => {
+		const app = createApp();
+		app.get("/files/*", (ctx) => ({ path: ctx.params["*"] }));
+
+		// %2F-encoded dots bypass URL normalization and arrive as-is.
+		// Handlers MUST validate the captured path before using it on the filesystem.
+		const res = await req(app, "/files/..%2F..%2Fetc%2Fpasswd");
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as { path: string };
+		expect(data.path).toBe("../../etc/passwd");
+	});
+
+	test("wildcard captures encoded dot segments without collapsing", async () => {
+		const app = createApp();
+		app.get("/assets/*", (ctx) => ({ path: ctx.params["*"] }));
+
+		const res = await req(app, "/assets/css%2F..%2F..%2F..%2Fsecret");
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as { path: string };
+		expect(data.path).toBe("css/../../../secret");
+	});
 });
 
 // ─── Named wildcard routes + URL generation ───────────────────────────
