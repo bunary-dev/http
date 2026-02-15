@@ -3,8 +3,10 @@ import type { RequestContext } from "./requestContext.js";
 
 /**
  * Configuration options for creating a Bunary app.
+ *
+ * @typeParam TLocals — Shape of `ctx.locals` (must match `createApp<TLocals>()`)
  */
-export interface AppOptions {
+export interface AppOptions<TLocals extends object = Record<string, unknown>> {
 	/** Base path prefix for all routes (default: "") */
 	basePath?: string;
 	/**
@@ -25,7 +27,7 @@ export interface AppOptions {
 	 * ```
 	 */
 	onNotFound?: (
-		ctx: RequestContext,
+		ctx: RequestContext<TLocals>,
 	) => Response | HandlerResponse | Promise<Response | HandlerResponse>;
 	/**
 	 * Custom handler for 405 Method Not Allowed responses.
@@ -49,7 +51,7 @@ export interface AppOptions {
 	 * ```
 	 */
 	onMethodNotAllowed?: (
-		ctx: RequestContext,
+		ctx: RequestContext<TLocals>,
 		allowedMethods: string[],
 	) => Response | HandlerResponse | Promise<Response | HandlerResponse>;
 	/**
@@ -74,7 +76,7 @@ export interface AppOptions {
 	 * ```
 	 */
 	onError?: (
-		ctx: RequestContext,
+		ctx: RequestContext<TLocals>,
 		error: unknown,
 	) => Response | HandlerResponse | Promise<Response | HandlerResponse>;
 }
