@@ -352,7 +352,7 @@ describe("Error Information Leak", () => {
 	test("error with circular reference does not crash", async () => {
 		const app = createApp();
 		app.get("/boom", () => {
-			const err: Record<string, unknown> = new Error("circular");
+			const err = new Error("circular") as Error & { self: unknown };
 			err.self = err;
 			throw err;
 		});
