@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.1] - 2026-02-15
 
-### Changed
+### Removed
 
 - Removed internal `Route` type from public exports — use `RouteInfo` for route metadata (#45)
 
