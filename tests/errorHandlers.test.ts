@@ -214,6 +214,86 @@ describe("Configurable Error Handlers", () => {
 			expect(response.headers.get("Content-Type")).toBe("application/json");
 		});
 
+		test("hides error message in production mode", async () => {
+			const original = Bun.env.NODE_ENV;
+			Bun.env.NODE_ENV = "production";
+			try {
+				const app = createApp();
+				app.get("/error", () => {
+					throw new Error("SQLITE_CANTOPEN: /var/app/data/prod.sqlite");
+				});
+
+				const response = await app.fetch(new Request("http://localhost/error"));
+
+				expect(response.status).toBe(500);
+				expect(await response.json()).toEqual({
+					error: "Internal Server Error",
+				});
+			} finally {
+				Bun.env.NODE_ENV = original;
+			}
+		});
+
+		test("shows error message in development mode", async () => {
+			const original = Bun.env.NODE_ENV;
+			Bun.env.NODE_ENV = "development";
+			try {
+				const app = createApp();
+				app.get("/error", () => {
+					throw new Error("Detailed dev error");
+				});
+
+				const response = await app.fetch(new Request("http://localhost/error"));
+
+				expect(response.status).toBe(500);
+				expect(await response.json()).toEqual({
+					error: "Detailed dev error",
+				});
+			} finally {
+				Bun.env.NODE_ENV = original;
+			}
+		});
+
+		test("shows error message when NODE_ENV is not set", async () => {
+			const original = Bun.env.NODE_ENV;
+			Bun.env.NODE_ENV = undefined;
+			try {
+				const app = createApp();
+				app.get("/error", () => {
+					throw new Error("Visible without NODE_ENV");
+				});
+
+				const response = await app.fetch(new Request("http://localhost/error"));
+
+				expect(response.status).toBe(500);
+				expect(await response.json()).toEqual({
+					error: "Visible without NODE_ENV",
+				});
+			} finally {
+				Bun.env.NODE_ENV = original;
+			}
+		});
+
+		test("hides non-Error objects in production mode", async () => {
+			const original = Bun.env.NODE_ENV;
+			Bun.env.NODE_ENV = "production";
+			try {
+				const app = createApp();
+				app.get("/error", () => {
+					throw "secret string error";
+				});
+
+				const response = await app.fetch(new Request("http://localhost/error"));
+
+				expect(response.status).toBe(500);
+				expect(await response.json()).toEqual({
+					error: "Internal Server Error",
+				});
+			} finally {
+				Bun.env.NODE_ENV = original;
+			}
+		});
+
 		test("custom onError handler overrides default 500", async () => {
 			const app = createApp({
 				onError: (ctx, error) => {

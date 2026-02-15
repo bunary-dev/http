@@ -69,6 +69,7 @@ apiApp.get('/users', () => ({})); // Matches /api/users
   - Called when a route handler or middleware throws an error
   - Receives `RequestContext` and the error object
   - Can return `Response` or `HandlerResponse`
+  - If not provided, the default handler hides error details in production
 
 **Example with custom error handlers:**
 
@@ -481,10 +482,14 @@ app.get('/posts/:id?', (ctx) => ({})).whereNumber('id');
 
 ## Error Handling
 
-Uncaught errors in handlers return a 500 response. By default the body includes the error message (via the built-in handler). **Security note:** Returning `error.message` in production can leak internal details (e.g. database errors, file paths) to clients. Use a custom `onError` handler in production that returns a generic message to the client while logging the full error server-side, or expose detailed messages only in a trusted debug mode.
+Uncaught errors in handlers return a 500 response. The default error handler is environment-aware:
+
+- **Production** (`NODE_ENV=production`): Returns a generic `"Internal Server Error"` message to avoid leaking sensitive details like database errors, file paths, or stack traces.
+- **Development/Test** (any other `NODE_ENV`): Returns the full `error.message` for easier debugging.
+
+For full control, use a custom `onError` handler:
 
 ```typescript
-// Default: 500 with error message. For production, prefer custom onError:
 createApp({
   onError: (ctx, error) => {
     console.error('Request error:', error);

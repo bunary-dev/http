@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.1] - 2026-02-15
 
+### Fixed
+
+- Default error handler no longer leaks `error.message` in production (#44)
+  - Returns generic `"Internal Server Error"` when `NODE_ENV=production`
+  - Full error message still shown in development and test modes
+
 ### Removed
 
 - Removed internal `Route` type from public exports — use `RouteInfo` for route metadata (#45)
