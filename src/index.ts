@@ -35,7 +35,6 @@ export type {
 	Middleware,
 	PathParams,
 	RequestContext,
-	Route,
 	RouteBuilder,
 	RouteHandler,
 	RouteInfo,
