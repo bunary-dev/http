@@ -6,15 +6,19 @@ import type { AppOptions, RequestContext, Route } from "../types/index.js";
  * Handle 405 Method Not Allowed responses.
  * Uses custom onMethodNotAllowed handler if provided, otherwise returns default JSON response.
  * Ensures Allow header is always present.
+ *
+ * @param precomputed - Pre-computed allowed methods from resolveRoute() to avoid re-scanning.
+ *                      Falls back to scanning routes if not provided.
  */
 export async function handleMethodNotAllowed(
 	request: Request,
 	path: string,
 	routes: Route[],
 	options?: AppOptions,
+	precomputed?: string[],
 ): Promise<Response> {
 	const url = new URL(request.url);
-	const allowedMethods = getAllowedMethods(routes, path);
+	const allowedMethods = precomputed ?? getAllowedMethods(routes, path);
 	const methodNotAllowedCtx: RequestContext = {
 		request,
 		params: {},
