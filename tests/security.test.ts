@@ -8,7 +8,7 @@
  * These tests are intentionally separate from functional tests and
  * will be expanded as the framework grows.
  */
-import { describe, expect, it } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { createApp } from "../src/index.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -50,13 +50,13 @@ function securityApp() {
 describe("Path Traversal", () => {
 	const app = securityApp();
 
-	it("plain ../ does not match a parameterised route", async () => {
+	test("plain ../ does not match a parameterised route", async () => {
 		const res = await req(app, "/users/../etc/passwd");
 		// URL constructor normalises ../ so pathname becomes /etc/passwd → 404
 		expect(res.status).toBe(404);
 	});
 
-	it("encoded ../ (%2e%2e%2f) stays in param without traversal", async () => {
+	test("encoded ../ (%2e%2e%2f) stays in param without traversal", async () => {
 		const res = await req(app, "/files/%2e%2e%2fetc%2fpasswd");
 		// The %2F inside the segment is decoded by extractParams but the
 		// route regex [^/]+ matches against the raw pathname (which keeps %2F).
@@ -67,7 +67,7 @@ describe("Path Traversal", () => {
 		// Crucially, the framework did not serve /etc/passwd
 	});
 
-	it("double-encoded traversal (%252e%252e%252f) decodes one layer only", async () => {
+	test("double-encoded traversal (%252e%252e%252f) decodes one layer only", async () => {
 		const res = await req(app, "/files/%252e%252e%252f");
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as { name: string };
@@ -75,14 +75,14 @@ describe("Path Traversal", () => {
 		expect(body.name).toBe("%2e%2e%2f");
 	});
 
-	it("mixed encoded/plain traversal does not escape route", async () => {
+	test("mixed encoded/plain traversal does not escape route", async () => {
 		const res = await req(app, "/files/..%2F..%2Fetc%2Fpasswd");
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as { name: string };
 		expect(body.name).toBe("../../etc/passwd");
 	});
 
-	it("backslash traversal (Windows-style) is normalised by URL parser", async () => {
+	test("backslash traversal (Windows-style) is normalised by URL parser", async () => {
 		const res = await req(app, "/files/..\\etc\\passwd");
 		// URL constructor treats \ as / and resolves ../ → pathname becomes /etc/passwd
 		// No route matches /etc/passwd → 404 (safe)
@@ -95,7 +95,7 @@ describe("Path Traversal", () => {
 describe("Null Byte Injection", () => {
 	const app = securityApp();
 
-	it("encoded null byte %00 in param is decoded but contained", async () => {
+	test("encoded null byte %00 in param is decoded but contained", async () => {
 		const res = await req(app, "/files/malicious%00.txt");
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as { name: string };
@@ -104,14 +104,14 @@ describe("Null Byte Injection", () => {
 		expect(body.name.length).toBe("malicious\0.txt".length);
 	});
 
-	it("null byte in query parameter is decoded", async () => {
+	test("null byte in query parameter is decoded", async () => {
 		const res = await req(app, "/search?q=test%00injected");
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as { q: string };
 		expect(body.q).toBe("test\0injected");
 	});
 
-	it("multiple null bytes do not crash the router", async () => {
+	test("multiple null bytes do not crash the router", async () => {
 		const res = await req(app, "/files/%00%00%00");
 		expect(res.status).toBe(200);
 	});
@@ -122,7 +122,7 @@ describe("Null Byte Injection", () => {
 describe("CRLF Injection", () => {
 	const app = securityApp();
 
-	it("encoded CRLF in param does not split response headers", async () => {
+	test("encoded CRLF in param does not split response headers", async () => {
 		const res = await req(app, "/files/test%0d%0aX-Injected:%20true");
 		expect(res.status).toBe(200);
 		// The injected header must NOT appear as a real response header
@@ -131,7 +131,7 @@ describe("CRLF Injection", () => {
 		expect(body.name).toContain("\r\n");
 	});
 
-	it("encoded LF in query value does not affect headers", async () => {
+	test("encoded LF in query value does not affect headers", async () => {
 		const res = await req(app, "/search?q=test%0aX-Injected:%20yes");
 		expect(res.status).toBe(200);
 		expect(res.headers.get("X-Injected")).toBeNull();
@@ -143,7 +143,7 @@ describe("CRLF Injection", () => {
 describe("XSS via Path Parameters", () => {
 	const app = securityApp();
 
-	it("script tags in params are returned as data, not executed", async () => {
+	test("script tags in params are returned as data, not executed", async () => {
 		const payload = encodeURIComponent("<script>alert(1)</script>");
 		const res = await req(app, `/users/${payload}`);
 		expect(res.status).toBe(200);
@@ -153,7 +153,7 @@ describe("XSS via Path Parameters", () => {
 		expect(body.id).toBe("<script>alert(1)</script>");
 	});
 
-	it("HTML entities in params are not double-encoded", async () => {
+	test("HTML entities in params are not double-encoded", async () => {
 		const payload = encodeURIComponent('"><img src=x onerror=alert(1)>');
 		const res = await req(app, `/files/${payload}`);
 		expect(res.status).toBe(200);
@@ -161,7 +161,7 @@ describe("XSS via Path Parameters", () => {
 		expect(body.name).toBe('"><img src=x onerror=alert(1)>');
 	});
 
-	it("javascript: URI in param is just data", async () => {
+	test("javascript: URI in param is just data", async () => {
 		const payload = encodeURIComponent("javascript:alert(document.cookie)");
 		const res = await req(app, `/users/${payload}`);
 		expect(res.status).toBe(200);
@@ -169,7 +169,7 @@ describe("XSS via Path Parameters", () => {
 		expect(body.id).toBe("javascript:alert(document.cookie)");
 	});
 
-	it("XSS in query parameters stays as data", async () => {
+	test("XSS in query parameters stays as data", async () => {
 		const res = await req(app, "/search?q=%3Cscript%3Ealert(1)%3C%2Fscript%3E");
 		expect(res.status).toBe(200);
 		expect(res.headers.get("Content-Type")).toBe("application/json");
@@ -183,7 +183,7 @@ describe("XSS via Path Parameters", () => {
 describe("SQL Injection Patterns in Params", () => {
 	const app = securityApp();
 
-	it("SQL injection payload is passed as raw string data", async () => {
+	test("SQL injection payload is passed as raw string data", async () => {
 		const payload = encodeURIComponent("'; DROP TABLE users; --");
 		const res = await req(app, `/users/${payload}`);
 		expect(res.status).toBe(200);
@@ -192,7 +192,7 @@ describe("SQL Injection Patterns in Params", () => {
 		expect(body.id).toBe("'; DROP TABLE users; --");
 	});
 
-	it("UNION SELECT in param is just data", async () => {
+	test("UNION SELECT in param is just data", async () => {
 		const payload = encodeURIComponent("1 UNION SELECT * FROM passwords");
 		const res = await req(app, `/users/${payload}`);
 		expect(res.status).toBe(200);
@@ -204,7 +204,7 @@ describe("SQL Injection Patterns in Params", () => {
 // ─── 6. Prototype Pollution ──────────────────────────────────────────
 
 describe("Prototype Pollution via Params", () => {
-	it("__proto__ as param name does not pollute Object prototype", async () => {
+	test("__proto__ as param name does not pollute Object prototype", async () => {
 		const app = createApp();
 		app.get("/:key", (ctx) => ({ key: ctx.params.key }));
 
@@ -217,7 +217,7 @@ describe("Prototype Pollution via Params", () => {
 		expect(({} as Record<string, unknown>).polluted).toBeUndefined();
 	});
 
-	it("constructor param does not affect prototype chain", async () => {
+	test("constructor param does not affect prototype chain", async () => {
 		const app = createApp();
 		app.get("/:key", (ctx) => ({ key: ctx.params.key }));
 
@@ -227,7 +227,7 @@ describe("Prototype Pollution via Params", () => {
 		expect(body.key).toBe("constructor");
 	});
 
-	it("__proto__ in query param does not pollute", async () => {
+	test("__proto__ in query param does not pollute", async () => {
 		const app = securityApp();
 		const res = await req(app, "/search?__proto__[polluted]=true&q=test");
 		expect(res.status).toBe(200);
@@ -240,7 +240,7 @@ describe("Prototype Pollution via Params", () => {
 describe("Oversized and Extreme Input", () => {
 	const app = securityApp();
 
-	it("extremely long path parameter does not crash", async () => {
+	test("extremely long path parameter does not crash", async () => {
 		const longParam = "A".repeat(10_000);
 		const res = await req(app, `/users/${longParam}`);
 		expect(res.status).toBe(200);
@@ -248,19 +248,19 @@ describe("Oversized and Extreme Input", () => {
 		expect(body.id.length).toBe(10_000);
 	});
 
-	it("extremely long path with no route returns 404 without crash", async () => {
+	test("extremely long path with no route returns 404 without crash", async () => {
 		const longPath = "/segment".repeat(500);
 		const res = await req(app, longPath);
 		expect(res.status).toBe(404);
 	});
 
-	it("thousands of query parameters do not crash", async () => {
+	test("thousands of query parameters do not crash", async () => {
 		const params = Array.from({ length: 2000 }, (_, i) => `k${i}=v${i}`).join("&");
 		const res = await req(app, `/search?${params}`);
 		expect(res.status).toBe(200);
 	});
 
-	it("deeply nested URL-encoded value decodes once only", async () => {
+	test("deeply nested URL-encoded value decodes once only", async () => {
 		// 5 layers of encoding
 		let val = "payload";
 		for (let i = 0; i < 5; i++) {
@@ -281,14 +281,14 @@ describe("Oversized and Extreme Input", () => {
 // ─── 8. Method Tampering ──────────────────────────────────────────────
 
 describe("Method Tampering", () => {
-	it("non-standard HTTP method returns 404, not crash", async () => {
+	test("non-standard HTTP method returns 404, not crash", async () => {
 		const app = securityApp();
 		const res = await req(app, "/safe", "PURGE");
 		// No route registered for PURGE → 405 (path exists) or 404
 		expect([404, 405]).toContain(res.status);
 	});
 
-	it("empty-ish method edge case does not crash", async () => {
+	test("empty-ish method edge case does not crash", async () => {
 		const app = securityApp();
 		// Bun may normalise this, but the framework should not crash
 		const res = await app.fetch(
@@ -303,14 +303,14 @@ describe("Method Tampering", () => {
 describe("Open Redirect via Path", () => {
 	const app = securityApp();
 
-	it("double-slash path //evil.com does not match routes", async () => {
+	test("double-slash path //evil.com does not match routes", async () => {
 		const res = await req(app, "//evil.com");
 		// URL constructor normalises this — pathname stays "//evil.com"
 		// No route should match
 		expect(res.status).toBe(404);
 	});
 
-	it("/\\evil.com does not match routes", async () => {
+	test("/\\evil.com does not match routes", async () => {
 		const res = await req(app, "/%5Cevil.com");
 		expect(res.status).toBe(404);
 	});
@@ -319,7 +319,7 @@ describe("Open Redirect via Path", () => {
 // ─── 10. Error Handler Information Leak ───────────────────────────────
 
 describe("Error Information Leak", () => {
-	it("throwing handler does not expose stack traces in default response", async () => {
+	test("throwing handler does not expose stack traces in default response", async () => {
 		const app = createApp();
 		app.get("/boom", () => {
 			throw new Error("SECRET_DATABASE_PASSWORD=hunter2");
@@ -335,7 +335,7 @@ describe("Error Information Leak", () => {
 		expect(text).not.toContain("node_modules");
 	});
 
-	it("non-Error thrown objects do not expose internals", async () => {
+	test("non-Error thrown objects do not expose internals", async () => {
 		const app = createApp();
 		app.get("/boom", () => {
 			throw { secret: "password123", code: 42 };
@@ -349,7 +349,7 @@ describe("Error Information Leak", () => {
 		expect(text).not.toContain('"secret"');
 	});
 
-	it("error with circular reference does not crash", async () => {
+	test("error with circular reference does not crash", async () => {
 		const app = createApp();
 		app.get("/boom", () => {
 			const err: Record<string, unknown> = new Error("circular");
@@ -365,7 +365,7 @@ describe("Error Information Leak", () => {
 // ─── 11. Request Smuggling / Ambiguity ────────────────────────────────
 
 describe("Request Ambiguity", () => {
-	it("route with trailing slash and without are treated consistently", async () => {
+	test("route with trailing slash and without are treated consistently", async () => {
 		const app = createApp();
 		app.get("/api/data", () => ({ ok: true }));
 
@@ -376,7 +376,7 @@ describe("Request Ambiguity", () => {
 		expect(res2.status).toBe(200);
 	});
 
-	it("case-sensitive paths — /Users is not /users", async () => {
+	test("case-sensitive paths — /Users is not /users", async () => {
 		const app = securityApp();
 		const lower = await req(app, "/users/1");
 		const upper = await req(app, "/Users/1");
@@ -389,7 +389,7 @@ describe("Request Ambiguity", () => {
 // ─── 12. Middleware Bypass ────────────────────────────────────────────
 
 describe("Middleware Bypass Attempts", () => {
-	it("URL-encoded path still triggers middleware", async () => {
+	test("URL-encoded path still triggers middleware", async () => {
 		const app = createApp();
 		let middlewareRan = false;
 
@@ -404,7 +404,7 @@ describe("Middleware Bypass Attempts", () => {
 		expect(middlewareRan).toBe(true);
 	});
 
-	it("double-encoded path still triggers middleware", async () => {
+	test("double-encoded path still triggers middleware", async () => {
 		const app = createApp();
 		let middlewareRan = false;
 
@@ -419,7 +419,7 @@ describe("Middleware Bypass Attempts", () => {
 		expect(middlewareRan).toBe(true);
 	});
 
-	it("encoded path does not bypass path-checking middleware", async () => {
+	test("encoded path does not bypass path-checking middleware", async () => {
 		const app = createApp();
 
 		app.use(async (ctx, next) => {
@@ -454,7 +454,7 @@ describe("Middleware Bypass Attempts", () => {
 // ─── 13. Host Header Attacks ──────────────────────────────────────────
 
 describe("Host Header Attacks", () => {
-	it("spoofed host header does not affect routing", async () => {
+	test("spoofed host header does not affect routing", async () => {
 		const app = securityApp();
 
 		const res = await app.fetch(
@@ -471,7 +471,7 @@ describe("Host Header Attacks", () => {
 // ─── 14. Content-Type Confusion ───────────────────────────────────────
 
 describe("Content-Type Confusion", () => {
-	it("string response always has text/plain content-type", async () => {
+	test("string response always has text/plain content-type", async () => {
 		const app = createApp();
 		app.get("/html", () => "<h1>Hello</h1>");
 
@@ -481,7 +481,7 @@ describe("Content-Type Confusion", () => {
 		expect(res.headers.get("Content-Type")).toBe("text/plain;charset=utf-8");
 	});
 
-	it("object response always has application/json content-type", async () => {
+	test("object response always has application/json content-type", async () => {
 		const app = createApp();
 		app.get("/data", () => ({ html: "<script>alert(1)</script>" }));
 
