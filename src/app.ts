@@ -4,17 +4,11 @@ import {
 	handleMethodNotAllowed,
 	handleNotFound,
 	handleOptions,
-	normalizeHeadMethod,
 	toHeadResponse,
 } from "./handlers/index.js";
 import { joinPaths, normalizePrefix } from "./pathUtils.js";
 import { compilePath } from "./router.js";
-import {
-	createGroupRouter,
-	createRouteBuilder,
-	findRoute,
-	hasMatchingPath,
-} from "./routes/index.js";
+import { createGroupRouter, createRouteBuilder, resolveRoute } from "./routes/index.js";
 import type {
 	AppOptions,
 	BunaryApp,
@@ -145,21 +139,19 @@ export function createApp(options?: AppOptions): BunaryApp {
 		const path = url.pathname;
 		const method = request.method as HttpMethod;
 
-		// Handle OPTIONS requests
+		// Handle OPTIONS requests — single pass via resolveRoute
 		if (method === "OPTIONS") {
 			return await handleOptions(request, path, routes, options);
 		}
 
-		// Normalize HEAD requests to use GET route if no explicit HEAD route exists
-		const actualMethod = normalizeHeadMethod(method, path, routes);
-
-		// Find matching route
-		const match = findRoute(routes, actualMethod, path);
+		// Single-pass route resolution: finds match, handles HEAD→GET
+		// fallback, and collects allowed methods for 405 — all in one scan.
+		const { match, allowedMethods } = resolveRoute(routes, method, path);
 
 		if (!match) {
-			// Check if path exists with different method → 405
-			if (hasMatchingPath(routes, path)) {
-				return await handleMethodNotAllowed(request, path, routes, options);
+			if (allowedMethods.length > 0) {
+				// Path exists for other methods → 405
+				return await handleMethodNotAllowed(request, path, routes, options, allowedMethods);
 			}
 			// No route at all → 404
 			return await handleNotFound(request, path, options);

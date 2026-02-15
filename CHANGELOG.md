@@ -5,6 +5,16 @@ All notable changes to `@bunary/http` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-02-15
+
+### Changed
+
+- Single-pass route resolution replaces multiple scans of the route table (#42, #48)
+  - HEAD requests now resolve in one pass instead of three separate `findRoute()` calls
+  - 405 responses reuse allowed-methods collected during matching instead of a second full scan
+  - New internal `resolveRoute()` function combines matching, HEAD→GET fallback, and method collection
+  - No public API changes — purely internal performance improvement
+
 ## [0.1.1] - 2026-02-15
 
 ### Fixed

@@ -7,6 +7,64 @@ export interface RouteMatch {
 }
 
 /**
+ * Result of a single-pass route resolution.
+ *
+ * Combines route matching, HEAD→GET fallback, and allowed-method
+ * collection into one scan of the route table.
+ */
+export interface RouteResolution {
+	/** The matched route and extracted params, or null if no match */
+	match: RouteMatch | null;
+	/** Methods that match this path (populated when match is null and path exists for other methods) */
+	allowedMethods: string[];
+}
+
+/**
+ * Resolve a route in a single pass through the route table.
+ *
+ * For HEAD requests this also checks for a GET fallback.
+ * When no exact match is found it collects all methods whose path
+ * pattern matches (with constraints), enabling 405 responses and
+ * OPTIONS Allow headers without a second scan.
+ *
+ * **Complexity**: O(n) — one pass regardless of outcome.
+ */
+export function resolveRoute(routes: Route[], method: string, path: string): RouteResolution {
+	let getFallback: RouteMatch | null = null;
+	const allowedMethods = new Set<string>();
+
+	for (const route of routes) {
+		if (!route.pattern.test(path)) continue;
+
+		const params = extractParams(path, route);
+		if (!checkConstraints(params, route.constraints)) continue;
+
+		// Path matches with valid constraints — record the method
+		allowedMethods.add(route.method);
+
+		if (route.method === method) {
+			// Exact method match — return immediately
+			return { match: { route, params }, allowedMethods: [] };
+		}
+
+		// For HEAD requests, remember the first GET fallback
+		if (method === "HEAD" && route.method === "GET" && !getFallback) {
+			getFallback = { route, params };
+		}
+	}
+
+	// HEAD with GET fallback — finish the scan first to populate allowedMethods
+	if (getFallback) {
+		return { match: getFallback, allowedMethods: [] };
+	}
+
+	return {
+		match: null,
+		allowedMethods: Array.from(allowedMethods).sort(),
+	};
+}
+
+/**
  * Find a matching route for the given method and path.
  *
  * **Complexity**: O(n) where n is the number of registered routes.
