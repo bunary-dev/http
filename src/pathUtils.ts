@@ -54,5 +54,10 @@ export function joinPaths(prefix: string, path: string): string {
 		return normalizedPrefix;
 	}
 
+	// When prefix is root "/", just return the path (avoid "//users")
+	if (normalizedPrefix === "/") {
+		return normalizedPath;
+	}
+
 	return normalizedPrefix + normalizedPath;
 }

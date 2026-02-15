@@ -5,6 +5,22 @@ All notable changes to `@bunary/http` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-02-15
+
+### Fixed
+
+- Path parameters are now decoded with `decodeURIComponent` (#52)
+  - `hello%20world` → `"hello world"`, `caf%C3%A9` → `"café"`, emoji and CJK characters decoded correctly
+  - Malformed percent-sequences (e.g., `%ZZ`) gracefully return raw value
+  - Route constraints now check against decoded values
+- `joinPaths("/", "/users")` no longer returns `"//users"` (#49)
+
+### Added
+
+- 83 new unit tests for utility functions and URL encoding behaviour (#49, #52)
+  - Direct unit tests for `compilePath()`, `extractParams()`, `checkConstraints()`, `normalizePrefix()`, `joinPaths()`, `toResponse()`
+  - Full coverage of URL-encoded paths, unicode, double-encoding, and encoded slashes
+
 ## [0.1.2] - 2026-02-15
 
 ### Changed
