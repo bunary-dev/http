@@ -180,7 +180,6 @@ app.get<{ format?: string }>('/data/:format?', (ctx) => {
 Values remain strings at runtime — no automatic coercion. The generic only narrows the TypeScript type.
 
 When no type parameter is provided, `ctx.params` defaults to `Record<string, string | undefined>`.
-```
 
 #### URL Encoding and Unicode
 
@@ -236,7 +235,7 @@ Route handlers receive a `RequestContext<TLocals, TParams>` object:
 
 ```typescript
 interface RequestContext<
-  TLocals extends Record<string, unknown> = Record<string, unknown>,
+  TLocals extends object = Record<string, unknown>,
   TParams extends PathParams = PathParams,
 > {
   request: Request;  // Original Bun Request object

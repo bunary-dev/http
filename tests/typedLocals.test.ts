@@ -54,7 +54,7 @@ describe("Typed locals (createApp<TLocals>)", () => {
 	});
 
 	test("locals start empty and are populated by middleware", async () => {
-		const app = createApp<AppLocals>();
+		const app = createApp<Partial<AppLocals>>();
 
 		// No middleware — locals not yet populated
 		app.get("/empty", (ctx) => ({
