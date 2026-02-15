@@ -24,4 +24,6 @@ export interface Route {
 	middleware?: Middleware[];
 	/** Names of optional parameters */
 	optionalParams?: string[];
+	/** Whether this route uses a wildcard catch-all (/* or /**) */
+	isWildcard?: boolean;
 }

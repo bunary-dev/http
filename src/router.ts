@@ -13,6 +13,8 @@ export interface CompiledPath {
 	paramNames: string[];
 	/** Names of optional parameters */
 	optionalParams: string[];
+	/** Whether this path ends with a wildcard catch-all */
+	isWildcard: boolean;
 }
 
 /**
@@ -33,9 +35,28 @@ export interface CompiledPath {
 export function compilePath(path: string): CompiledPath {
 	const paramNames: string[] = [];
 	const optionalParams: string[] = [];
+	let isWildcard = false;
+	let processedPath = path;
+
+	// Detect and strip wildcard catch-all suffix (/* or /**)
+	// Must appear at the very end of the path.
+	if (processedPath.endsWith("/**")) {
+		processedPath = processedPath.slice(0, -3);
+		isWildcard = true;
+	} else if (processedPath.endsWith("/*")) {
+		processedPath = processedPath.slice(0, -2);
+		isWildcard = true;
+	}
+
+	// Validate: * in the middle of a path is not supported
+	if (processedPath.includes("*")) {
+		throw new Error(
+			`Wildcard "*" must appear at the end of the route pattern "${path}". Mid-path wildcards are not supported.`,
+		);
+	}
 
 	// Escape special regex chars except : which we use for params
-	let regexString = path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	let regexString = processedPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 	// Process all params in order of appearance, handling both required and optional
 	regexString = regexString.replace(
@@ -57,13 +78,21 @@ export function compilePath(path: string): CompiledPath {
 		},
 	);
 
-	// Allow optional trailing slash at the end
-	regexString += "/?";
+	if (isWildcard) {
+		// Wildcard capture: matches "/" + anything, or nothing at all.
+		// The captured value is the remaining path (without leading slash).
+		regexString += "(?:/(.*))?";
+		paramNames.push("*");
+	} else {
+		// Allow optional trailing slash at the end
+		regexString += "/?";
+	}
 
 	return {
 		pattern: new RegExp(`^${regexString}$`),
 		paramNames,
 		optionalParams,
+		isWildcard,
 	};
 }
 

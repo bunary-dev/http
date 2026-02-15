@@ -15,6 +15,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 - 🏷️ **Named Routes** - URL generation with route names
 - ✅ **Route Constraints** - Validate parameters with regex patterns
 - ❓ **Optional Parameters** - Flexible routes with optional path segments
+- 🌐 **Wildcard Routes** - Catch-all `/*` and `/**` patterns for SPA fallbacks and proxies
 
 ## Installation
 
@@ -565,6 +566,92 @@ app.get('/archive/:year?/:month?', (ctx) => {
 // Constraints work with optional params
 app.get('/posts/:id?', (ctx) => ({})).whereNumber('id');
 ```
+
+## Wildcard Routes
+
+End a route path with `/*` or `/**` to create a catch-all route. The remaining path is captured as `ctx.params["*"]`.
+
+```typescript
+// SPA fallback — serves index.html for any unmatched path
+app.get('/*', (ctx) => {
+  return new Response(Bun.file('public/index.html'));
+});
+
+// Static file serving (with path traversal protection)
+app.get('/assets/*', (ctx) => {
+  const filePath = ctx.params['*'];
+  if (!filePath) return new Response('Not Found', { status: 404 });
+
+  const resolved = Bun.resolveSync(`public/${filePath}`, process.cwd());
+  const root = Bun.resolveSync('public', process.cwd());
+  if (!resolved.startsWith(root)) {
+    return new Response('Forbidden', { status: 403 });
+  }
+  return new Response(Bun.file(resolved));
+});
+
+// GET /assets/css/style.css → ctx.params["*"] = "css/style.css"
+// GET /assets/js/app.js     → ctx.params["*"] = "js/app.js"
+// GET /assets               → ctx.params["*"] = undefined
+```
+
+`/*` and `/**` behave identically — `/**` is a visual convention to signal deep matching.
+
+### Wildcards with Named Parameters
+
+Combine named parameters and a trailing wildcard:
+
+```typescript
+app.get('/users/:id/*', (ctx) => {
+  const { id } = ctx.params;
+  const remaining = ctx.params['*'];
+  return { id, path: remaining };
+});
+
+// GET /users/42/docs/readme.md → { id: "42", path: "docs/readme.md" }
+```
+
+### Wildcards in Groups
+
+Wildcard routes compose with group prefixes and `basePath`:
+
+```typescript
+app.group('/api', (router) => {
+  router.get('/proxy/*', async (ctx) => {
+    const target = ctx.params['*'];
+    return fetch(`https://backend.example.com/${target}`);
+  });
+});
+
+// GET /api/proxy/v2/users → target = "v2/users"
+```
+
+### Route Priority
+
+Routes match in registration order (first match wins). Register specific routes before wildcard catch-alls:
+
+```typescript
+app.get('/assets/manifest.json', (ctx) => ({ type: 'manifest' }));
+app.get('/assets/*', (ctx) => {
+  return new Response(Bun.file(`public/${ctx.params['*']}`));
+});
+
+// GET /assets/manifest.json → hits the specific route
+// GET /assets/style.css     → hits the wildcard
+```
+
+### Wildcard URL Generation
+
+Named wildcard routes support URL generation via `app.route()`. Pass the `"*"` param for the remaining path:
+
+```typescript
+app.get('/assets/*', () => ({})).name('assets');
+
+app.route('assets', { '*': 'css/style.css' }); // → "/assets/css/style.css"
+app.route('assets');                            // → "/assets"
+```
+
+> **Note:** The wildcard must appear at the end of the path. A `*` in the middle of a path (e.g., `/*/foo`) throws an error.
 
 ## Error Handling
 

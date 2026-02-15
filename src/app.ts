@@ -129,7 +129,7 @@ export function createApp<TLocals extends object = Record<string, unknown>>(
 	): RouteBuilder {
 		// Apply basePath prefix to the route path
 		const fullPath = basePath ? joinPaths(basePath, path) : path;
-		const { pattern, paramNames, optionalParams } = compilePath(fullPath);
+		const { pattern, paramNames, optionalParams, isWildcard } = compilePath(fullPath);
 		const route: Route = {
 			method,
 			path: fullPath,
@@ -138,6 +138,7 @@ export function createApp<TLocals extends object = Record<string, unknown>>(
 			handler,
 			optionalParams: optionalParams.length > 0 ? optionalParams : undefined,
 			middleware: groupMiddleware.length > 0 ? [...groupMiddleware] : undefined,
+			isWildcard: isWildcard || undefined,
 		};
 		routes.push(route);
 		return createRouteBuilder(route, namedRoutes, app);
@@ -250,6 +251,21 @@ export function createApp<TLocals extends object = Record<string, unknown>>(
 
 			// Replace path parameters
 			for (const paramName of route.paramNames) {
+				// Wildcard param ("*") — replace trailing /* or /** in the stored path
+				if (paramName === "*") {
+					const wildcardValue = params?.["*"];
+					if (wildcardValue !== undefined) {
+						// Encode each segment individually, preserving "/" as separator
+						const encoded = String(wildcardValue).split("/").map(encodeURIComponent).join("/");
+						url = url.replace(/\/\*{1,2}$/, `/${encoded}`);
+						usedParams.add("*");
+					} else {
+						// No value — remove the wildcard suffix
+						url = url.replace(/\/\*{1,2}$/, "");
+					}
+					continue;
+				}
+
 				const isOptional = route.optionalParams?.includes(paramName);
 				const value = params?.[paramName];
 
