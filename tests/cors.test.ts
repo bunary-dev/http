@@ -316,6 +316,44 @@ describe("CORS Middleware", () => {
 			expect(response.status).toBe(200);
 			expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
 		});
+
+		test("preflight OPTIONS uses group middleware, not just global", async () => {
+			const app = createApp();
+			// No global CORS — only the /api group has it
+			app.group({ prefix: "/api", middleware: [cors()] }, (router) => {
+				router.get("/users", () => ({ users: [] }));
+			});
+			app.get("/public", () => ({ public: true }));
+
+			// Preflight to /api/users should get CORS headers from group middleware
+			const apiResponse = await app.fetch(
+				new Request("http://localhost/api/users", {
+					method: "OPTIONS",
+					headers: {
+						Origin: "https://example.com",
+						"Access-Control-Request-Method": "GET",
+					},
+				}),
+			);
+
+			expect(apiResponse.status).toBe(204);
+			expect(apiResponse.headers.get("Access-Control-Allow-Origin")).toBe("*");
+			expect(apiResponse.headers.get("Access-Control-Allow-Methods")).toBeTruthy();
+
+			// Preflight to /public should NOT get CORS headers (no CORS middleware)
+			const publicResponse = await app.fetch(
+				new Request("http://localhost/public", {
+					method: "OPTIONS",
+					headers: {
+						Origin: "https://example.com",
+						"Access-Control-Request-Method": "GET",
+					},
+				}),
+			);
+
+			expect(publicResponse.status).toBe(204);
+			expect(publicResponse.headers.get("Access-Control-Allow-Origin")).toBeNull();
+		});
 	});
 
 	describe("Works with handler responses", () => {

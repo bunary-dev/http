@@ -1,6 +1,7 @@
 export { compilePattern, createRouteBuilder, wrapBuilderWithNamePrefix } from "./builder.js";
 export {
 	findRoute,
+	findRouteByPath,
 	getAllowedMethods,
 	hasMatchingPath,
 	type RouteMatch,

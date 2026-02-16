@@ -108,6 +108,22 @@ export function hasMatchingPath(routes: Route[], path: string): boolean {
 }
 
 /**
+ * Find the first route whose path matches, regardless of HTTP method.
+ *
+ * Used by the OPTIONS/CORS preflight handler to locate group middleware
+ * attached to a route at this path.
+ */
+export function findRouteByPath(routes: Route[], path: string): RouteMatch | null {
+	for (const route of routes) {
+		if (!route.pattern.test(path)) continue;
+		const params = extractParams(path, route);
+		if (!checkConstraints(params, route.constraints)) continue;
+		return { route, params };
+	}
+	return null;
+}
+
+/**
  * Get all allowed HTTP methods for a given path.
  * Respects route constraints when determining matches.
  *
