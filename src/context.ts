@@ -31,7 +31,7 @@ export function createRequestContext(
 		text: () => request.text(),
 		formData: async () => {
 			try {
-				return (await request.formData()) as unknown as FormData;
+				return await request.formData();
 			} catch (error) {
 				throw new BodyParseError("Failed to parse form data", error);
 			}
