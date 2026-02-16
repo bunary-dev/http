@@ -1,3 +1,4 @@
+import { createRequestContext } from "./context.js";
 import {
 	executeRoute,
 	handleError,
@@ -171,12 +172,7 @@ export function createApp<TLocals extends object = Record<string, unknown>>(
 		}
 
 		// Build request context
-		const ctx: RequestContext = {
-			request,
-			params: match.params,
-			query: url.searchParams,
-			locals: {},
-		};
+		const ctx: RequestContext = createRequestContext(request, match.params, url.searchParams);
 
 		try {
 			const response = await executeRoute(match, ctx, getMiddlewareChain);

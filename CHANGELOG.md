@@ -5,6 +5,17 @@ All notable changes to `@bunary/http` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-02-17
+
+### Added
+
+- Body parsing helpers on `RequestContext` — `ctx.json()`, `ctx.text()`, `ctx.formData()` (#51)
+  - `ctx.json<T>()` — parse JSON body with type inference, throws `BodyParseError` on malformed input
+  - `ctx.text()` — get request body as string
+  - `ctx.formData()` — parse multipart/URL-encoded form data, throws `BodyParseError` on malformed input
+  - `BodyParseError` class exported for catch-based error handling in handlers
+  - Thin wrappers around `Request` methods — no parsing framework, no validation, zero new dependencies
+
 ## [0.2.0] - 2026-02-15
 
 ### Added

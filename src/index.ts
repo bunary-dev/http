@@ -19,8 +19,10 @@
  * @packageDocumentation
  */
 
-// Export app factory (to be implemented)
+// Export app factory
 export { createApp } from "./app.js";
+// Export error classes
+export { BodyParseError } from "./errors.js";
 // Export types
 export type {
 	AppOptions,

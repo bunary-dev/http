@@ -1,3 +1,4 @@
+import { createRequestContext } from "../context.js";
 import { toResponse } from "../response.js";
 import type { AppOptions, RequestContext } from "../types/index.js";
 
@@ -11,12 +12,7 @@ export async function handleNotFound(
 	options?: AppOptions,
 ): Promise<Response> {
 	const url = new URL(request.url);
-	const notFoundCtx: RequestContext = {
-		request,
-		params: {},
-		query: url.searchParams,
-		locals: {},
-	};
+	const notFoundCtx: RequestContext = createRequestContext(request, {}, url.searchParams);
 	if (options?.onNotFound) {
 		const result = await options.onNotFound(notFoundCtx);
 		return toResponse(result);

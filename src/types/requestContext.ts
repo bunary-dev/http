@@ -47,4 +47,61 @@ export interface RequestContext<
 	 * ```
 	 */
 	locals: TLocals;
+
+	/**
+	 * Parse the request body as JSON.
+	 *
+	 * Thin wrapper around `request.json()` with error handling.
+	 * Throws `BodyParseError` if the body is not valid JSON.
+	 *
+	 * @typeParam T — Expected shape of the parsed JSON body
+	 * @returns The parsed JSON body
+	 * @throws {BodyParseError} If the body cannot be parsed as JSON
+	 *
+	 * @example
+	 * ```ts
+	 * app.post("/users", async (ctx) => {
+	 *   const body = await ctx.json<{ name: string }>();
+	 *   return { id: 1, name: body.name };
+	 * });
+	 * ```
+	 */
+	json: <T = unknown>() => Promise<T>;
+
+	/**
+	 * Get the request body as a string.
+	 *
+	 * Thin wrapper around `request.text()`.
+	 *
+	 * @returns The request body as text
+	 *
+	 * @example
+	 * ```ts
+	 * app.post("/echo", async (ctx) => {
+	 *   const text = await ctx.text();
+	 *   return { echo: text };
+	 * });
+	 * ```
+	 */
+	text: () => Promise<string>;
+
+	/**
+	 * Parse the request body as FormData.
+	 *
+	 * Thin wrapper around `request.formData()` with error handling.
+	 * Throws `BodyParseError` if the body cannot be parsed as form data.
+	 *
+	 * @returns The parsed FormData
+	 * @throws {BodyParseError} If the body cannot be parsed as form data
+	 *
+	 * @example
+	 * ```ts
+	 * app.post("/upload", async (ctx) => {
+	 *   const form = await ctx.formData();
+	 *   const name = form.get("name");
+	 *   return { name };
+	 * });
+	 * ```
+	 */
+	formData: () => Promise<FormData>;
 }
