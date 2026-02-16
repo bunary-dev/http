@@ -16,6 +16,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 - ✅ **Route Constraints** - Validate parameters with regex patterns
 - ❓ **Optional Parameters** - Flexible routes with optional path segments
 - 🌐 **Wildcard Routes** - Catch-all `/*` and `/**` patterns for SPA fallbacks and proxies
+- 🔀 **CORS** - Built-in CORS middleware with configurable origins, methods, headers, and credentials
 
 ## Installation
 
@@ -466,6 +467,53 @@ app.use(async (ctx, next) => {
 });
 ```
 
+### CORS Middleware
+
+Built-in CORS middleware handles preflight `OPTIONS` requests and adds the appropriate headers to actual responses.
+
+```typescript
+import { createApp, cors } from '@bunary/http';
+
+const app = createApp();
+
+// Allow any origin (default)
+app.use(cors());
+```
+
+#### Configuration
+
+```typescript
+app.use(cors({
+  origin: 'https://myapp.com',             // string, string[], or "*" (default)
+  methods: ['GET', 'POST'],                 // default: GET, HEAD, PUT, POST, DELETE, PATCH
+  allowHeaders: ['Content-Type', 'X-Token'], // default: reflects Access-Control-Request-Headers
+  exposeHeaders: ['X-Request-Id'],          // headers the browser may read from the response
+  credentials: true,                        // include Access-Control-Allow-Credentials
+  maxAge: 86400,                            // preflight cache duration in seconds
+}));
+```
+
+#### Multiple Origins
+
+```typescript
+app.use(cors({
+  origin: ['https://app1.com', 'https://app2.com'],
+  credentials: true,
+}));
+```
+
+When `origin` is a string or array (not `"*"`), a `Vary: Origin` header is included automatically so caches distinguish responses per origin.
+
+#### Per-Group CORS
+
+Apply CORS to specific route groups instead of globally:
+
+```typescript
+app.group({ prefix: '/api', middleware: [cors()] }, (router) => {
+  router.get('/users', () => ({ users: [] }));
+});
+```
+
 ## Route Groups
 
 Group routes together with shared prefixes, middleware, and name prefixes.
@@ -739,7 +787,8 @@ import type {
   GroupOptions,
   GroupRouter,
   GroupCallback,
-  RouteInfo
+  RouteInfo,
+  CorsOptions,
 } from '@bunary/http';
 ```
 

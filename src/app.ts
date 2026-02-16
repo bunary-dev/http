@@ -8,14 +8,21 @@ import {
 	toHeadResponse,
 } from "./handlers/index.js";
 import { joinPaths, normalizePrefix } from "./pathUtils.js";
+import { toResponse } from "./response.js";
 import { compilePath } from "./router.js";
-import { createGroupRouter, createRouteBuilder, resolveRoute } from "./routes/index.js";
+import {
+	createGroupRouter,
+	createRouteBuilder,
+	findRouteByPath,
+	resolveRoute,
+} from "./routes/index.js";
 import type {
 	AppOptions,
 	BunaryApp,
 	BunaryServer,
 	GroupCallback,
 	GroupOptions,
+	HandlerResponse,
 	HttpMethod,
 	Middleware,
 	RequestContext,
@@ -155,6 +162,36 @@ export function createApp<TLocals extends object = Record<string, unknown>>(
 
 		// Handle OPTIONS requests — single pass via resolveRoute
 		if (method === "OPTIONS") {
+			// CORS preflight: if an Origin header is present, run the full
+			// middleware chain (global + group) so that cors() can intercept.
+			// We find the first route matching this path (any method) to pick
+			// up group-level middleware, then fall through to normal OPTIONS
+			// handling after the chain completes.
+			if (request.headers.get("Origin")) {
+				const routeMatch = findRouteByPath(routes, path);
+				const chain = routeMatch
+					? getMiddlewareChain(routeMatch.route)
+					: middlewares.length > 0
+						? [...middlewares]
+						: [];
+
+				if (chain.length > 0) {
+					const params = routeMatch?.params ?? {};
+					const ctx: RequestContext = createRequestContext(request, params, url.searchParams);
+					let index = 0;
+					const next = async (): Promise<HandlerResponse> => {
+						if (index < chain.length) {
+							const mw = chain[index++];
+							return await mw(ctx, next);
+						}
+						// After all middleware, fall through to normal OPTIONS handling
+						return await handleOptions(request, path, routes, internalOpts);
+					};
+					const result = await next();
+					return toResponse(result);
+				}
+			}
+
 			return await handleOptions(request, path, routes, internalOpts);
 		}
 

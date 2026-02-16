@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Built-in CORS middleware via `cors()` factory (#47)
+  - `cors()` with no arguments allows all origins (default `Access-Control-Allow-Origin: *`)
+  - Configurable `origin` (string, string array, or `"*"`), `methods`, `allowHeaders`, `exposeHeaders`, `credentials`, `maxAge`
+  - Handles preflight `OPTIONS` requests automatically — returns 204 with CORS headers
+  - Reflects `Access-Control-Request-Headers` by default, or uses explicit `allowHeaders`
+  - Adds `Vary: Origin` when origin is not `"*"` for correct cache behavior
+  - Works as global middleware (`app.use(cors())`) or per-group (`middleware: [cors()]`)
+  - `CorsOptions` type exported for TypeScript consumers
+
 - Body parsing helpers on `RequestContext` — `ctx.json()`, `ctx.text()`, `ctx.formData()` (#51)
   - `ctx.json<T>()` — parse JSON body with type inference, throws `BodyParseError` on malformed input
   - `ctx.text()` — get request body as string

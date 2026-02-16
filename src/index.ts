@@ -21,6 +21,9 @@
 
 // Export app factory
 export { createApp } from "./app.js";
+export type { CorsOptions } from "./cors.js";
+// Export CORS middleware
+export { cors } from "./cors.js";
 // Export error classes
 export { BodyParseError } from "./errors.js";
 // Export types
