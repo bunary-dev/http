@@ -1,3 +1,4 @@
+import { createRequestContext } from "../context.js";
 import { toResponse } from "../response.js";
 import { getAllowedMethods } from "../routes/index.js";
 import type { AppOptions, RequestContext, Route } from "../types/index.js";
@@ -19,12 +20,7 @@ export async function handleMethodNotAllowed(
 ): Promise<Response> {
 	const url = new URL(request.url);
 	const allowedMethods = precomputed ?? getAllowedMethods(routes, path);
-	const methodNotAllowedCtx: RequestContext = {
-		request,
-		params: {},
-		query: url.searchParams,
-		locals: {},
-	};
+	const methodNotAllowedCtx: RequestContext = createRequestContext(request, {}, url.searchParams);
 	if (options?.onMethodNotAllowed) {
 		const result = await options.onMethodNotAllowed(methodNotAllowedCtx, allowedMethods);
 		const response = toResponse(result);

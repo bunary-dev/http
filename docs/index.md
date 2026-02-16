@@ -127,7 +127,7 @@ Register routes using chainable HTTP method helpers:
 app
   .get('/users', () => ({ users: [] }))
   .post('/users', async (ctx) => {
-    const body = await ctx.request.json();
+    const body = await ctx.json();
     return { id: 1, ...body };
   })
   .put('/users/:id', (ctx) => {
@@ -243,8 +243,61 @@ interface RequestContext<
   params: TParams;   // Path parameters (narrowed by route generic)
   query: URLSearchParams;  // Query parameters (use .get() and .getAll())
   locals: TLocals;   // Per-request storage (narrowed by createApp generic)
+
+  // Body parsing helpers
+  json<T = unknown>(): Promise<T>;     // Parse JSON body (throws BodyParseError)
+  text(): Promise<string>;             // Get body as string
+  formData(): Promise<FormData>;       // Parse form data (throws BodyParseError)
 }
 ```
+
+#### Body Parsing Helpers
+
+`ctx.json()`, `ctx.text()`, and `ctx.formData()` are thin wrappers around the underlying `Request` methods with improved error handling:
+
+```typescript
+// Parse JSON with type inference
+app.post('/users', async (ctx) => {
+  const body = await ctx.json<{ name: string; email: string }>();
+  return { id: 1, name: body.name, email: body.email };
+});
+
+// Get raw text body
+app.post('/webhooks', async (ctx) => {
+  const payload = await ctx.text();
+  return { received: payload.length };
+});
+
+// Parse form data
+app.post('/upload', async (ctx) => {
+  const form = await ctx.formData();
+  const name = form.get('name');
+  return { name };
+});
+```
+
+Malformed bodies throw `BodyParseError`, which you can catch for custom error responses:
+
+```typescript
+import { BodyParseError } from '@bunary/http';
+
+app.post('/users', async (ctx) => {
+  try {
+    return await ctx.json();
+  } catch (error) {
+    if (error instanceof BodyParseError) {
+      return new Response(
+        JSON.stringify({ error: error.message }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    throw error;
+  }
+});
+```
+
+> The original `ctx.request` is still available for advanced use cases (e.g. streaming, `arrayBuffer()`, `blob()`).
+> Note: per the Fetch API, the request body can only be consumed once. If middleware calls `ctx.json()`, `ctx.text()`, or `ctx.formData()`, the downstream handler cannot read the body again; instead, share the parsed data via `ctx.locals` or work with a cloned request if you need to access the body in multiple places.
 
 `TLocals` is set once via `createApp<TLocals>()` and flows to all handlers and middleware.
 `TParams` is set per-route via `app.get<TParams>()` and only affects that handler's `ctx.params`.
