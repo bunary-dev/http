@@ -317,6 +317,47 @@ describe("CORS Middleware", () => {
 			expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
 		});
 
+		test("group-level CORS handles preflight OPTIONS with full CORS headers", async () => {
+			const app = createApp();
+			app.group(
+				{
+					prefix: "/api",
+					middleware: [
+						cors({
+							origin: "https://myapp.com",
+							methods: ["GET", "POST"],
+							allowHeaders: ["Content-Type", "Authorization"],
+							credentials: true,
+							maxAge: 3600,
+						}),
+					],
+				},
+				(router) => {
+					router.post("/items", () => ({ created: true }));
+				},
+			);
+
+			const response = await app.fetch(
+				new Request("http://localhost/api/items", {
+					method: "OPTIONS",
+					headers: {
+						Origin: "https://myapp.com",
+						"Access-Control-Request-Method": "POST",
+						"Access-Control-Request-Headers": "Content-Type, Authorization",
+					},
+				}),
+			);
+
+			expect(response.status).toBe(204);
+			expect(response.headers.get("Access-Control-Allow-Origin")).toBe("https://myapp.com");
+			expect(response.headers.get("Access-Control-Allow-Methods")).toBe("GET, POST");
+			expect(response.headers.get("Access-Control-Allow-Headers")).toBe(
+				"Content-Type, Authorization",
+			);
+			expect(response.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+			expect(response.headers.get("Access-Control-Max-Age")).toBe("3600");
+		});
+
 		test("preflight OPTIONS uses group middleware, not just global", async () => {
 			const app = createApp();
 			// No global CORS — only the /api group has it
@@ -394,6 +435,66 @@ describe("CORS Middleware", () => {
 			expect(response.status).toBe(200);
 			expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
 			expect(await response.text()).toBe("hello");
+		});
+	});
+
+	describe("Credentials with wildcard origin", () => {
+		test("reflects request origin instead of * when credentials: true", async () => {
+			const app = createApp();
+			app.use(cors({ credentials: true }));
+			app.get("/api/data", () => ({ ok: true }));
+
+			const response = await app.fetch(
+				new Request("http://localhost/api/data", {
+					headers: { Origin: "https://example.com" },
+				}),
+			);
+
+			expect(response.status).toBe(200);
+			expect(response.headers.get("Access-Control-Allow-Origin")).toBe("https://example.com");
+			expect(response.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+			expect(response.headers.get("Vary")).toContain("Origin");
+		});
+
+		test("reflects request origin on preflight when credentials: true", async () => {
+			const app = createApp();
+			app.use(cors({ credentials: true }));
+			app.get("/api/data", () => ({ ok: true }));
+
+			const response = await app.fetch(
+				new Request("http://localhost/api/data", {
+					method: "OPTIONS",
+					headers: {
+						Origin: "https://example.com",
+						"Access-Control-Request-Method": "GET",
+					},
+				}),
+			);
+
+			expect(response.status).toBe(204);
+			expect(response.headers.get("Access-Control-Allow-Origin")).toBe("https://example.com");
+			expect(response.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+			expect(response.headers.get("Vary")).toContain("Origin");
+		});
+
+		test("different origins get different reflected values", async () => {
+			const app = createApp();
+			app.use(cors({ credentials: true }));
+			app.get("/api/data", () => ({ ok: true }));
+
+			const res1 = await app.fetch(
+				new Request("http://localhost/api/data", {
+					headers: { Origin: "https://app1.com" },
+				}),
+			);
+			const res2 = await app.fetch(
+				new Request("http://localhost/api/data", {
+					headers: { Origin: "https://app2.com" },
+				}),
+			);
+
+			expect(res1.headers.get("Access-Control-Allow-Origin")).toBe("https://app1.com");
+			expect(res2.headers.get("Access-Control-Allow-Origin")).toBe("https://app2.com");
 		});
 	});
 

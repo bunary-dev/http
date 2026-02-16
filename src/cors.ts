@@ -63,9 +63,15 @@ const DEFAULT_METHODS = ["GET", "HEAD", "PUT", "POST", "DELETE", "PATCH"];
  * @returns The value to use for `Access-Control-Allow-Origin`, or `null` if
  *          the origin is not permitted.
  */
-function resolveOrigin(allowed: string | string[], requestOrigin: string): string | null {
+function resolveOrigin(
+	allowed: string | string[],
+	requestOrigin: string,
+	credentials: boolean,
+): string | null {
 	if (allowed === "*") {
-		return "*";
+		// The CORS spec forbids Access-Control-Allow-Origin: * when
+		// credentials are in use. Reflect the actual request origin instead.
+		return credentials ? requestOrigin : "*";
 	}
 	if (typeof allowed === "string") {
 		return allowed === requestOrigin ? allowed : null;
@@ -123,18 +129,23 @@ export function cors(options: CorsOptions = {}): Middleware {
 		}
 
 		// Is this origin allowed?
-		const allowedOrigin = resolveOrigin(origin, requestOrigin);
+		const allowedOrigin = resolveOrigin(origin, requestOrigin, credentials);
 		if (!allowedOrigin) {
 			// Origin not allowed — respond normally without CORS headers.
 			return await next();
 		}
+
+		// When credentials are used with wildcard origin, the resolved
+		// value is the reflected request origin — Vary must include Origin
+		// so caches distinguish per-origin responses.
+		const needsVary = origin !== "*" || credentials;
 
 		// ── Preflight (OPTIONS) ────────────────────────────────────
 		if (ctx.request.method === "OPTIONS") {
 			const headers = new Headers();
 			headers.set("Access-Control-Allow-Origin", allowedOrigin);
 
-			if (origin !== "*") {
+			if (needsVary) {
 				headers.append("Vary", "Origin");
 			}
 
@@ -169,7 +180,7 @@ export function cors(options: CorsOptions = {}): Middleware {
 		const newHeaders = new Headers(response.headers);
 		newHeaders.set("Access-Control-Allow-Origin", allowedOrigin);
 
-		if (origin !== "*") {
+		if (needsVary) {
 			newHeaders.append("Vary", "Origin");
 		}
 
