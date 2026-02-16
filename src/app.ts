@@ -8,6 +8,7 @@ import {
 	toHeadResponse,
 } from "./handlers/index.js";
 import { joinPaths, normalizePrefix } from "./pathUtils.js";
+import { toResponse } from "./response.js";
 import { compilePath } from "./router.js";
 import { createGroupRouter, createRouteBuilder, resolveRoute } from "./routes/index.js";
 import type {
@@ -16,6 +17,7 @@ import type {
 	BunaryServer,
 	GroupCallback,
 	GroupOptions,
+	HandlerResponse,
 	HttpMethod,
 	Middleware,
 	RequestContext,
@@ -155,6 +157,24 @@ export function createApp<TLocals extends object = Record<string, unknown>>(
 
 		// Handle OPTIONS requests — single pass via resolveRoute
 		if (method === "OPTIONS") {
+			// CORS preflight: if an Origin header is present and global middleware
+			// is registered, run the middleware pipeline so that cors() (or any
+			// other middleware) can intercept and add the required headers.
+			if (request.headers.get("Origin") && middlewares.length > 0) {
+				const ctx: RequestContext = createRequestContext(request, {}, url.searchParams);
+				let index = 0;
+				const next = async (): Promise<HandlerResponse> => {
+					if (index < middlewares.length) {
+						const mw = middlewares[index++];
+						return await mw(ctx, next);
+					}
+					// After all middleware, fall through to normal OPTIONS handling
+					return await handleOptions(request, path, routes, internalOpts);
+				};
+				const result = await next();
+				return toResponse(result);
+			}
+
 			return await handleOptions(request, path, routes, internalOpts);
 		}
 
