@@ -297,6 +297,7 @@ app.post('/users', async (ctx) => {
 ```
 
 > The original `ctx.request` is still available for advanced use cases (e.g. streaming, `arrayBuffer()`, `blob()`).
+> Note: per the Fetch API, the request body can only be consumed once. If middleware calls `ctx.json()`, `ctx.text()`, or `ctx.formData()`, the downstream handler cannot read the body again; instead, share the parsed data via `ctx.locals` or work with a cloned request if you need to access the body in multiple places.
 
 `TLocals` is set once via `createApp<TLocals>()` and flows to all handlers and middleware.
 `TParams` is set per-route via `app.get<TParams>()` and only affects that handler's `ctx.params`.
