@@ -103,5 +103,5 @@ export interface RequestContext<
 	 * });
 	 * ```
 	 */
-	formData: () => Promise<FormData>;
+	formData: () => ReturnType<Request["formData"]>;
 }
