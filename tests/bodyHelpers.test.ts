@@ -309,5 +309,33 @@ describe("Body Parsing Helpers", () => {
 			expect(response.status).toBe(200);
 			expect(await response.json()).toEqual({ name: "Alice" });
 		});
+
+		test("fails when middleware consumes body before handler", async () => {
+			const app = createApp();
+
+			app.use(async (ctx, next) => {
+				// Middleware consumes the body before the handler
+				await ctx.json();
+				return await next();
+			});
+
+			app.post("/users", async (ctx) => {
+				// Second attempt to read body should fail per Fetch API spec
+				const body = await ctx.json();
+				return body;
+			});
+
+			const response = await app.fetch(
+				new Request("http://localhost/users", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ name: "Bob" }),
+				}),
+			);
+
+			// Document expected behavior when body is consumed multiple times:
+			// second read should result in a failure (e.g. 500 error)
+			expect(response.status).not.toBe(200);
+		});
 	});
 });
