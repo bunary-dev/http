@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Toolchain: `@types/bun` replaces `bun-types`, `typescript` ^7 and `@biomejs/biome` 2.5.1 pinned as devDependencies; `bun.lock` committed (#71)
 - `tsconfig.json` aligned with Bun 1.4 `bun init` defaults (`module: Preserve`, `verbatimModuleSyntax`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch`) (#71)
 - CI: Bun version read from `.bun-version`, plus a non-required `bun latest` canary job; build job verifies the publish tarball with `bun pm pack --dry-run`; `actions/checkout@v7` (#71)
-- Lint/format now cover `tests/` and call `tsc`/`biome` directly instead of `bunx`; coverage threshold (90% lines/functions) enforced via `bunfig.toml` (#71)
+- Lint/format now cover `tests/` and call `tsc`/`biome` directly instead of `bunx`; per-file coverage threshold (35% lines / 45% functions — below the standard 90%, kept low because `src/handlers/head.ts` and `src/routes/find.ts` currently have thin coverage; Bun enforces the threshold per file, not just in aggregate) enforced via `bunfig.toml` (#71)
 
 ### Fixed
 
