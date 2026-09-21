@@ -2,7 +2,7 @@
  * Unit tests for src/routes/builder.ts — compilePattern(), createRouteBuilder(),
  * and wrapBuilderWithNamePrefix() — imported directly, not through createApp.
  *
- * createRouteBuilder() only needs a BunaryApp-shaped object to forward its
+ * createRouteBuilder() only needs a Router-shaped object to forward its
  * getters to, so tests build a minimal stub app rather than a real one.
  *
  * @see {@link ../src/routes/builder.ts}
@@ -14,7 +14,7 @@ import {
 	createRouteBuilder,
 	wrapBuilderWithNamePrefix,
 } from "../src/routes/builder.js";
-import type { BunaryApp, Route } from "../src/types/index.js";
+import type { Route, Router } from "../src/types/index.js";
 
 function makeRoute(path = "/users/:id"): Route {
 	const compiled = compilePath(path);
@@ -29,20 +29,20 @@ function makeRoute(path = "/users/:id"): Route {
 	};
 }
 
-function makeStubApp(): BunaryApp {
+function makeStubApp(): Router {
 	return {
-		get: (() => {}) as unknown as BunaryApp["get"],
-		post: (() => {}) as unknown as BunaryApp["post"],
-		put: (() => {}) as unknown as BunaryApp["put"],
-		delete: (() => {}) as unknown as BunaryApp["delete"],
-		patch: (() => {}) as unknown as BunaryApp["patch"],
-		use: (() => {}) as unknown as BunaryApp["use"],
-		group: (() => {}) as unknown as BunaryApp["group"],
-		route: (() => "/") as unknown as BunaryApp["route"],
-		hasRoute: (() => false) as unknown as BunaryApp["hasRoute"],
-		getRoutes: (() => []) as unknown as BunaryApp["getRoutes"],
-		listen: (() => ({}) as never) as unknown as BunaryApp["listen"],
-		fetch: (async () => new Response()) as unknown as BunaryApp["fetch"],
+		get: (() => {}) as unknown as Router["get"],
+		post: (() => {}) as unknown as Router["post"],
+		put: (() => {}) as unknown as Router["put"],
+		delete: (() => {}) as unknown as Router["delete"],
+		patch: (() => {}) as unknown as Router["patch"],
+		use: (() => {}) as unknown as Router["use"],
+		group: (() => {}) as unknown as Router["group"],
+		route: (() => "/") as unknown as Router["route"],
+		hasRoute: (() => false) as unknown as Router["hasRoute"],
+		getRoutes: (() => []) as unknown as Router["getRoutes"],
+		listen: (() => ({}) as never) as unknown as Router["listen"],
+		fetch: (async () => new Response()) as unknown as Router["fetch"],
 	};
 }
 
@@ -61,7 +61,7 @@ describe("compilePattern()", () => {
 });
 
 describe("createRouteBuilder()", () => {
-	it("forwards all BunaryApp methods through getters", () => {
+	it("forwards all Router methods through getters", () => {
 		const app = makeStubApp();
 		const namedRoutes = new Map<string, Route>();
 		const builder = createRouteBuilder(makeRoute(), namedRoutes, app);
