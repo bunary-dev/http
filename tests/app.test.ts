@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { createApp } from "../src/index.js";
+import { createRouter } from "../src/index.js";
 
-describe("createApp()", () => {
+describe("createRouter()", () => {
 	test("returns an app instance with routing methods", () => {
-		const app = createApp();
+		const app = createRouter();
 
 		expect(app).toBeDefined();
 		expect(typeof app.get).toBe("function");
@@ -17,7 +17,7 @@ describe("createApp()", () => {
 	});
 
 	test("routing methods return a chainable builder", () => {
-		const app = createApp();
+		const app = createRouter();
 
 		const result = app
 			.get("/", () => ({}))
@@ -40,7 +40,7 @@ describe("createApp()", () => {
 
 describe("Route Registration", () => {
 	test("GET route responds to GET requests", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/health", () => ({ status: "ok" }));
 
 		const response = await app.fetch(new Request("http://localhost/health"));
@@ -50,7 +50,7 @@ describe("Route Registration", () => {
 	});
 
 	test("POST route responds to POST requests", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.post("/users", () => ({ created: true }));
 
 		const response = await app.fetch(new Request("http://localhost/users", { method: "POST" }));
@@ -60,7 +60,7 @@ describe("Route Registration", () => {
 	});
 
 	test("PUT route responds to PUT requests", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.put("/users/1", () => ({ updated: true }));
 
 		const response = await app.fetch(new Request("http://localhost/users/1", { method: "PUT" }));
@@ -70,7 +70,7 @@ describe("Route Registration", () => {
 	});
 
 	test("DELETE route responds to DELETE requests", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.delete("/users/1", () => ({ deleted: true }));
 
 		const response = await app.fetch(new Request("http://localhost/users/1", { method: "DELETE" }));
@@ -80,7 +80,7 @@ describe("Route Registration", () => {
 	});
 
 	test("PATCH route responds to PATCH requests", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.patch("/users/1", () => ({ patched: true }));
 
 		const response = await app.fetch(new Request("http://localhost/users/1", { method: "PATCH" }));
@@ -90,7 +90,7 @@ describe("Route Registration", () => {
 	});
 
 	test("returns 404 for unregistered routes", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/exists", () => ({ found: true }));
 
 		const response = await app.fetch(new Request("http://localhost/not-found"));
@@ -99,7 +99,7 @@ describe("Route Registration", () => {
 	});
 
 	test("returns 405 for wrong HTTP method", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users", () => ({ method: "GET" }));
 
 		const response = await app.fetch(new Request("http://localhost/users", { method: "POST" }));
@@ -108,7 +108,7 @@ describe("Route Registration", () => {
 	});
 
 	test("first registered route wins when paths match", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users", () => ({ first: true }));
 		app.get("/users", () => ({ second: true }));
 
@@ -120,7 +120,7 @@ describe("Route Registration", () => {
 
 describe("listen()", () => {
 	test("listen({ port }) returns server with correct port and hostname", () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/", () => ({}));
 
 		const server = app.listen({ port: 0 }); // 0 = let OS pick port
@@ -133,7 +133,7 @@ describe("listen()", () => {
 	});
 
 	test("listen({ port, hostname }) returns server with correct values", () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/", () => ({}));
 
 		const server = app.listen({ port: 0, hostname: "localhost" });
@@ -145,7 +145,7 @@ describe("listen()", () => {
 	});
 
 	test("listen(port, hostname) positional form still works", () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/", () => ({}));
 
 		const server = app.listen(0, "localhost");
@@ -157,7 +157,7 @@ describe("listen()", () => {
 	});
 
 	test("listen() with no arguments uses defaults", () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/", () => ({}));
 
 		const server = app.listen();
@@ -169,7 +169,7 @@ describe("listen()", () => {
 	});
 
 	test("listen(port) with only port argument uses default hostname", () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/", () => ({}));
 
 		const server = app.listen(0);
@@ -181,7 +181,7 @@ describe("listen()", () => {
 	});
 
 	test("listen({}) with empty object uses defaults", () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/", () => ({}));
 
 		const server = app.listen({});

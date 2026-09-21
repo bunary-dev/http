@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { createApp } from "../src/index.js";
+import { createRouter } from "../src/index.js";
 
 describe("HEAD requests", () => {
 	test("HEAD request to GET route returns 200 with empty body", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users", () => ({ users: [] }));
 
 		const response = await app.fetch(new Request("http://localhost/users", { method: "HEAD" }));
@@ -14,7 +14,7 @@ describe("HEAD requests", () => {
 	});
 
 	test("HEAD request preserves response headers from GET handler", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users", () => {
 			return new Response(JSON.stringify({ users: [] }), {
 				headers: { "X-Custom-Header": "test" },
@@ -29,7 +29,7 @@ describe("HEAD requests", () => {
 	});
 
 	test("HEAD request to non-existent route returns 404", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users", () => ({ users: [] }));
 
 		const response = await app.fetch(new Request("http://localhost/posts", { method: "HEAD" }));
@@ -38,7 +38,7 @@ describe("HEAD requests", () => {
 	});
 
 	test("HEAD request to route with wrong method returns 405", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.post("/users", () => ({ users: [] }));
 
 		const response = await app.fetch(new Request("http://localhost/users", { method: "HEAD" }));
@@ -47,7 +47,7 @@ describe("HEAD requests", () => {
 	});
 
 	test("HEAD request works with path parameters", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/:id", (ctx) => ({ id: ctx.params.id }));
 
 		const response = await app.fetch(new Request("http://localhost/users/123", { method: "HEAD" }));
@@ -57,7 +57,7 @@ describe("HEAD requests", () => {
 	});
 
 	test("HEAD request works with middleware", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.use((ctx, next) => {
 			ctx.locals.test = "middleware";
 			return next();
@@ -71,7 +71,7 @@ describe("HEAD requests", () => {
 	});
 
 	test("HEAD request preserves status code from GET handler", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users", () => {
 			return new Response(JSON.stringify({ users: [] }), { status: 201 });
 		});
@@ -85,7 +85,7 @@ describe("HEAD requests", () => {
 
 describe("OPTIONS requests", () => {
 	test("OPTIONS request to existing route returns 204 with Allow header", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users", () => ({ users: [] }));
 		app.post("/users", () => ({ created: true }));
 
@@ -99,7 +99,7 @@ describe("OPTIONS requests", () => {
 	});
 
 	test("OPTIONS request includes all methods for a path", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users", () => ({}));
 		app.post("/users", () => ({}));
 		app.put("/users", () => ({}));
@@ -115,7 +115,7 @@ describe("OPTIONS requests", () => {
 	});
 
 	test("OPTIONS request to non-existent route returns 404", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users", () => ({ users: [] }));
 
 		const response = await app.fetch(new Request("http://localhost/posts", { method: "OPTIONS" }));
@@ -125,7 +125,7 @@ describe("OPTIONS requests", () => {
 	});
 
 	test("OPTIONS request works with path parameters", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/:id", () => ({}));
 		app.put("/users/:id", () => ({}));
 
@@ -139,7 +139,7 @@ describe("OPTIONS requests", () => {
 	});
 
 	test("OPTIONS request respects route constraints", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/:id", () => ({})).where("id", /^\d+$/);
 		app.get("/users/:id", () => ({})).where("id", /^[a-z]+$/);
 
@@ -163,7 +163,7 @@ describe("OPTIONS requests", () => {
 
 describe("405 Method Not Allowed with Allow header", () => {
 	test("405 response includes Allow header", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users", () => ({ users: [] }));
 		app.post("/users", () => ({ created: true }));
 
@@ -176,7 +176,7 @@ describe("405 Method Not Allowed with Allow header", () => {
 	});
 
 	test("405 response includes all allowed methods", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users", () => ({}));
 		app.post("/users", () => ({}));
 		app.delete("/users", () => ({}));
@@ -190,7 +190,7 @@ describe("405 Method Not Allowed with Allow header", () => {
 	});
 
 	test("405 response respects route constraints", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/:id", () => ({})).where("id", /^\d+$/);
 		app.post("/users/:id", () => ({})).where("id", /^\d+$/);
 
@@ -202,7 +202,7 @@ describe("405 Method Not Allowed with Allow header", () => {
 	});
 
 	test("405 response works with path parameters", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/:id", () => ({}));
 		app.delete("/users/:id", () => ({}));
 

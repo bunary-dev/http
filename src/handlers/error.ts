@@ -1,5 +1,5 @@
 import { toResponse } from "../response.js";
-import type { AppOptions, RequestContext } from "../types/index.js";
+import type { RequestContext, RouterOptions } from "../types/index.js";
 
 /**
  * Handle 500 Internal Server Error responses.
@@ -12,7 +12,7 @@ import type { AppOptions, RequestContext } from "../types/index.js";
 export async function handleError(
 	ctx: RequestContext,
 	error: unknown,
-	options?: AppOptions,
+	options?: RouterOptions,
 ): Promise<Response> {
 	if (options?.onError) {
 		const result = await options.onError(ctx, error);

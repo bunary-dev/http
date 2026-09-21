@@ -2,8 +2,6 @@
  * @bunary/http - Type Definitions
  */
 
-export type { AppOptions } from "./appOptions.js";
-export type { BunaryApp } from "./bunaryApp.js";
 export type { BunaryServer } from "./bunaryServer.js";
 export type { GroupOptions } from "./groupOptions.js";
 export type { GroupCallback, GroupRouter } from "./groupRouter.js";
@@ -17,3 +15,5 @@ export type { Route } from "./route.js";
 export type { RouteBuilder } from "./routeBuilder.js";
 export type { RouteHandler } from "./routeHandler.js";
 export type { RouteInfo } from "./routeInfo.js";
+export type { Router } from "./router.js";
+export type { RouterOptions } from "./routerOptions.js";

@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { createApp } from "../src/index.js";
+import { createRouter } from "../src/index.js";
 
 describe("basePath", () => {
-	test("createApp({ basePath }) prefixes all routes", async () => {
-		const app = createApp({ basePath: "/api" });
+	test("createRouter({ basePath }) prefixes all routes", async () => {
+		const app = createRouter({ basePath: "/api" });
 		app.get("/users", () => ({ users: [] }));
 
 		const response = await app.fetch(new Request("http://localhost/api/users"));
@@ -13,7 +13,7 @@ describe("basePath", () => {
 	});
 
 	test("basePath with trailing slash is normalized", async () => {
-		const app = createApp({ basePath: "/api/" });
+		const app = createRouter({ basePath: "/api/" });
 		app.get("/users", () => ({ users: [] }));
 
 		const response = await app.fetch(new Request("http://localhost/api/users"));
@@ -22,7 +22,7 @@ describe("basePath", () => {
 	});
 
 	test("basePath without leading slash is normalized", async () => {
-		const app = createApp({ basePath: "api" });
+		const app = createRouter({ basePath: "api" });
 		app.get("/users", () => ({ users: [] }));
 
 		const response = await app.fetch(new Request("http://localhost/api/users"));
@@ -31,7 +31,7 @@ describe("basePath", () => {
 	});
 
 	test("routes without basePath do not match prefixed paths", async () => {
-		const app = createApp({ basePath: "/api" });
+		const app = createRouter({ basePath: "/api" });
 		app.get("/users", () => ({ users: [] }));
 
 		const response = await app.fetch(new Request("http://localhost/users"));
@@ -40,7 +40,7 @@ describe("basePath", () => {
 	});
 
 	test("basePath composes with route groups", async () => {
-		const app = createApp({ basePath: "/api" });
+		const app = createRouter({ basePath: "/api" });
 		app.group("/v1", (router) => {
 			router.get("/users", () => ({ users: [] }));
 		});
@@ -52,7 +52,7 @@ describe("basePath", () => {
 	});
 
 	test("basePath composes with nested route groups", async () => {
-		const app = createApp({ basePath: "/api" });
+		const app = createRouter({ basePath: "/api" });
 		app.group("/v1", (router) => {
 			router.group("/admin", (nestedRouter) => {
 				nestedRouter.get("/users", () => ({ users: [] }));
@@ -66,7 +66,7 @@ describe("basePath", () => {
 	});
 
 	test("app.route() includes basePath in generated URLs", () => {
-		const app = createApp({ basePath: "/api" });
+		const app = createRouter({ basePath: "/api" });
 		app.get("/users/:id", () => ({})).name("users.show");
 
 		const url = app.route("users.show", { id: 123 });
@@ -75,7 +75,7 @@ describe("basePath", () => {
 	});
 
 	test("app.route() includes basePath with groups", () => {
-		const app = createApp({ basePath: "/api" });
+		const app = createRouter({ basePath: "/api" });
 		app.group("/v1", (router) => {
 			router.get("/users/:id", () => ({})).name("users.show");
 		});
@@ -86,7 +86,7 @@ describe("basePath", () => {
 	});
 
 	test("basePath with root path", async () => {
-		const app = createApp({ basePath: "/" });
+		const app = createRouter({ basePath: "/" });
 		app.get("/users", () => ({ users: [] }));
 
 		const response = await app.fetch(new Request("http://localhost/users"));
@@ -95,7 +95,7 @@ describe("basePath", () => {
 	});
 
 	test("basePath works with path parameters", async () => {
-		const app = createApp({ basePath: "/api" });
+		const app = createRouter({ basePath: "/api" });
 		app.get("/users/:id", (ctx) => ({ id: ctx.params.id }));
 
 		const response = await app.fetch(new Request("http://localhost/api/users/123"));
@@ -105,7 +105,7 @@ describe("basePath", () => {
 	});
 
 	test("basePath works with optional path parameters", async () => {
-		const app = createApp({ basePath: "/api" });
+		const app = createRouter({ basePath: "/api" });
 		app.get("/posts/:id?/comments", (ctx) => ({ id: ctx.params.id }));
 
 		const response1 = await app.fetch(new Request("http://localhost/api/posts/123/comments"));

@@ -4,10 +4,10 @@ import type { RequestContext } from "./requestContext.js";
 /**
  * Middleware function for processing requests in a pipeline.
  *
- * Middleware receives the app-level `TLocals` type but not per-route
+ * Middleware receives the router-level `TLocals` type but not per-route
  * `TParams`, since middleware runs before route matching resolves params.
  *
- * @typeParam TLocals — Shape of `ctx.locals` (inherited from `createApp<TLocals>()`)
+ * @typeParam TLocals — Shape of `ctx.locals` (inherited from `createRouter<TLocals>()`)
  *
  * @param ctx - The request context
  * @param next - Function to call the next middleware or route handler

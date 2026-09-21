@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { createApp } from "../src/index.js";
+import { createRouter } from "../src/index.js";
 
 describe("JSON Serialization", () => {
 	test("returns JSON for plain objects", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/object", () => ({ message: "hello" }));
 
 		const response = await app.fetch(new Request("http://localhost/object"));
@@ -14,7 +14,7 @@ describe("JSON Serialization", () => {
 	});
 
 	test("returns JSON for arrays", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/array", () => [1, 2, 3]);
 
 		const response = await app.fetch(new Request("http://localhost/array"));
@@ -25,7 +25,7 @@ describe("JSON Serialization", () => {
 	});
 
 	test("returns JSON for nested objects", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/nested", () => ({
 			user: {
 				id: 1,
@@ -51,7 +51,7 @@ describe("JSON Serialization", () => {
 	});
 
 	test("passes through Response objects unchanged", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/custom", () => {
 			return new Response("Custom body", {
 				status: 201,
@@ -67,7 +67,7 @@ describe("JSON Serialization", () => {
 	});
 
 	test("handles null return value", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/null", () => null);
 
 		const response = await app.fetch(new Request("http://localhost/null"));
@@ -76,7 +76,7 @@ describe("JSON Serialization", () => {
 	});
 
 	test("handles undefined return value", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/undefined", () => undefined);
 
 		const response = await app.fetch(new Request("http://localhost/undefined"));
@@ -85,7 +85,7 @@ describe("JSON Serialization", () => {
 	});
 
 	test("handles string return value as text", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/text", () => "Hello, World!");
 
 		const response = await app.fetch(new Request("http://localhost/text"));
@@ -96,7 +96,7 @@ describe("JSON Serialization", () => {
 	});
 
 	test("handles number return value as text", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/number", () => 42);
 
 		const response = await app.fetch(new Request("http://localhost/number"));
@@ -106,7 +106,7 @@ describe("JSON Serialization", () => {
 	});
 
 	test("handles async handlers", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/async", async () => {
 			await Promise.resolve();
 			return { async: true };
@@ -121,7 +121,7 @@ describe("JSON Serialization", () => {
 
 describe("Error Handling", () => {
 	test("returns 500 when handler throws", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/error", () => {
 			throw new Error("Something went wrong");
 		});
@@ -134,7 +134,7 @@ describe("Error Handling", () => {
 	});
 
 	test("returns 500 when async handler rejects", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/async-error", async () => {
 			throw new Error("Async error");
 		});
@@ -147,7 +147,7 @@ describe("Error Handling", () => {
 
 describe("Request Context", () => {
 	test("provides access to original request", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/request-info", (ctx) => ({
 			method: ctx.request.method,
 			url: ctx.request.url,
@@ -161,7 +161,7 @@ describe("Request Context", () => {
 	});
 
 	test("provides empty params for routes without parameters", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/no-params", (ctx) => ({
 			paramsCount: Object.keys(ctx.params).length,
 		}));
@@ -172,7 +172,7 @@ describe("Request Context", () => {
 	});
 
 	test("provides empty query for requests without query string", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/no-query", (ctx) => ({
 			hasQuery: ctx.query.toString().length > 0,
 		}));

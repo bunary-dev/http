@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { RequestContext } from "../src/index.js";
-import { createApp } from "../src/index.js";
+import { createRouter } from "../src/index.js";
 
 describe("Configurable Error Handlers", () => {
 	describe("onNotFound", () => {
 		test("default behavior when onNotFound not provided", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.get("/users", () => ({ users: [] }));
 
 			const response = await app.fetch(new Request("http://localhost/posts"));
@@ -16,7 +16,7 @@ describe("Configurable Error Handlers", () => {
 		});
 
 		test("custom onNotFound handler overrides default 404", async () => {
-			const app = createApp({
+			const app = createRouter({
 				onNotFound: (_ctx) => {
 					return new Response("Custom 404 Page", {
 						status: 404,
@@ -35,7 +35,7 @@ describe("Configurable Error Handlers", () => {
 
 		test("onNotFound receives request context with query params", async () => {
 			let receivedCtx: RequestContext | null = null;
-			const app = createApp({
+			const app = createRouter({
 				onNotFound: (ctx) => {
 					receivedCtx = ctx;
 					return new Response("Not found", { status: 404 });
@@ -53,7 +53,7 @@ describe("Configurable Error Handlers", () => {
 		});
 
 		test("onNotFound can return HandlerResponse (object)", async () => {
-			const app = createApp({
+			const app = createRouter({
 				onNotFound: () => {
 					return { error: "Custom not found", code: 404 };
 				},
@@ -67,7 +67,7 @@ describe("Configurable Error Handlers", () => {
 		});
 
 		test("onNotFound works with OPTIONS requests to non-existent paths", async () => {
-			const app = createApp({
+			const app = createRouter({
 				onNotFound: () => {
 					return new Response("Custom 404", { status: 404 });
 				},
@@ -85,7 +85,7 @@ describe("Configurable Error Handlers", () => {
 
 	describe("onMethodNotAllowed", () => {
 		test("default behavior when onMethodNotAllowed not provided", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.get("/users", () => ({ users: [] }));
 			app.post("/users", () => ({ created: true }));
 
@@ -98,7 +98,7 @@ describe("Configurable Error Handlers", () => {
 		});
 
 		test("custom onMethodNotAllowed handler overrides default 405", async () => {
-			const app = createApp({
+			const app = createRouter({
 				onMethodNotAllowed: (_ctx, allowed) => {
 					return new Response(JSON.stringify({ message: "Method not allowed", allowed }), {
 						status: 405,
@@ -119,7 +119,7 @@ describe("Configurable Error Handlers", () => {
 
 		test("onMethodNotAllowed receives allowed methods array", async () => {
 			let receivedAllowed: string[] = [];
-			const app = createApp({
+			const app = createRouter({
 				onMethodNotAllowed: (_ctx, allowed) => {
 					receivedAllowed = allowed;
 					return new Response("Method not allowed", { status: 405 });
@@ -136,7 +136,7 @@ describe("Configurable Error Handlers", () => {
 
 		test("onMethodNotAllowed receives request context with query params", async () => {
 			let receivedCtx: RequestContext | null = null;
-			const app = createApp({
+			const app = createRouter({
 				onMethodNotAllowed: (ctx, _allowed) => {
 					receivedCtx = ctx;
 					return new Response("Method not allowed", { status: 405 });
@@ -153,7 +153,7 @@ describe("Configurable Error Handlers", () => {
 		});
 
 		test("onMethodNotAllowed ensures Allow header is present", async () => {
-			const app = createApp({
+			const app = createRouter({
 				onMethodNotAllowed: () => {
 					// Custom handler that doesn't set Allow header
 					return new Response("Method not allowed", { status: 405 });
@@ -169,7 +169,7 @@ describe("Configurable Error Handlers", () => {
 		});
 
 		test("onMethodNotAllowed preserves Allow header if custom handler sets it", async () => {
-			const app = createApp({
+			const app = createRouter({
 				onMethodNotAllowed: () => {
 					return new Response("Method not allowed", {
 						status: 405,
@@ -186,7 +186,7 @@ describe("Configurable Error Handlers", () => {
 		});
 
 		test("onMethodNotAllowed can return HandlerResponse (object)", async () => {
-			const app = createApp({
+			const app = createRouter({
 				onMethodNotAllowed: (_ctx, allowed) => {
 					return { error: "Method not allowed", allowed };
 				},
@@ -204,7 +204,7 @@ describe("Configurable Error Handlers", () => {
 
 	describe("onError", () => {
 		test("default behavior when onError not provided", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.get("/error", () => {
 				throw new Error("Test error");
 			});
@@ -220,7 +220,7 @@ describe("Configurable Error Handlers", () => {
 			const original = Bun.env.NODE_ENV;
 			Bun.env.NODE_ENV = "production";
 			try {
-				const app = createApp();
+				const app = createRouter();
 				app.get("/error", () => {
 					throw new Error("SQLITE_CANTOPEN: /var/app/data/prod.sqlite");
 				});
@@ -240,7 +240,7 @@ describe("Configurable Error Handlers", () => {
 			const original = Bun.env.NODE_ENV;
 			Bun.env.NODE_ENV = "development";
 			try {
-				const app = createApp();
+				const app = createRouter();
 				app.get("/error", () => {
 					throw new Error("Detailed dev error");
 				});
@@ -260,7 +260,7 @@ describe("Configurable Error Handlers", () => {
 			const original = Bun.env.NODE_ENV;
 			Bun.env.NODE_ENV = undefined;
 			try {
-				const app = createApp();
+				const app = createRouter();
 				app.get("/error", () => {
 					throw new Error("Visible without NODE_ENV");
 				});
@@ -280,7 +280,7 @@ describe("Configurable Error Handlers", () => {
 			const original = Bun.env.NODE_ENV;
 			Bun.env.NODE_ENV = "production";
 			try {
-				const app = createApp();
+				const app = createRouter();
 				app.get("/error", () => {
 					throw "secret string error";
 				});
@@ -297,7 +297,7 @@ describe("Configurable Error Handlers", () => {
 		});
 
 		test("custom onError handler overrides default 500", async () => {
-			const app = createApp({
+			const app = createRouter({
 				onError: (_ctx, _error) => {
 					return new Response("Custom error page", {
 						status: 500,
@@ -318,7 +318,7 @@ describe("Configurable Error Handlers", () => {
 
 		test("onError receives error object", async () => {
 			let receivedError: unknown = null;
-			const app = createApp({
+			const app = createRouter({
 				onError: (_ctx, error) => {
 					receivedError = error;
 					return new Response("Error", { status: 500 });
@@ -336,7 +336,7 @@ describe("Configurable Error Handlers", () => {
 
 		test("onError receives request context with params and query", async () => {
 			let receivedCtx: RequestContext | null = null;
-			const app = createApp({
+			const app = createRouter({
 				onError: (ctx, _error) => {
 					receivedCtx = ctx;
 					return new Response("Error", { status: 500 });
@@ -356,7 +356,7 @@ describe("Configurable Error Handlers", () => {
 
 		test("onError handles non-Error objects", async () => {
 			let receivedError: unknown = null;
-			const app = createApp({
+			const app = createRouter({
 				onError: (_ctx, error) => {
 					receivedError = error;
 					return new Response("Error", { status: 500 });
@@ -372,7 +372,7 @@ describe("Configurable Error Handlers", () => {
 		});
 
 		test("onError can return HandlerResponse (object)", async () => {
-			const app = createApp({
+			const app = createRouter({
 				onError: (_ctx, error) => {
 					return {
 						error: "Internal server error",
@@ -399,7 +399,7 @@ describe("Configurable Error Handlers", () => {
 
 		test("onError handles errors from middleware", async () => {
 			let receivedError: unknown = null;
-			const app = createApp({
+			const app = createRouter({
 				onError: (_ctx, error) => {
 					receivedError = error;
 					return new Response("Error", { status: 500 });
@@ -420,7 +420,7 @@ describe("Configurable Error Handlers", () => {
 	describe("Async handlers", () => {
 		test("onNotFound supports async handlers", async () => {
 			let logged = false;
-			const app = createApp({
+			const app = createRouter({
 				onNotFound: async (_ctx) => {
 					// Simulate async operation (e.g., logging to external service)
 					await new Promise((resolve) => setTimeout(resolve, 10));
@@ -439,7 +439,7 @@ describe("Configurable Error Handlers", () => {
 
 		test("onMethodNotAllowed supports async handlers", async () => {
 			let logged = false;
-			const app = createApp({
+			const app = createRouter({
 				onMethodNotAllowed: async (_ctx, allowed) => {
 					await new Promise((resolve) => setTimeout(resolve, 10));
 					logged = true;
@@ -461,7 +461,7 @@ describe("Configurable Error Handlers", () => {
 
 		test("onError supports async handlers", async () => {
 			let logged = false;
-			const app = createApp({
+			const app = createRouter({
 				onError: async (_ctx, _error) => {
 					// Simulate async error logging
 					await new Promise((resolve) => setTimeout(resolve, 10));
@@ -481,7 +481,7 @@ describe("Configurable Error Handlers", () => {
 		});
 
 		test("async handlers can return HandlerResponse objects", async () => {
-			const app = createApp({
+			const app = createRouter({
 				onNotFound: async () => {
 					await new Promise((resolve) => setTimeout(resolve, 10));
 					return { error: "Not found", async: true };
@@ -500,7 +500,7 @@ describe("Configurable Error Handlers", () => {
 
 	describe("Combined handlers", () => {
 		test("all handlers can be used together", async () => {
-			const app = createApp({
+			const app = createRouter({
 				onNotFound: () => new Response("Custom 404", { status: 404 }),
 				onMethodNotAllowed: () => new Response("Custom 405", { status: 405 }),
 				onError: () => new Response("Custom 500", { status: 500 }),

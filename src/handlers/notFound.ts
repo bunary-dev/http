@@ -1,6 +1,6 @@
 import { createRequestContext } from "../context.js";
 import { toResponse } from "../response.js";
-import type { AppOptions, RequestContext } from "../types/index.js";
+import type { RequestContext, RouterOptions } from "../types/index.js";
 
 /**
  * Handle 404 Not Found responses.
@@ -9,7 +9,7 @@ import type { AppOptions, RequestContext } from "../types/index.js";
 export async function handleNotFound(
 	request: Request,
 	_path: string,
-	options?: AppOptions,
+	options?: RouterOptions,
 ): Promise<Response> {
 	const url = new URL(request.url);
 	const notFoundCtx: RequestContext = createRequestContext(request, {}, url.searchParams);

@@ -10,7 +10,7 @@
  * @see {@link ../src/types/requestContext.ts}
  */
 import { describe, expect, test } from "bun:test";
-import { createApp } from "../src/index.js";
+import { createRouter } from "../src/index.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ function req(
 
 describe("Typed params (app.get<TParams>)", () => {
 	test("typed single param is extracted as string", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get<{ id: string }>("/users/:id", (ctx) => ({
 			id: ctx.params.id,
 			type: typeof ctx.params.id,
@@ -40,7 +40,7 @@ describe("Typed params (app.get<TParams>)", () => {
 	});
 
 	test("typed multiple params", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get<{ org: string; repo: string }>("/orgs/:org/repos/:repo", (ctx) => ({
 			org: ctx.params.org,
 			repo: ctx.params.repo,
@@ -54,7 +54,7 @@ describe("Typed params (app.get<TParams>)", () => {
 	});
 
 	test("typed optional param may be undefined", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get<{ format?: string }>("/data/:format?", (ctx) => ({
 			format: ctx.params.format ?? "json",
 		}));
@@ -71,7 +71,7 @@ describe("Typed params (app.get<TParams>)", () => {
 	});
 
 	test("typed params work with POST", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.post<{ id: string }>("/users/:id/update", (ctx) => ({
 			updated: ctx.params.id,
 		}));
@@ -83,7 +83,7 @@ describe("Typed params (app.get<TParams>)", () => {
 	});
 
 	test("typed params work with PUT", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.put<{ id: string }>("/items/:id", (ctx) => ({
 			replaced: ctx.params.id,
 		}));
@@ -95,7 +95,7 @@ describe("Typed params (app.get<TParams>)", () => {
 	});
 
 	test("typed params work with DELETE", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.delete<{ id: string }>("/items/:id", (ctx) => ({
 			deleted: ctx.params.id,
 		}));
@@ -107,7 +107,7 @@ describe("Typed params (app.get<TParams>)", () => {
 	});
 
 	test("typed params work with PATCH", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.patch<{ id: string }>("/items/:id", (ctx) => ({
 			patched: ctx.params.id,
 		}));
@@ -119,7 +119,7 @@ describe("Typed params (app.get<TParams>)", () => {
 	});
 
 	test("typed params work in route groups", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.group("/api", (router) => {
 			router.get<{ slug: string }>("/posts/:slug", (ctx) => ({
 				slug: ctx.params.slug,
@@ -133,7 +133,7 @@ describe("Typed params (app.get<TParams>)", () => {
 	});
 
 	test("typed params work in nested groups", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.group("/api", (router) => {
 			router.group("/v2", (inner) => {
 				inner.get<{ id: string }>("/users/:id", (ctx) => ({
@@ -152,7 +152,7 @@ describe("Typed params (app.get<TParams>)", () => {
 		interface Locals {
 			role: string;
 		}
-		const app = createApp<Locals>();
+		const app = createRouter<Locals>();
 		app.use(async (ctx, next) => {
 			ctx.locals.role = "admin";
 			return next();
@@ -170,7 +170,7 @@ describe("Typed params (app.get<TParams>)", () => {
 	});
 
 	test("typed params with constraints still work", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app
 			.get<{ id: string }>("/users/:id", (ctx) => ({
 				id: ctx.params.id,
@@ -189,7 +189,7 @@ describe("Typed params (app.get<TParams>)", () => {
 	});
 
 	test("untyped route still defaults to PathParams", async () => {
-		const app = createApp();
+		const app = createRouter();
 		// No generic — params default to Record<string, string | undefined>
 		app.get("/items/:id", (ctx) => ({
 			id: ctx.params.id,
@@ -202,7 +202,7 @@ describe("Typed params (app.get<TParams>)", () => {
 	});
 
 	test("URL-decoded params still work with typed generic", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get<{ name: string }>("/files/:name", (ctx) => ({
 			name: ctx.params.name,
 		}));

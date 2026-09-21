@@ -90,21 +90,21 @@ function resolveOrigin(
  *
  * @example
  * ```ts
- * import { createApp, cors } from "@bunary/http";
+ * import { createRouter, cors } from "@bunary/http";
  *
  * // Allow any origin
- * const app = createApp();
- * app.use(cors());
+ * const router = createRouter();
+ * router.use(cors());
  *
  * // Restrict to a single origin with credentials
- * app.use(cors({
+ * router.use(cors({
  *   origin: "https://myapp.com",
  *   credentials: true,
  *   maxAge: 86400,
  * }));
  *
  * // Multiple allowed origins
- * app.use(cors({
+ * router.use(cors({
  *   origin: ["https://app1.com", "https://app2.com"],
  *   methods: ["GET", "POST"],
  * }));

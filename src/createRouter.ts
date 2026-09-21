@@ -17,8 +17,6 @@ import {
 	resolveRoute,
 } from "./routes/index.js";
 import type {
-	AppOptions,
-	BunaryApp,
 	BunaryServer,
 	GroupCallback,
 	GroupOptions,
@@ -30,69 +28,71 @@ import type {
 	RouteBuilder,
 	RouteHandler,
 	RouteInfo,
+	Router,
+	RouterOptions,
 } from "./types/index.js";
 
 /**
- * Create a new Bunary HTTP application instance.
+ * Create a new Bunary HTTP router instance.
  *
  * Provides a simple, chainable API for defining routes and middleware.
  * Objects returned from handlers are automatically serialized to JSON.
  *
- * @returns BunaryApp instance
+ * @returns Router instance
  *
  * @example
  * ```ts
- * import { createApp } from "@bunary/http";
+ * import { createRouter } from "@bunary/http";
  *
- * const app = createApp();
+ * const router = createRouter();
  *
  * // Simple JSON response
- * app.get("/", () => ({ message: "Hello, Bunary!" }));
+ * router.get("/", () => ({ message: "Hello, Bunary!" }));
  *
  * // Path parameters
- * app.get("/users/:id", (ctx) => {
+ * router.get("/users/:id", (ctx) => {
  *   return { id: ctx.params.id };
  * });
  *
  * // Route groups
- * app.group("/api", (router) => {
- *   router.get("/users", () => ({ users: [] }));
+ * router.group("/api", (api) => {
+ *   api.get("/users", () => ({ users: [] }));
  * });
  *
  * // Named routes
- * app.get("/users/:id", (ctx) => ({ id: ctx.params.id })).name("users.show");
- * const url = app.route("users.show", { id: 123 });
+ * router.get("/users/:id", (ctx) => ({ id: ctx.params.id })).name("users.show");
+ * const url = router.route("users.show", { id: 123 });
  *
- * app.listen(3000);
+ * router.listen(3000);
  * ```
  *
  * @param options - Optional configuration
  * @param options.basePath - Base path prefix for all routes (e.g., "/api")
  * @typeParam TLocals — Shape of `ctx.locals`. Defaults to `Record<string, unknown>`.
- * @returns BunaryApp instance
+ * @returns Router instance
  *
  * @example
  * ```ts
  * // Without basePath
- * const app = createApp();
- * app.get("/users", () => ({})); // Matches /users
+ * const router = createRouter();
+ * router.get("/users", () => ({})); // Matches /users
  *
  * // With basePath
- * const apiApp = createApp({ basePath: "/api" });
+ * const apiApp = createRouter({ basePath: "/api" });
  * apiApp.get("/users", () => ({})); // Matches /api/users
  *
  * // With typed locals
  * interface Locals { user: User; requestId: string }
- * const typedApp = createApp<Locals>();
+ * const typedApp = createRouter<Locals>();
  * typedApp.get("/me", (ctx) => ({ user: ctx.locals.user })); // typed
  * ```
  */
-export function createApp<TLocals extends object = Record<string, unknown>>(
-	options?: AppOptions<TLocals>,
-): BunaryApp<TLocals> {
+export function createRouter<TLocals extends object = Record<string, unknown>>(
+	options?: RouterOptions<TLocals>,
+): Router<TLocals> {
 	// Cast options to internal type — TLocals generic only affects compile-time
 	// type checking at the public API boundary, not runtime behaviour.
-	const internalOpts = options as AppOptions | undefined;
+	const internalOpts = options as RouterOptions | undefined;
 
 	const routes: Route[] = [];
 	const middlewares: Middleware[] = [];
@@ -149,7 +149,7 @@ export function createApp<TLocals extends object = Record<string, unknown>>(
 			isWildcard: isWildcard || undefined,
 		};
 		routes.push(route);
-		return createRouteBuilder(route, namedRoutes, app);
+		return createRouteBuilder(route, namedRoutes, router);
 	}
 
 	/**
@@ -227,9 +227,9 @@ export function createApp<TLocals extends object = Record<string, unknown>>(
 	}
 
 	// Internal implementation uses non-generic RouteHandler for storage.
-	// The cast to BunaryApp is safe — handler generics only exist at the
+	// The cast to Router is safe — handler generics only exist at the
 	// public API boundary and are erased at runtime.
-	const app = {
+	const router = {
 		get: (path: string, handler: RouteHandler) => addRoute("GET", path, handler),
 		post: (path: string, handler: RouteHandler) => addRoute("POST", path, handler),
 		put: (path: string, handler: RouteHandler) => addRoute("PUT", path, handler),
@@ -240,7 +240,7 @@ export function createApp<TLocals extends object = Record<string, unknown>>(
 			middlewares.push(middleware);
 			// Invalidate cached middleware chains
 			globalMiddlewareVersion++;
-			return app;
+			return router;
 		},
 
 		group: ((prefixOrOptions: string | GroupOptions, callback: GroupCallback) => {
@@ -255,8 +255,8 @@ export function createApp<TLocals extends object = Record<string, unknown>>(
 				addRoute,
 			);
 			callback(groupRouter);
-			return app;
-		}) as BunaryApp["group"],
+			return router;
+		}) as Router["group"],
 
 		route: (name: string, params?: Record<string, string | number>) => {
 			const route = namedRoutes.get(name);
@@ -373,10 +373,10 @@ export function createApp<TLocals extends object = Record<string, unknown>>(
 		},
 
 		fetch: handleRequest,
-	} as unknown as BunaryApp;
+	} as unknown as Router;
 
 	// The cast is safe: TLocals only narrows handler/middleware context types
 	// at compile time. At runtime, ctx.locals starts as {} and is populated
 	// by middleware before handlers run — no generic information is needed.
-	return app as unknown as BunaryApp<TLocals>;
+	return router as unknown as Router<TLocals>;
 }

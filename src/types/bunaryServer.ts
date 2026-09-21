@@ -1,5 +1,5 @@
 /**
- * Server instance returned by app.listen().
+ * Server instance returned by router.listen().
  */
 export interface BunaryServer {
 	/** The underlying Bun server */

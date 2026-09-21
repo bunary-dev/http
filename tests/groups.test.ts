@@ -2,12 +2,12 @@
  * Route Groups Tests
  */
 import { describe, expect, it } from "bun:test";
-import { createApp } from "../src/index.js";
+import { createRouter } from "../src/index.js";
 
 describe("Route Groups", () => {
 	describe("prefix", () => {
 		it("should prefix all routes in a group", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.group("/api", (router) => {
 				router.get("/users", () => ({ route: "users" }));
@@ -24,7 +24,7 @@ describe("Route Groups", () => {
 		});
 
 		it("should handle prefix without leading slash", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.group("api", (router) => {
 				router.get("/users", () => ({ route: "users" }));
@@ -35,7 +35,7 @@ describe("Route Groups", () => {
 		});
 
 		it("should handle prefix with trailing slash", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.group("/api/", (router) => {
 				router.get("users", () => ({ route: "users" }));
@@ -46,7 +46,7 @@ describe("Route Groups", () => {
 		});
 
 		it("should support nested groups", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.group("/api", (router) => {
 				router.group("/v1", (v1) => {
@@ -67,7 +67,7 @@ describe("Route Groups", () => {
 		});
 
 		it("should support path parameters in groups", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.group("/users/:userId", (router) => {
 				router.get("/posts", (ctx) => ({ userId: ctx.params.userId }));
@@ -89,7 +89,7 @@ describe("Route Groups", () => {
 
 	describe("middleware", () => {
 		it("should apply middleware to all routes in a group", async () => {
-			const app = createApp();
+			const app = createRouter();
 			const calls: string[] = [];
 
 			app.group(
@@ -115,7 +115,7 @@ describe("Route Groups", () => {
 		});
 
 		it("should not apply group middleware to routes outside the group", async () => {
-			const app = createApp();
+			const app = createRouter();
 			const calls: string[] = [];
 
 			app.group(
@@ -143,7 +143,7 @@ describe("Route Groups", () => {
 		});
 
 		it("should apply nested group middleware in order", async () => {
-			const app = createApp();
+			const app = createRouter();
 			const calls: string[] = [];
 
 			app.group(
@@ -182,7 +182,7 @@ describe("Route Groups", () => {
 		});
 
 		it("should combine global middleware with group middleware", async () => {
-			const app = createApp();
+			const app = createRouter();
 			const calls: string[] = [];
 
 			app.use(async (_ctx, next) => {
@@ -215,7 +215,7 @@ describe("Route Groups", () => {
 
 	describe("name prefix", () => {
 		it("should prefix route names in a group", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.group(
 				{
@@ -236,7 +236,7 @@ describe("Route Groups", () => {
 
 	describe("all HTTP methods", () => {
 		it("should support all HTTP methods in groups", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.group("/api", (router) => {
 				router.get("/resource", () => ({ method: "GET" }));

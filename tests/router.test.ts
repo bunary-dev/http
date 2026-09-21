@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { createApp } from "../src/index.js";
+import { createRouter } from "../src/index.js";
 
 describe("Path Parameters", () => {
 	test("extracts single path parameter", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/:id", (ctx) => ({ id: ctx.params.id }));
 
 		const response = await app.fetch(new Request("http://localhost/users/123"));
@@ -13,7 +13,7 @@ describe("Path Parameters", () => {
 	});
 
 	test("extracts multiple path parameters", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/:userId/posts/:postId", (ctx) => ({
 			userId: ctx.params.userId,
 			postId: ctx.params.postId,
@@ -26,7 +26,7 @@ describe("Path Parameters", () => {
 	});
 
 	test("handles parameter at end of path", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/api/v1/items/:itemId", (ctx) => ({ itemId: ctx.params.itemId }));
 
 		const response = await app.fetch(new Request("http://localhost/api/v1/items/abc"));
@@ -36,7 +36,7 @@ describe("Path Parameters", () => {
 	});
 
 	test("handles parameter at beginning of path", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/:version/api", (ctx) => ({ version: ctx.params.version }));
 
 		const response = await app.fetch(new Request("http://localhost/v2/api"));
@@ -46,7 +46,7 @@ describe("Path Parameters", () => {
 	});
 
 	test("distinguishes between static and parameterized segments", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/me", () => ({ type: "current-user" }));
 		app.get("/users/:id", (ctx) => ({ type: "user-by-id", id: ctx.params.id }));
 
@@ -62,7 +62,7 @@ describe("Path Parameters", () => {
 
 describe("Query Parameters", () => {
 	test("provides query parameters via ctx.query", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/search", (ctx) => ({
 			q: ctx.query.get("q"),
 			page: ctx.query.get("page"),
@@ -75,7 +75,7 @@ describe("Query Parameters", () => {
 	});
 
 	test("handles missing query parameters", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/search", (ctx) => ({
 			q: ctx.query.get("q"),
 			missing: ctx.query.get("missing"),
@@ -88,7 +88,7 @@ describe("Query Parameters", () => {
 	});
 
 	test("handles multiple values for same query parameter", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/filter", (ctx) => ({
 			tags: ctx.query.getAll("tag"),
 		}));
@@ -100,7 +100,7 @@ describe("Query Parameters", () => {
 	});
 
 	test("combines path and query parameters", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/:id/posts", (ctx) => ({
 			userId: ctx.params.id,
 			sort: ctx.query.get("sort"),
@@ -113,7 +113,7 @@ describe("Query Parameters", () => {
 	});
 
 	test("throws error for duplicate parameter names", () => {
-		const app = createApp();
+		const app = createRouter();
 
 		expect(() => {
 			app.get("/users/:id/posts/:id", () => ({}));

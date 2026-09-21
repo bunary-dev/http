@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { createApp } from "../src/app.js";
+import { createRouter } from "../src/createRouter.js";
 
 describe("Middleware Pipeline", () => {
 	describe("Basic Middleware", () => {
 		test("middleware executes before route handler", async () => {
-			const app = createApp();
+			const app = createRouter();
 			const order: string[] = [];
 
 			app.use(async (_ctx, next) => {
@@ -23,7 +23,7 @@ describe("Middleware Pipeline", () => {
 		});
 
 		test("middleware can modify response after next()", async () => {
-			const app = createApp();
+			const app = createRouter();
 			let responseTime = 0;
 
 			app.use(async (_ctx, next) => {
@@ -40,7 +40,7 @@ describe("Middleware Pipeline", () => {
 		});
 
 		test("middleware receives request context", async () => {
-			const app = createApp();
+			const app = createRouter();
 			let capturedMethod = "";
 			let capturedPath = "";
 
@@ -58,7 +58,7 @@ describe("Middleware Pipeline", () => {
 		});
 
 		test("middleware can return early without calling next()", async () => {
-			const app = createApp();
+			const app = createRouter();
 			let handlerCalled = false;
 
 			app.use(async (_ctx, _next) => {
@@ -79,7 +79,7 @@ describe("Middleware Pipeline", () => {
 
 	describe("Middleware Chain", () => {
 		test("multiple middleware execute in registration order", async () => {
-			const app = createApp();
+			const app = createRouter();
 			const order: string[] = [];
 
 			app.use(async (_ctx, next) => {
@@ -121,7 +121,7 @@ describe("Middleware Pipeline", () => {
 		});
 
 		test("app.use() is chainable", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			const result = app
 				.use(async (_ctx, next) => await next())
@@ -137,7 +137,7 @@ describe("Middleware Pipeline", () => {
 
 	describe("Middleware with Routes", () => {
 		test("middleware runs for all routes", async () => {
-			const app = createApp();
+			const app = createRouter();
 			let count = 0;
 
 			app.use(async (_ctx, next) => {
@@ -157,7 +157,7 @@ describe("Middleware Pipeline", () => {
 		});
 
 		test("middleware has access to path params", async () => {
-			const app = createApp();
+			const app = createRouter();
 			let capturedId = "";
 
 			app.use(async (ctx, next) => {
@@ -172,7 +172,7 @@ describe("Middleware Pipeline", () => {
 		});
 
 		test("middleware has access to query params", async () => {
-			const app = createApp();
+			const app = createRouter();
 			let capturedSort = "";
 
 			app.use(async (ctx, next) => {
@@ -189,7 +189,7 @@ describe("Middleware Pipeline", () => {
 
 	describe("RequestContext.locals", () => {
 		test("middleware can store per-request values on ctx.locals", async () => {
-			const app = createApp();
+			const app = createRouter();
 			const localsRefs: Array<Record<string, unknown>> = [];
 
 			app.use(async (ctx, next) => {
@@ -216,7 +216,7 @@ describe("Middleware Pipeline", () => {
 
 	describe("Middleware Error Handling", () => {
 		test("middleware errors return 500 response", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.use(async (_ctx, _next) => {
 				throw new Error("Middleware failed");
@@ -231,7 +231,7 @@ describe("Middleware Pipeline", () => {
 		});
 
 		test("error in later middleware still returns 500", async () => {
-			const app = createApp();
+			const app = createRouter();
 			const order: string[] = [];
 
 			app.use(async (_ctx, next) => {
@@ -252,7 +252,7 @@ describe("Middleware Pipeline", () => {
 		});
 
 		test("middleware can catch and handle errors from next()", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.use(async (_ctx, next) => {
 				try {
@@ -274,7 +274,7 @@ describe("Middleware Pipeline", () => {
 		});
 
 		test("middleware can catch errors from other middleware", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.use(async (_ctx, next) => {
 				try {
@@ -300,7 +300,7 @@ describe("Middleware Pipeline", () => {
 
 	describe("Middleware Response Types", () => {
 		test("middleware can return Response object", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.use(async (_ctx, _next) => {
 				return new Response("Blocked", { status: 403 });
@@ -314,7 +314,7 @@ describe("Middleware Pipeline", () => {
 		});
 
 		test("middleware can return JSON object", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.use(async (_ctx, _next) => {
 				return { middleware: true };
@@ -328,7 +328,7 @@ describe("Middleware Pipeline", () => {
 		});
 
 		test("middleware can modify handler response", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.use(async (_ctx, next) => {
 				const result = await next();
@@ -348,7 +348,7 @@ describe("Middleware Pipeline", () => {
 
 	describe("Edge Cases", () => {
 		test("no middleware still works", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.get("/test", () => ({ ok: true }));
 
 			const response = await app.fetch(new Request("http://localhost/test"));
@@ -358,7 +358,7 @@ describe("Middleware Pipeline", () => {
 		});
 
 		test("middleware on non-existent route still returns 404", async () => {
-			const app = createApp();
+			const app = createRouter();
 			let middlewareRan = false;
 
 			app.use(async (_ctx, next) => {
@@ -376,7 +376,7 @@ describe("Middleware Pipeline", () => {
 		});
 
 		test("async middleware works correctly", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.use(async (_ctx, next) => {
 				await new Promise((resolve) => setTimeout(resolve, 10));

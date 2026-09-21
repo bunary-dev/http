@@ -2,11 +2,11 @@ import type { HandlerResponse } from "./handlerResponse.js";
 import type { RequestContext } from "./requestContext.js";
 
 /**
- * Configuration options for creating a Bunary app.
+ * Configuration options for creating a Bunary router.
  *
- * @typeParam TLocals — Shape of `ctx.locals` (must match `createApp<TLocals>()`)
+ * @typeParam TLocals — Shape of `ctx.locals` (must match `createRouter<TLocals>()`)
  */
-export interface AppOptions<TLocals extends object = Record<string, unknown>> {
+export interface RouterOptions<TLocals extends object = Record<string, unknown>> {
 	/** Base path prefix for all routes (default: "") */
 	basePath?: string;
 	/**
@@ -18,7 +18,7 @@ export interface AppOptions<TLocals extends object = Record<string, unknown>> {
 	 *
 	 * @example
 	 * ```ts
-	 * const app = createApp({
+	 * const router = createRouter({
 	 *   onNotFound: async (ctx) => {
 	 *     await logToExternalService(ctx.request.url);
 	 *     return new Response("Custom 404", { status: 404 });
@@ -39,7 +39,7 @@ export interface AppOptions<TLocals extends object = Record<string, unknown>> {
 	 *
 	 * @example
 	 * ```ts
-	 * const app = createApp({
+	 * const router = createRouter({
 	 *   onMethodNotAllowed: async (ctx, allowed) => {
 	 *     await logMethodNotAllowed(ctx.request.url, allowed);
 	 *     return new Response(
@@ -64,7 +64,7 @@ export interface AppOptions<TLocals extends object = Record<string, unknown>> {
 	 *
 	 * @example
 	 * ```ts
-	 * const app = createApp({
+	 * const router = createRouter({
 	 *   onError: async (ctx, error) => {
 	 *     await logErrorToExternalService(error, ctx.request.url);
 	 *     return new Response(

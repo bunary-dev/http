@@ -11,11 +11,11 @@
  * @see {@link https://github.com/bunary-dev/http/issues/52}
  */
 import { describe, expect, it } from "bun:test";
-import { createApp } from "../src/index.js";
+import { createRouter } from "../src/index.js";
 
 describe("URL-encoded path parameters", () => {
 	it("decodes %20 space in path parameter", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/:name", (ctx) => ({ name: ctx.params.name }));
 
 		const res = await app.fetch(new Request("http://localhost/users/hello%20world"));
@@ -24,7 +24,7 @@ describe("URL-encoded path parameters", () => {
 	});
 
 	it("decodes + as literal plus (not space) in path parameter", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/:name", (ctx) => ({ name: ctx.params.name }));
 
 		// In path segments, + is a literal character (unlike query strings)
@@ -34,7 +34,7 @@ describe("URL-encoded path parameters", () => {
 	});
 
 	it("decodes special characters in path parameter", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/tags/:tag", (ctx) => ({ tag: ctx.params.tag }));
 
 		// @ is %40
@@ -44,7 +44,7 @@ describe("URL-encoded path parameters", () => {
 	});
 
 	it("handles double-encoded values (decodes one layer)", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/files/:name", (ctx) => ({ name: ctx.params.name }));
 
 		// %2520 → first decode → %20 (the literal string "%20", not a space)
@@ -54,7 +54,7 @@ describe("URL-encoded path parameters", () => {
 	});
 
 	it("encoded slash %2F does not split path segments", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/files/:path", (ctx) => ({ path: ctx.params.path }));
 
 		// %2F is an encoded slash — it should match within a single segment
@@ -64,7 +64,7 @@ describe("URL-encoded path parameters", () => {
 	});
 
 	it("decodes multiple encoded params in one path", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/:userId/files/:fileName", (ctx) => ({
 			userId: ctx.params.userId,
 			fileName: ctx.params.fileName,
@@ -83,7 +83,7 @@ describe("URL-encoded path parameters", () => {
 
 describe("Unicode path parameters", () => {
 	it("handles unicode characters in path parameter", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/:name", (ctx) => ({ name: ctx.params.name }));
 
 		// The URL constructor will percent-encode the unicode chars in the path
@@ -94,7 +94,7 @@ describe("Unicode path parameters", () => {
 	});
 
 	it("handles pre-encoded unicode (UTF-8 percent-encoding)", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/:name", (ctx) => ({ name: ctx.params.name }));
 
 		// "café" → "caf%C3%A9" in UTF-8 percent-encoding
@@ -104,7 +104,7 @@ describe("Unicode path parameters", () => {
 	});
 
 	it("handles CJK characters in path parameter", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/pages/:title", (ctx) => ({ title: ctx.params.title }));
 
 		const res = await app.fetch(new Request("http://localhost/pages/日本語"));
@@ -114,7 +114,7 @@ describe("Unicode path parameters", () => {
 	});
 
 	it("handles emoji in path parameter", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/reactions/:emoji", (ctx) => ({ emoji: ctx.params.emoji }));
 
 		const res = await app.fetch(new Request("http://localhost/reactions/🚀"));
@@ -126,7 +126,7 @@ describe("Unicode path parameters", () => {
 
 describe("URL-encoded query parameters", () => {
 	it("automatically decodes query parameter values", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/search", (ctx) => ({ q: ctx.query.get("q") }));
 
 		const res = await app.fetch(new Request("http://localhost/search?q=hello%20world"));
@@ -136,7 +136,7 @@ describe("URL-encoded query parameters", () => {
 	});
 
 	it("handles + as space in query parameters", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/search", (ctx) => ({ q: ctx.query.get("q") }));
 
 		// In query strings, + traditionally means space
@@ -146,7 +146,7 @@ describe("URL-encoded query parameters", () => {
 	});
 
 	it("handles unicode in query values", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/search", (ctx) => ({ q: ctx.query.get("q") }));
 
 		const res = await app.fetch(new Request("http://localhost/search?q=カフェ"));
@@ -158,7 +158,7 @@ describe("URL-encoded query parameters", () => {
 
 describe("URL-encoded static paths", () => {
 	it("does not match spaces in registered path against percent-encoding", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/files/my file", () => ({ matched: true }));
 
 		// Static segments with spaces won't match %20 — use params instead.
@@ -168,7 +168,7 @@ describe("URL-encoded static paths", () => {
 	});
 
 	it("matches URL-encoded static path registered with percent-encoding", async () => {
-		const app = createApp();
+		const app = createRouter();
 		// Register with the same encoding the URL will have
 		app.get("/files/my%20file", () => ({ matched: true }));
 
@@ -179,7 +179,7 @@ describe("URL-encoded static paths", () => {
 
 describe("Constraints with decoded parameters", () => {
 	it("applies constraints to decoded parameter values", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/:name", (ctx) => ({ name: ctx.params.name })).where("name", /^[a-z ]+$/);
 
 		// "hello%20world" decodes to "hello world" which matches the constraint

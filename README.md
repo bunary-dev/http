@@ -13,14 +13,14 @@ bun add @bunary/http
 ## Quick Start
 
 ```typescript
-import { createApp } from '@bunary/http';
+import { createRouter } from '@bunary/http';
 
-const app = createApp();
-app.get('/hello', () => ({ message: 'Hello, Bun!' }));
-app.listen({ port: 3000 });
+const router = createRouter();
+router.get('/hello', () => ({ message: 'Hello, Bun!' }));
+router.listen({ port: 3000 });
 ```
 
-For createApp options, route groups, middleware, named routes, and types, see [docs/index.md](./docs/index.md).
+For createRouter options, route groups, middleware, named routes, and types, see [docs/index.md](./docs/index.md).
 
 ## License
 
