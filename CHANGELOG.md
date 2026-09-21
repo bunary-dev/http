@@ -5,6 +5,22 @@ All notable changes to `@bunary/http` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-09-21
+
+### Changed
+
+- **Requires Bun ≥ 1.4.0** (`engines.bun`); `.bun-version` pins 1.4.2 for CI and contributors (#71)
+- Toolchain: `@types/bun` replaces `bun-types`, `typescript` ^7 and `@biomejs/biome` 2.5.1 pinned as devDependencies; `bun.lock` committed (#71)
+- `tsconfig.json` aligned with Bun 1.4 `bun init` defaults (`module: Preserve`, `verbatimModuleSyntax`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch`) (#71)
+- CI: Bun version read from `.bun-version`, plus a non-required `bun latest` canary job; build job verifies the publish tarball with `bun pm pack --dry-run`; `actions/checkout@v7` (#71)
+- Lint/format now cover `tests/` and call `tsc`/`biome` directly instead of `bunx`; per-file coverage threshold (35% lines / 45% functions — below the standard 90%, kept low because `src/handlers/head.ts` and `src/routes/find.ts` currently have thin coverage; Bun enforces the threshold per file, not just in aggregate) enforced via `bunfig.toml` (#71)
+
+### Fixed
+
+- `exports["."]` now lists `types` before `import` so TypeScript resolves the declarations; added `default` condition and `./package.json` subpath (#67)
+- Added `publishConfig.access: public` and `sideEffects: false` (#71)
+- Added missing `LICENSE` file (MIT) to the repo and the published tarball (#71)
+
 ## [0.3.0] - 2026-02-17
 
 ### Added

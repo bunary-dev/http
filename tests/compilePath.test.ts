@@ -102,9 +102,7 @@ describe("compilePath()", () => {
 
 	describe("duplicate parameter names", () => {
 		it("throws on duplicate parameter names", () => {
-			expect(() => compilePath("/users/:id/posts/:id")).toThrow(
-				'Duplicate parameter name ":id"',
-			);
+			expect(() => compilePath("/users/:id/posts/:id")).toThrow('Duplicate parameter name ":id"');
 		});
 	});
 

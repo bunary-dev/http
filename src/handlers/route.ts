@@ -16,8 +16,8 @@ export async function executeRoute(
 
 	let index = 0;
 	const next = async (): Promise<HandlerResponse> => {
-		if (index < allMiddleware.length) {
-			const middleware = allMiddleware[index++];
+		const middleware = allMiddleware[index++];
+		if (middleware) {
 			return await middleware(ctx, next);
 		}
 		// All middleware done, call handler

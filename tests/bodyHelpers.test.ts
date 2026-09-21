@@ -288,7 +288,7 @@ describe("Body Parsing Helpers", () => {
 		test("body helpers are available after middleware runs", async () => {
 			const app = createApp();
 
-			app.use(async (ctx, next) => {
+			app.use(async (_ctx, next) => {
 				// Middleware runs before handler — helpers should still work
 				return await next();
 			});

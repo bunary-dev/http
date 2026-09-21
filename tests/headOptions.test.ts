@@ -129,7 +129,9 @@ describe("OPTIONS requests", () => {
 		app.get("/users/:id", () => ({}));
 		app.put("/users/:id", () => ({}));
 
-		const response = await app.fetch(new Request("http://localhost/users/123", { method: "OPTIONS" }));
+		const response = await app.fetch(
+			new Request("http://localhost/users/123", { method: "OPTIONS" }),
+		);
 
 		expect(response.status).toBe(204);
 		const allowHeader = response.headers.get("Allow");
@@ -138,10 +140,8 @@ describe("OPTIONS requests", () => {
 
 	test("OPTIONS request respects route constraints", async () => {
 		const app = createApp();
-		app.get("/users/:id", () => ({}))
-			.where("id", /^\d+$/);
-		app.get("/users/:id", () => ({}))
-			.where("id", /^[a-z]+$/);
+		app.get("/users/:id", () => ({})).where("id", /^\d+$/);
+		app.get("/users/:id", () => ({})).where("id", /^[a-z]+$/);
 
 		// Only numeric constraint matches
 		const response1 = await app.fetch(
@@ -191,10 +191,8 @@ describe("405 Method Not Allowed with Allow header", () => {
 
 	test("405 response respects route constraints", async () => {
 		const app = createApp();
-		app.get("/users/:id", () => ({}))
-			.where("id", /^\d+$/);
-		app.post("/users/:id", () => ({}))
-			.where("id", /^\d+$/);
+		app.get("/users/:id", () => ({})).where("id", /^\d+$/);
+		app.post("/users/:id", () => ({})).where("id", /^\d+$/);
 
 		const response = await app.fetch(new Request("http://localhost/users/123", { method: "PUT" }));
 

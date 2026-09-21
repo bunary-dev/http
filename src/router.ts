@@ -126,9 +126,10 @@ export function extractParams(path: string, route: Route): Record<string, string
 	const params: Record<string, string | undefined> = {};
 	for (let i = 0; i < route.paramNames.length; i++) {
 		const value = match[i + 1];
+		const name = route.paramNames[i];
 		// Only set value if it exists (for optional params)
-		if (value !== undefined && value !== "") {
-			params[route.paramNames[i]] = safeDecodeURIComponent(value);
+		if (name !== undefined && value !== undefined && value !== "") {
+			params[name] = safeDecodeURIComponent(value);
 		}
 	}
 	return params;

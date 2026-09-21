@@ -1,6 +1,6 @@
 {
   "name": "@bunary/http",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "HTTP routing and middleware for Bunary - a Bun-first backend framework inspired by Laravel",
   "type": "module",
   "main": "./dist/index.js",
@@ -8,20 +8,25 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
     "README.md",
     "CHANGELOG.md"
   ],
+  "sideEffects": false,
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target bun && bunx tsc -p tsconfig.build.json",
-    "typecheck": "bunx tsc --noEmit",
+    "build": "bun build ./src/index.ts --outdir ./dist --target bun && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "lint": "bunx biome check ./src"
+    "lint": "biome check ./src ./tests",
+    "format": "biome check --write ./src ./tests",
+    "pack:check": "bun pm pack --dry-run"
   },
   "keywords": [
     "bunary",
@@ -31,7 +36,7 @@
     "middleware",
     "framework"
   ],
-  "author": "",
+  "author": "Paul Radford",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -41,13 +46,16 @@
   "bugs": {
     "url": "https://github.com/bunary-dev/http/issues"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
-    "bun": ">=1.0.0"
+    "bun": ">=1.4.0"
   },
   "dependencies": {},
   "devDependencies": {
-    "@biomejs/biome": "^2.3.13",
-    "bun-types": "^1.0.0",
-    "typescript": "^6.0.3"
+    "@biomejs/biome": "2.5.1",
+    "@types/bun": "^1.4.2",
+    "typescript": "^7.0.2"
   }
 }

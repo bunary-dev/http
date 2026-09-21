@@ -18,6 +18,9 @@ Thumbs.db
 # Test coverage
 coverage/
 
+# Worktrees
+.worktrees/
+
 # Environment files
 .env
 .env.local
