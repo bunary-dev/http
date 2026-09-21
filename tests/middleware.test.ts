@@ -7,7 +7,7 @@ describe("Middleware Pipeline", () => {
 			const app = createApp();
 			const order: string[] = [];
 
-			app.use(async (ctx, next) => {
+			app.use(async (_ctx, next) => {
 				order.push("middleware");
 				return await next();
 			});
@@ -26,7 +26,7 @@ describe("Middleware Pipeline", () => {
 			const app = createApp();
 			let responseTime = 0;
 
-			app.use(async (ctx, next) => {
+			app.use(async (_ctx, next) => {
 				const start = Date.now();
 				const result = await next();
 				responseTime = Date.now() - start;

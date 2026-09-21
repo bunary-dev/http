@@ -43,33 +43,40 @@ describe("Route Constraints", () => {
 		it("should support multiple constraints", async () => {
 			const app = createApp();
 
-			app.get("/users/:id/posts/:slug", (ctx) => ({
-				id: ctx.params.id,
-				slug: ctx.params.slug,
-			}))
+			app
+				.get("/users/:id/posts/:slug", (ctx) => ({
+					id: ctx.params.id,
+					slug: ctx.params.slug,
+				}))
 				.where("id", /^\d+$/)
 				.where("slug", /^[a-z0-9-]+$/);
 
 			const valid = await app.fetch(new Request("http://localhost/users/123/posts/hello-world"));
 			expect(valid.status).toBe(200);
 
-			const invalidId = await app.fetch(new Request("http://localhost/users/abc/posts/hello-world"));
+			const invalidId = await app.fetch(
+				new Request("http://localhost/users/abc/posts/hello-world"),
+			);
 			expect(invalidId.status).toBe(404);
 
-			const invalidSlug = await app.fetch(new Request("http://localhost/users/123/posts/Hello World"));
+			const invalidSlug = await app.fetch(
+				new Request("http://localhost/users/123/posts/Hello World"),
+			);
 			expect(invalidSlug.status).toBe(404);
 		});
 
 		it("should support object syntax for multiple constraints", async () => {
 			const app = createApp();
 
-			app.get("/users/:id/posts/:slug", (ctx) => ({
-				id: ctx.params.id,
-				slug: ctx.params.slug,
-			})).where({
-				id: /^\d+$/,
-				slug: /^[a-z0-9-]+$/,
-			});
+			app
+				.get("/users/:id/posts/:slug", (ctx) => ({
+					id: ctx.params.id,
+					slug: ctx.params.slug,
+				}))
+				.where({
+					id: /^\d+$/,
+					slug: /^[a-z0-9-]+$/,
+				});
 
 			const valid = await app.fetch(new Request("http://localhost/users/123/posts/hello-world"));
 			expect(valid.status).toBe(200);
@@ -164,7 +171,8 @@ describe("Route Constraints", () => {
 		it("whereIn() should constrain to specific values", async () => {
 			const app = createApp();
 
-			app.get("/status/:status", (ctx) => ({ status: ctx.params.status }))
+			app
+				.get("/status/:status", (ctx) => ({ status: ctx.params.status }))
 				.whereIn("status", ["active", "inactive", "pending"]);
 
 			const valid = await app.fetch(new Request("http://localhost/status/active"));
@@ -177,10 +185,11 @@ describe("Route Constraints", () => {
 		it("should support chaining multiple helper methods", async () => {
 			const app = createApp();
 
-			app.get("/users/:id/status/:status", (ctx) => ({
-				id: ctx.params.id,
-				status: ctx.params.status,
-			}))
+			app
+				.get("/users/:id/status/:status", (ctx) => ({
+					id: ctx.params.id,
+					status: ctx.params.status,
+				}))
 				.whereNumber("id")
 				.whereIn("status", ["active", "inactive"]);
 
@@ -190,7 +199,9 @@ describe("Route Constraints", () => {
 			const invalidId = await app.fetch(new Request("http://localhost/users/abc/status/active"));
 			expect(invalidId.status).toBe(404);
 
-			const invalidStatus = await app.fetch(new Request("http://localhost/users/123/status/banned"));
+			const invalidStatus = await app.fetch(
+				new Request("http://localhost/users/123/status/banned"),
+			);
 			expect(invalidStatus.status).toBe(404);
 		});
 	});
@@ -224,10 +235,12 @@ describe("Route Constraints", () => {
 			const app = createApp();
 
 			expect(() => {
-				app.get("/users/:id/posts/:slug", () => ({})).where({
-					id: "^\\d+$",
-					slug: "[invalid",
-				});
+				app
+					.get("/users/:id/posts/:slug", () => ({}))
+					.where({
+						id: "^\\d+$",
+						slug: "[invalid",
+					});
 			}).toThrow('Invalid regex pattern for parameter "slug"');
 		});
 

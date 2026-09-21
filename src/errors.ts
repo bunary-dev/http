@@ -28,7 +28,7 @@ export class BodyParseError extends Error {
 	override readonly name = "BodyParseError";
 
 	/** The underlying parse error, if available */
-	readonly cause?: unknown;
+	override readonly cause?: unknown;
 
 	constructor(message: string, cause?: unknown) {
 		super(message);

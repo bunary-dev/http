@@ -92,20 +92,23 @@ describe("Route Groups", () => {
 			const app = createApp();
 			const calls: string[] = [];
 
-			app.group({
-				prefix: "/api",
-				middleware: [
-					async (ctx, next) => {
-						calls.push("group-middleware");
-						return next();
-					},
-				],
-			}, (router) => {
-				router.get("/test", () => {
-					calls.push("handler");
-					return { ok: true };
-				});
-			});
+			app.group(
+				{
+					prefix: "/api",
+					middleware: [
+						async (_ctx, next) => {
+							calls.push("group-middleware");
+							return next();
+						},
+					],
+				},
+				(router) => {
+					router.get("/test", () => {
+						calls.push("handler");
+						return { ok: true };
+					});
+				},
+			);
 
 			await app.fetch(new Request("http://localhost/api/test"));
 			expect(calls).toEqual(["group-middleware", "handler"]);
@@ -115,17 +118,20 @@ describe("Route Groups", () => {
 			const app = createApp();
 			const calls: string[] = [];
 
-			app.group({
-				prefix: "/api",
-				middleware: [
-					async (ctx, next) => {
-						calls.push("group-middleware");
-						return next();
-					},
-				],
-			}, (router) => {
-				router.get("/test", () => ({ inside: true }));
-			});
+			app.group(
+				{
+					prefix: "/api",
+					middleware: [
+						async (_ctx, next) => {
+							calls.push("group-middleware");
+							return next();
+						},
+					],
+				},
+				(router) => {
+					router.get("/test", () => ({ inside: true }));
+				},
+			);
 
 			app.get("/outside", () => {
 				calls.push("outside-handler");
@@ -140,20 +146,36 @@ describe("Route Groups", () => {
 			const app = createApp();
 			const calls: string[] = [];
 
-			app.group({
-				prefix: "/api",
-				middleware: [async (ctx, next) => { calls.push("api"); return next(); }],
-			}, (router) => {
-				router.group({
-					prefix: "/admin",
-					middleware: [async (ctx, next) => { calls.push("admin"); return next(); }],
-				}, (admin) => {
-					admin.get("/dashboard", () => {
-						calls.push("handler");
-						return { ok: true };
-					});
-				});
-			});
+			app.group(
+				{
+					prefix: "/api",
+					middleware: [
+						async (_ctx, next) => {
+							calls.push("api");
+							return next();
+						},
+					],
+				},
+				(router) => {
+					router.group(
+						{
+							prefix: "/admin",
+							middleware: [
+								async (_ctx, next) => {
+									calls.push("admin");
+									return next();
+								},
+							],
+						},
+						(admin) => {
+							admin.get("/dashboard", () => {
+								calls.push("handler");
+								return { ok: true };
+							});
+						},
+					);
+				},
+			);
 
 			await app.fetch(new Request("http://localhost/api/admin/dashboard"));
 			expect(calls).toEqual(["api", "admin", "handler"]);
@@ -163,20 +185,28 @@ describe("Route Groups", () => {
 			const app = createApp();
 			const calls: string[] = [];
 
-			app.use(async (ctx, next) => {
+			app.use(async (_ctx, next) => {
 				calls.push("global");
 				return next();
 			});
 
-			app.group({
-				prefix: "/api",
-				middleware: [async (ctx, next) => { calls.push("group"); return next(); }],
-			}, (router) => {
-				router.get("/test", () => {
-					calls.push("handler");
-					return { ok: true };
-				});
-			});
+			app.group(
+				{
+					prefix: "/api",
+					middleware: [
+						async (_ctx, next) => {
+							calls.push("group");
+							return next();
+						},
+					],
+				},
+				(router) => {
+					router.get("/test", () => {
+						calls.push("handler");
+						return { ok: true };
+					});
+				},
+			);
 
 			await app.fetch(new Request("http://localhost/api/test"));
 			expect(calls).toEqual(["global", "group", "handler"]);
@@ -187,13 +217,16 @@ describe("Route Groups", () => {
 		it("should prefix route names in a group", async () => {
 			const app = createApp();
 
-			app.group({
-				prefix: "/api",
-				name: "api.",
-			}, (router) => {
-				router.get("/users", () => ({ users: [] })).name("users.index");
-				router.get("/users/:id", () => ({ id: 1 })).name("users.show");
-			});
+			app.group(
+				{
+					prefix: "/api",
+					name: "api.",
+				},
+				(router) => {
+					router.get("/users", () => ({ users: [] })).name("users.index");
+					router.get("/users/:id", () => ({ id: 1 })).name("users.show");
+				},
+			);
 
 			// Route names should be "api.users.index" and "api.users.show"
 			expect(app.route("api.users.index")).toBe("/api/users");
@@ -216,16 +249,24 @@ describe("Route Groups", () => {
 			const get = await app.fetch(new Request("http://localhost/api/resource"));
 			expect(await get.json()).toEqual({ method: "GET" });
 
-			const post = await app.fetch(new Request("http://localhost/api/resource", { method: "POST" }));
+			const post = await app.fetch(
+				new Request("http://localhost/api/resource", { method: "POST" }),
+			);
 			expect(await post.json()).toEqual({ method: "POST" });
 
-			const put = await app.fetch(new Request("http://localhost/api/resource/1", { method: "PUT" }));
+			const put = await app.fetch(
+				new Request("http://localhost/api/resource/1", { method: "PUT" }),
+			);
 			expect(await put.json()).toEqual({ method: "PUT" });
 
-			const patch = await app.fetch(new Request("http://localhost/api/resource/1", { method: "PATCH" }));
+			const patch = await app.fetch(
+				new Request("http://localhost/api/resource/1", { method: "PATCH" }),
+			);
 			expect(await patch.json()).toEqual({ method: "PATCH" });
 
-			const del = await app.fetch(new Request("http://localhost/api/resource/1", { method: "DELETE" }));
+			const del = await app.fetch(
+				new Request("http://localhost/api/resource/1", { method: "DELETE" }),
+			);
 			expect(await del.json()).toEqual({ method: "DELETE" });
 		});
 	});

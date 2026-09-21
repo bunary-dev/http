@@ -2,6 +2,8 @@
 
 Lightweight, type-safe HTTP framework for [Bun](https://bun.sh). Routes, middleware, groups, named routes, constraints. Full reference: [docs/index.md](./docs/index.md).
 
+Requires Bun ≥ 1.4.0.
+
 ## Installation
 
 ```bash

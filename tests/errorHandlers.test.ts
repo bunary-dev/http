@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { RequestContext } from "../src/index.js";
 import { createApp } from "../src/index.js";
 
 describe("Configurable Error Handlers", () => {
@@ -16,7 +17,7 @@ describe("Configurable Error Handlers", () => {
 
 		test("custom onNotFound handler overrides default 404", async () => {
 			const app = createApp({
-				onNotFound: (ctx) => {
+				onNotFound: (_ctx) => {
 					return new Response("Custom 404 Page", {
 						status: 404,
 						headers: { "Content-Type": "text/plain" },
@@ -33,7 +34,7 @@ describe("Configurable Error Handlers", () => {
 		});
 
 		test("onNotFound receives request context with query params", async () => {
-			let receivedCtx: any = null;
+			let receivedCtx: RequestContext | null = null;
 			const app = createApp({
 				onNotFound: (ctx) => {
 					receivedCtx = ctx;
@@ -45,9 +46,10 @@ describe("Configurable Error Handlers", () => {
 			await app.fetch(new Request("http://localhost/posts?search=test&page=2"));
 
 			expect(receivedCtx).toBeTruthy();
-			expect(receivedCtx.query.get("search")).toBe("test");
-			expect(receivedCtx.query.get("page")).toBe("2");
-			expect(receivedCtx.params).toEqual({});
+			const ctx = receivedCtx as unknown as RequestContext;
+			expect(ctx.query.get("search")).toBe("test");
+			expect(ctx.query.get("page")).toBe("2");
+			expect(ctx.params).toEqual({});
 		});
 
 		test("onNotFound can return HandlerResponse (object)", async () => {
@@ -72,7 +74,9 @@ describe("Configurable Error Handlers", () => {
 			});
 			app.get("/users", () => ({ users: [] }));
 
-			const response = await app.fetch(new Request("http://localhost/posts", { method: "OPTIONS" }));
+			const response = await app.fetch(
+				new Request("http://localhost/posts", { method: "OPTIONS" }),
+			);
 
 			expect(response.status).toBe(404);
 			expect(await response.text()).toBe("Custom 404");
@@ -95,14 +99,11 @@ describe("Configurable Error Handlers", () => {
 
 		test("custom onMethodNotAllowed handler overrides default 405", async () => {
 			const app = createApp({
-				onMethodNotAllowed: (ctx, allowed) => {
-					return new Response(
-						JSON.stringify({ message: "Method not allowed", allowed }),
-						{
-							status: 405,
-							headers: { "Content-Type": "application/json" },
-						},
-					);
+				onMethodNotAllowed: (_ctx, allowed) => {
+					return new Response(JSON.stringify({ message: "Method not allowed", allowed }), {
+						status: 405,
+						headers: { "Content-Type": "application/json" },
+					});
 				},
 			});
 			app.get("/users", () => ({ users: [] }));
@@ -119,7 +120,7 @@ describe("Configurable Error Handlers", () => {
 		test("onMethodNotAllowed receives allowed methods array", async () => {
 			let receivedAllowed: string[] = [];
 			const app = createApp({
-				onMethodNotAllowed: (ctx, allowed) => {
+				onMethodNotAllowed: (_ctx, allowed) => {
 					receivedAllowed = allowed;
 					return new Response("Method not allowed", { status: 405 });
 				},
@@ -134,9 +135,9 @@ describe("Configurable Error Handlers", () => {
 		});
 
 		test("onMethodNotAllowed receives request context with query params", async () => {
-			let receivedCtx: any = null;
+			let receivedCtx: RequestContext | null = null;
 			const app = createApp({
-				onMethodNotAllowed: (ctx, allowed) => {
+				onMethodNotAllowed: (ctx, _allowed) => {
 					receivedCtx = ctx;
 					return new Response("Method not allowed", { status: 405 });
 				},
@@ -146,8 +147,9 @@ describe("Configurable Error Handlers", () => {
 			await app.fetch(new Request("http://localhost/users?filter=active", { method: "PUT" }));
 
 			expect(receivedCtx).toBeTruthy();
-			expect(receivedCtx.query.get("filter")).toBe("active");
-			expect(receivedCtx.params).toEqual({});
+			const ctx = receivedCtx as unknown as RequestContext;
+			expect(ctx.query.get("filter")).toBe("active");
+			expect(ctx.params).toEqual({});
 		});
 
 		test("onMethodNotAllowed ensures Allow header is present", async () => {
@@ -185,7 +187,7 @@ describe("Configurable Error Handlers", () => {
 
 		test("onMethodNotAllowed can return HandlerResponse (object)", async () => {
 			const app = createApp({
-				onMethodNotAllowed: (ctx, allowed) => {
+				onMethodNotAllowed: (_ctx, allowed) => {
 					return { error: "Method not allowed", allowed };
 				},
 			});
@@ -296,7 +298,7 @@ describe("Configurable Error Handlers", () => {
 
 		test("custom onError handler overrides default 500", async () => {
 			const app = createApp({
-				onError: (ctx, error) => {
+				onError: (_ctx, _error) => {
 					return new Response("Custom error page", {
 						status: 500,
 						headers: { "Content-Type": "text/plain" },
@@ -317,7 +319,7 @@ describe("Configurable Error Handlers", () => {
 		test("onError receives error object", async () => {
 			let receivedError: unknown = null;
 			const app = createApp({
-				onError: (ctx, error) => {
+				onError: (_ctx, error) => {
 					receivedError = error;
 					return new Response("Error", { status: 500 });
 				},
@@ -333,9 +335,9 @@ describe("Configurable Error Handlers", () => {
 		});
 
 		test("onError receives request context with params and query", async () => {
-			let receivedCtx: any = null;
+			let receivedCtx: RequestContext | null = null;
 			const app = createApp({
-				onError: (ctx, error) => {
+				onError: (ctx, _error) => {
 					receivedCtx = ctx;
 					return new Response("Error", { status: 500 });
 				},
@@ -347,14 +349,15 @@ describe("Configurable Error Handlers", () => {
 			await app.fetch(new Request("http://localhost/users/123?debug=true"));
 
 			expect(receivedCtx).toBeTruthy();
-			expect(receivedCtx.params.id).toBe("123");
-			expect(receivedCtx.query.get("debug")).toBe("true");
+			const ctx = receivedCtx as unknown as RequestContext<Record<string, unknown>, { id: string }>;
+			expect(ctx.params.id).toBe("123");
+			expect(ctx.query.get("debug")).toBe("true");
 		});
 
 		test("onError handles non-Error objects", async () => {
 			let receivedError: unknown = null;
 			const app = createApp({
-				onError: (ctx, error) => {
+				onError: (_ctx, error) => {
 					receivedError = error;
 					return new Response("Error", { status: 500 });
 				},
@@ -370,7 +373,7 @@ describe("Configurable Error Handlers", () => {
 
 		test("onError can return HandlerResponse (object)", async () => {
 			const app = createApp({
-				onError: (ctx, error) => {
+				onError: (_ctx, error) => {
 					return {
 						error: "Internal server error",
 						message: error instanceof Error ? error.message : String(error),
@@ -397,7 +400,7 @@ describe("Configurable Error Handlers", () => {
 		test("onError handles errors from middleware", async () => {
 			let receivedError: unknown = null;
 			const app = createApp({
-				onError: (ctx, error) => {
+				onError: (_ctx, error) => {
 					receivedError = error;
 					return new Response("Error", { status: 500 });
 				},
@@ -418,7 +421,7 @@ describe("Configurable Error Handlers", () => {
 		test("onNotFound supports async handlers", async () => {
 			let logged = false;
 			const app = createApp({
-				onNotFound: async (ctx) => {
+				onNotFound: async (_ctx) => {
 					// Simulate async operation (e.g., logging to external service)
 					await new Promise((resolve) => setTimeout(resolve, 10));
 					logged = true;
@@ -437,13 +440,13 @@ describe("Configurable Error Handlers", () => {
 		test("onMethodNotAllowed supports async handlers", async () => {
 			let logged = false;
 			const app = createApp({
-				onMethodNotAllowed: async (ctx, allowed) => {
+				onMethodNotAllowed: async (_ctx, allowed) => {
 					await new Promise((resolve) => setTimeout(resolve, 10));
 					logged = true;
-					return new Response(
-						JSON.stringify({ error: "Method not allowed", allowed }),
-						{ status: 405, headers: { "Content-Type": "application/json" } },
-					);
+					return new Response(JSON.stringify({ error: "Method not allowed", allowed }), {
+						status: 405,
+						headers: { "Content-Type": "application/json" },
+					});
 				},
 			});
 			app.get("/users", () => ({ users: [] }));
@@ -459,7 +462,7 @@ describe("Configurable Error Handlers", () => {
 		test("onError supports async handlers", async () => {
 			let logged = false;
 			const app = createApp({
-				onError: async (ctx, error) => {
+				onError: async (_ctx, _error) => {
 					// Simulate async error logging
 					await new Promise((resolve) => setTimeout(resolve, 10));
 					logged = true;

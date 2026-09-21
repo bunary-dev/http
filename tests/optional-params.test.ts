@@ -121,9 +121,11 @@ describe("Optional Route Parameters", () => {
 		it("should apply constraints to optional params when provided", async () => {
 			const app = createApp();
 
-			app.get("/users/:id?", (ctx) => ({
-				id: ctx.params.id ?? null,
-			})).whereNumber("id");
+			app
+				.get("/users/:id?", (ctx) => ({
+					id: ctx.params.id ?? null,
+				}))
+				.whereNumber("id");
 
 			// Valid number
 			const valid = await app.fetch(new Request("http://localhost/users/123"));

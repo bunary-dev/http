@@ -180,8 +180,8 @@ export function createApp<TLocals extends object = Record<string, unknown>>(
 					const ctx: RequestContext = createRequestContext(request, params, url.searchParams);
 					let index = 0;
 					const next = async (): Promise<HandlerResponse> => {
-						if (index < chain.length) {
-							const mw = chain[index++];
+						const mw = chain[index++];
+						if (mw) {
 							return await mw(ctx, next);
 						}
 						// After all middleware, fall through to normal OPTIONS handling

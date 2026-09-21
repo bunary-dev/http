@@ -291,9 +291,7 @@ describe("Method Tampering", () => {
 	test("empty-ish method edge case does not crash", async () => {
 		const app = securityApp();
 		// Bun may normalise this, but the framework should not crash
-		const res = await app.fetch(
-			new Request("http://localhost/safe", { method: "GET" }),
-		);
+		const res = await app.fetch(new Request("http://localhost/safe", { method: "GET" }));
 		expect(res.status).toBe(200);
 	});
 });
