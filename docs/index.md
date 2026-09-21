@@ -17,6 +17,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 - ❓ **Optional Parameters** - Flexible routes with optional path segments
 - 🌐 **Wildcard Routes** - Catch-all `/*` and `/**` patterns for SPA fallbacks and proxies
 - 🔀 **CORS** - Built-in CORS middleware with configurable origins, methods, headers, and credentials
+- 📨 **Response Helpers** - `json`, `text`, `html`, `redirect`, `status` on `ctx` and as standalone functions
 
 ## Installation
 
@@ -128,7 +129,7 @@ Register routes using chainable HTTP method helpers:
 router
   .get('/users', () => ({ users: [] }))
   .post('/users', async (ctx) => {
-    const body = await ctx.json();
+    const body = await ctx.body.json();
     return { id: 1, ...body };
   })
   .put('/users/:id', (ctx) => {
@@ -240,42 +241,58 @@ interface RequestContext<
   TLocals extends object = Record<string, unknown>,
   TParams extends PathParams = PathParams,
 > {
-  request: Request;  // Original Bun Request object
+  request: Request;  // The underlying Web Request
   params: TParams;   // Path parameters (narrowed by route generic)
   query: URLSearchParams;  // Query parameters (use .get() and .getAll())
   locals: TLocals;   // Per-request storage (narrowed by createRouter generic)
 
-  // Body parsing helpers
-  json<T = unknown>(): Promise<T>;     // Parse JSON body (throws BodyParseError)
-  text(): Promise<string>;             // Get body as string
-  formData(): Promise<FormData>;       // Parse form data (throws BodyParseError)
+  // Body readers
+  body: BodyReader;  // ctx.body.json() / .text() / .formData()
+
+  // Response helpers
+  json<T>(data: T, init?: ResponseInit): Response;
+  text(body: string, init?: ResponseInit): Response;
+  html(body: string, init?: ResponseInit): Response;
+  redirect(url: string, status?: number): Response;  // default 302
+  status(code: number, init?: ResponseInit): Response;
+}
+
+interface BodyReader {
+  json<T = unknown>(): Promise<T>;   // Parse JSON body (throws BodyParseError)
+  text(): Promise<string>;           // Read body as string
+  formData(): Promise<FormData>;     // Parse form data (throws BodyParseError)
 }
 ```
 
-#### Body Parsing Helpers
+#### Body Readers
 
-`ctx.json()`, `ctx.text()`, and `ctx.formData()` are thin wrappers around the underlying `Request` methods with improved error handling:
+`ctx.body.json()`, `ctx.body.text()`, and `ctx.body.formData()` are thin wrappers around the underlying `Request` methods with improved error handling:
 
 ```typescript
 // Parse JSON with type inference
 router.post('/users', async (ctx) => {
-  const body = await ctx.json<{ name: string; email: string }>();
+  const body = await ctx.body.json<{ name: string; email: string }>();
   return { id: 1, name: body.name, email: body.email };
 });
 
 // Get raw text body
 router.post('/webhooks', async (ctx) => {
-  const payload = await ctx.text();
+  const payload = await ctx.body.text();
   return { received: payload.length };
 });
 
 // Parse form data
 router.post('/upload', async (ctx) => {
-  const form = await ctx.formData();
+  const form = await ctx.body.formData();
   const name = form.get('name');
   return { name };
 });
 ```
+
+> **Moved in 1.0.0-rc.1** — the body readers used to live directly on the context
+> (`ctx.json()`, `ctx.text()`, `ctx.formData()`). They now live under `ctx.body.*`
+> so that `ctx.json(data)` can be the response helper, matching Hono and Elysia.
+> See [Response Handling](#response-handling).
 
 Malformed bodies throw `BodyParseError`, which you can catch for custom error responses:
 
@@ -284,7 +301,7 @@ import { BodyParseError } from '@bunary/http';
 
 router.post('/users', async (ctx) => {
   try {
-    return await ctx.json();
+    return await ctx.body.json();
   } catch (error) {
     if (error instanceof BodyParseError) {
       return new Response(
@@ -298,7 +315,7 @@ router.post('/users', async (ctx) => {
 ```
 
 > The original `ctx.request` is still available for advanced use cases (e.g. streaming, `arrayBuffer()`, `blob()`).
-> Note: per the Fetch API, the request body can only be consumed once. If middleware calls `ctx.json()`, `ctx.text()`, or `ctx.formData()`, the downstream handler cannot read the body again; instead, share the parsed data via `ctx.locals` or work with a cloned request if you need to access the body in multiple places.
+> Note: per the Fetch API, the request body can only be consumed once. If middleware calls `ctx.body.json()`, `ctx.body.text()`, or `ctx.body.formData()`, the downstream handler cannot read the body again; instead, share the parsed data via `ctx.locals` or work with a cloned request if you need to access the body in multiple places.
 
 `TLocals` is set once via `createRouter<TLocals>()` and flows to all handlers and middleware.
 `TParams` is set per-route via `router.get<TParams>()` and only affects that handler's `ctx.params`.
@@ -364,6 +381,56 @@ router.get('/custom', () => new Response('Custom', { status: 201 }));
 // null/undefined → 204 No Content
 router.get('/empty', () => null);
 ```
+
+#### Response Helpers
+
+When you need control over the status code or headers, use the response helpers.
+They are available on the context and as standalone functions — both return a
+plain Web `Response`, so they compose with anything.
+
+```typescript
+router.post('/users', (ctx) => ctx.json({ id: 1 }, { status: 201 }));
+router.get('/ping', (ctx) => ctx.text('pong'));
+router.get('/', (ctx) => ctx.html('<h1>Hello</h1>'));
+router.get('/old', (ctx) => ctx.redirect('/new', 301));
+router.delete('/users/:id', (ctx) => ctx.status(204));
+```
+
+The same functions are exported from the barrel, for middleware, helpers, or
+anywhere without a context:
+
+```typescript
+import { html, json, redirect, status, text } from '@bunary/http';
+
+json({ message: 'Hello' });                        // application/json; charset=utf-8
+json({ id: 1 }, { status: 201 });                  // any ResponseInit
+text('pong');                                      // text/plain; charset=utf-8
+html('<h1>Hello</h1>');                            // text/html; charset=utf-8
+redirect('/login');                                // 302 + location header
+redirect('https://example.com/next', 307);         // explicit status
+status(204);                                       // empty body, status only
+status(202, { headers: { 'x-job': 'queued' } });   // extra headers
+```
+
+| Helper | Status | Content-Type |
+|---|---|---|
+| `json(data, init?)` | `200` (or `init.status`) | `application/json; charset=utf-8` |
+| `text(body, init?)` | `200` (or `init.status`) | `text/plain; charset=utf-8` |
+| `html(body, init?)` | `200` (or `init.status`) | `text/html; charset=utf-8` |
+| `redirect(url, status = 302)` | `302` (or the argument) | — (sets `location`) |
+| `status(code, init?)` | the `code` argument | — (empty body) |
+
+`init` is a standard `ResponseInit`. Its headers are merged with the helper's
+default content-type, and an explicit `content-type` in `init` wins:
+
+```typescript
+json(doc, { headers: { 'content-type': 'application/ld+json' } });
+text('a,b\n1,2', { headers: { 'content-type': 'text/csv' } });
+```
+
+`status()` always returns an empty body and the `code` argument always wins over
+a `status` in `init`, which keeps bodyless codes such as `204`, `205` and `304`
+valid.
 
 ### Starting the Server
 
@@ -789,6 +856,7 @@ import type {
   GroupCallback,
   RouteInfo,
   CorsOptions,
+  BodyReader,
 } from '@bunary/http';
 ```
 

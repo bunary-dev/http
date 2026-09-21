@@ -26,8 +26,11 @@ export { cors } from "./cors.js";
 export { createRouter } from "./createRouter.js";
 // Export error classes
 export { BodyParseError } from "./errors.js";
+// Export standalone response helpers
+export { html, json, redirect, status, text } from "./helpers.js";
 // Export types
 export type {
+	BodyReader,
 	BunaryServer,
 	GroupCallback,
 	GroupOptions,

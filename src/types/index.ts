@@ -2,6 +2,7 @@
  * @bunary/http - Type Definitions
  */
 
+export type { BodyReader } from "./bodyReader.js";
 export type { BunaryServer } from "./bunaryServer.js";
 export type { GroupOptions } from "./groupOptions.js";
 export type { GroupCallback, GroupRouter } from "./groupRouter.js";
