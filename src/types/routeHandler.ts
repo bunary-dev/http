@@ -5,8 +5,8 @@ import type { RequestContext } from "./requestContext.js";
 /**
  * Route handler function that processes incoming requests.
  *
- * @typeParam TLocals — Shape of `ctx.locals` (inherited from `createApp<TLocals>()`)
- * @typeParam TParams — Shape of `ctx.params` (specified per-route via `app.get<TParams>()`)
+ * @typeParam TLocals — Shape of `ctx.locals` (inherited from `createRouter<TLocals>()`)
+ * @typeParam TParams — Shape of `ctx.params` (specified per-route via `router.get<TParams>()`)
  *
  * @param ctx - The request context containing request, params, and query
  * @returns Response data (object for JSON, Response for custom, or primitive)

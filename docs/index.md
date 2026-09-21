@@ -27,37 +27,37 @@ bun add @bunary/http
 ## Quick Start
 
 ```typescript
-import { createApp } from '@bunary/http';
+import { createRouter } from '@bunary/http';
 
-const app = createApp();
+const router = createRouter();
 
-app.get('/hello', () => ({ message: 'Hello, Bun!' }));
+router.get('/hello', () => ({ message: 'Hello, Bun!' }));
 
-app.listen({ port: 3000 });
+router.listen({ port: 3000 });
 ```
 
 ## API
 
-### `createApp(options?)`
+### `createRouter(options?)`
 
-Creates a new Bunary application instance.
+Creates a new Bunary router instance.
 
 ```typescript
-import { createApp } from '@bunary/http';
+import { createRouter } from '@bunary/http';
 
 // Without basePath
-const app = createApp();
+const router = createRouter();
 
 // With basePath (prefixes all routes)
-const apiApp = createApp({ basePath: '/api' });
-apiApp.get('/users', () => ({})); // Matches /api/users
+const apiRouter = createRouter({ basePath: '/api' });
+apiRouter.get('/users', () => ({})); // Matches /api/users
 ```
 
 **Options:**
 - `basePath` - Optional base path prefix for all routes (useful when mounting behind a reverse proxy)
   - Automatically normalized (leading slash added, trailing slash removed)
   - Composes with route groups: `basePath + group prefix + route path`
-  - Included in `app.route()` URL generation
+  - Included in `router.route()` URL generation
 - `onNotFound` - Custom handler for 404 Not Found responses
   - Called when no route matches the request path
   - Receives `RequestContext` (params empty, query available)
@@ -76,7 +76,7 @@ apiApp.get('/users', () => ({})); // Matches /api/users
 **Example with custom error handlers:**
 
 ```typescript
-const app = createApp({
+const router = createRouter({
   basePath: '/api',
   onNotFound: (ctx) => {
     return new Response('Not Found', { status: 404 });
@@ -96,7 +96,7 @@ const app = createApp({
 
 #### Typed Locals
 
-Pass a type parameter to `createApp()` to get type-safe `ctx.locals`:
+Pass a type parameter to `createRouter()` to get type-safe `ctx.locals`:
 
 ```typescript
 interface AppLocals {
@@ -104,15 +104,15 @@ interface AppLocals {
   requestId: string;
 }
 
-const app = createApp<AppLocals>();
+const router = createRouter<AppLocals>();
 
-app.use(async (ctx, next) => {
+router.use(async (ctx, next) => {
   ctx.locals.user = await getUser(ctx.request);  // typed
   ctx.locals.requestId = crypto.randomUUID();     // typed
   return next();
 });
 
-app.get('/me', (ctx) => ({
+router.get('/me', (ctx) => ({
   name: ctx.locals.user.name,       // typed as string
   requestId: ctx.locals.requestId,  // typed as string
 }));
@@ -125,7 +125,7 @@ The generic defaults to `Record<string, unknown>`, so existing code is fully bac
 Register routes using chainable HTTP method helpers:
 
 ```typescript
-app
+router
   .get('/users', () => ({ users: [] }))
   .post('/users', async (ctx) => {
     const body = await ctx.json();
@@ -147,11 +147,11 @@ app
 Path parameters are extracted automatically and decoded with `decodeURIComponent`:
 
 ```typescript
-app.get('/users/:id', (ctx) => {
+router.get('/users/:id', (ctx) => {
   return { userId: ctx.params.id };
 });
 
-app.get('/posts/:postId/comments/:commentId', (ctx) => {
+router.get('/posts/:postId/comments/:commentId', (ctx) => {
   const { postId, commentId } = ctx.params;
   return { postId, commentId };
 });
@@ -162,19 +162,19 @@ app.get('/posts/:postId/comments/:commentId', (ctx) => {
 Pass a type parameter to any route method for typed `ctx.params`:
 
 ```typescript
-app.get<{ id: string }>('/users/:id', (ctx) => {
+router.get<{ id: string }>('/users/:id', (ctx) => {
   ctx.params.id;  // string (not string | undefined)
   return { userId: ctx.params.id };
 });
 
-app.get<{ org: string; repo: string }>('/orgs/:org/repos/:repo', (ctx) => {
+router.get<{ org: string; repo: string }>('/orgs/:org/repos/:repo', (ctx) => {
   ctx.params.org;   // string
   ctx.params.repo;  // string
   return { org: ctx.params.org, repo: ctx.params.repo };
 });
 
 // Optional params
-app.get<{ format?: string }>('/data/:format?', (ctx) => {
+router.get<{ format?: string }>('/data/:format?', (ctx) => {
   return { format: ctx.params.format ?? 'json' };
 });
 ```
@@ -188,7 +188,7 @@ When no type parameter is provided, `ctx.params` defaults to `Record<string, str
 Path parameters are automatically decoded from their URL-encoded form:
 
 ```typescript
-app.get('/users/:name', (ctx) => {
+router.get('/users/:name', (ctx) => {
   return { name: ctx.params.name };
 });
 
@@ -200,7 +200,7 @@ app.get('/users/:name', (ctx) => {
 Encoded slashes (`%2F`) are captured within a single segment and decoded:
 
 ```typescript
-app.get('/files/:path', (ctx) => {
+router.get('/files/:path', (ctx) => {
   return { path: ctx.params.path };
 });
 
@@ -214,7 +214,7 @@ app.get('/files/:path', (ctx) => {
 Query parameters are accessed via `URLSearchParams` API:
 
 ```typescript
-app.get('/search', (ctx) => {
+router.get('/search', (ctx) => {
   const q = ctx.query.get('q');
   const page = ctx.query.get('page');
   const limit = ctx.query.get('limit');
@@ -225,7 +225,7 @@ app.get('/search', (ctx) => {
 For multi-value query parameters (e.g., `?tag=a&tag=b`), use `getAll()`:
 
 ```typescript
-app.get('/filter', (ctx) => {
+router.get('/filter', (ctx) => {
   const tags = ctx.query.getAll('tag');
   return { tags };
 });
@@ -243,7 +243,7 @@ interface RequestContext<
   request: Request;  // Original Bun Request object
   params: TParams;   // Path parameters (narrowed by route generic)
   query: URLSearchParams;  // Query parameters (use .get() and .getAll())
-  locals: TLocals;   // Per-request storage (narrowed by createApp generic)
+  locals: TLocals;   // Per-request storage (narrowed by createRouter generic)
 
   // Body parsing helpers
   json<T = unknown>(): Promise<T>;     // Parse JSON body (throws BodyParseError)
@@ -258,19 +258,19 @@ interface RequestContext<
 
 ```typescript
 // Parse JSON with type inference
-app.post('/users', async (ctx) => {
+router.post('/users', async (ctx) => {
   const body = await ctx.json<{ name: string; email: string }>();
   return { id: 1, name: body.name, email: body.email };
 });
 
 // Get raw text body
-app.post('/webhooks', async (ctx) => {
+router.post('/webhooks', async (ctx) => {
   const payload = await ctx.text();
   return { received: payload.length };
 });
 
 // Parse form data
-app.post('/upload', async (ctx) => {
+router.post('/upload', async (ctx) => {
   const form = await ctx.formData();
   const name = form.get('name');
   return { name };
@@ -282,7 +282,7 @@ Malformed bodies throw `BodyParseError`, which you can catch for custom error re
 ```typescript
 import { BodyParseError } from '@bunary/http';
 
-app.post('/users', async (ctx) => {
+router.post('/users', async (ctx) => {
   try {
     return await ctx.json();
   } catch (error) {
@@ -300,8 +300,8 @@ app.post('/users', async (ctx) => {
 > The original `ctx.request` is still available for advanced use cases (e.g. streaming, `arrayBuffer()`, `blob()`).
 > Note: per the Fetch API, the request body can only be consumed once. If middleware calls `ctx.json()`, `ctx.text()`, or `ctx.formData()`, the downstream handler cannot read the body again; instead, share the parsed data via `ctx.locals` or work with a cloned request if you need to access the body in multiple places.
 
-`TLocals` is set once via `createApp<TLocals>()` and flows to all handlers and middleware.
-`TParams` is set per-route via `app.get<TParams>()` and only affects that handler's `ctx.params`.
+`TLocals` is set once via `createRouter<TLocals>()` and flows to all handlers and middleware.
+`TParams` is set per-route via `router.get<TParams>()` and only affects that handler's `ctx.params`.
 
 Both default to their untyped forms for full backward compatibility.
 
@@ -312,7 +312,7 @@ Both default to their untyped forms for full backward compatibility.
 HEAD requests are automatically handled for GET routes. They return the same status code and headers as the corresponding GET request, but with an empty body:
 
 ```typescript
-app.get('/users', () => ({ users: [] }));
+router.get('/users', () => ({ users: [] }));
 
 // HEAD /users returns 200 with empty body
 // Preserves all headers from GET handler
@@ -323,9 +323,9 @@ app.get('/users', () => ({ users: [] }));
 OPTIONS requests return `204 No Content` with an `Allow` header listing all permitted methods for the path:
 
 ```typescript
-app.get('/users', () => ({}));
-app.post('/users', () => ({}));
-app.delete('/users', () => ({}));
+router.get('/users', () => ({}));
+router.post('/users', () => ({}));
+router.delete('/users', () => ({}));
 
 // OPTIONS /users returns:
 // Status: 204
@@ -339,8 +339,8 @@ If no route matches the path, OPTIONS returns `404`.
 When a path exists but the requested method is not allowed, the response includes an `Allow` header:
 
 ```typescript
-app.get('/users', () => ({}));
-app.post('/users', () => ({}));
+router.get('/users', () => ({}));
+router.post('/users', () => ({}));
 
 // PUT /users returns:
 // Status: 405 Method Not Allowed
@@ -353,16 +353,16 @@ Handlers can return various types - they're automatically serialized:
 
 ```typescript
 // Objects/Arrays → JSON with Content-Type: application/json
-app.get('/json', () => ({ data: 'value' }));
+router.get('/json', () => ({ data: 'value' }));
 
 // Strings → text/plain
-app.get('/text', () => 'Hello, world!');
+router.get('/text', () => 'Hello, world!');
 
 // Response objects passed through unchanged
-app.get('/custom', () => new Response('Custom', { status: 201 }));
+router.get('/custom', () => new Response('Custom', { status: 201 }));
 
 // null/undefined → 204 No Content
-app.get('/empty', () => null);
+router.get('/empty', () => null);
 ```
 
 ### Starting the Server
@@ -371,10 +371,10 @@ Both object and positional forms are supported:
 
 ```typescript
 // Object form (recommended)
-const server = app.listen({ port: 3000, hostname: 'localhost' });
+const server = router.listen({ port: 3000, hostname: 'localhost' });
 
 // Positional form
-const server = app.listen(3000, 'localhost');
+const server = router.listen(3000, 'localhost');
 
 console.log(`Server running on ${server.hostname}:${server.port}`);
 
@@ -384,13 +384,13 @@ server.stop();
 
 ### Testing Without Server
 
-Use `app.fetch()` to test handlers directly:
+Use `router.fetch()` to test handlers directly:
 
 ```typescript
-const app = createApp();
-app.get('/hello', () => ({ message: 'hi' }));
+const router = createRouter();
+router.get('/hello', () => ({ message: 'hi' }));
 
-const response = await app.fetch(new Request('http://localhost/hello'));
+const response = await router.fetch(new Request('http://localhost/hello'));
 const data = await response.json();
 // { message: 'hi' }
 ```
@@ -403,7 +403,7 @@ Add middleware to handle cross-cutting concerns like logging, authentication, an
 
 ```typescript
 // Logging middleware
-app.use(async (ctx, next) => {
+router.use(async (ctx, next) => {
   const start = Date.now();
   const result = await next();
   console.log(`${ctx.request.method} ${new URL(ctx.request.url).pathname} - ${Date.now() - start}ms`);
@@ -420,7 +420,7 @@ Middleware executes in registration order. Each middleware can:
 - Return early without calling `next()`
 
 ```typescript
-app
+router
   .use(async (ctx, next) => {
     console.log('First - before');
     const result = await next();
@@ -440,7 +440,7 @@ app
 ### Error Handling Middleware
 
 ```typescript
-app.use(async (ctx, next) => {
+router.use(async (ctx, next) => {
   try {
     return await next();
   } catch (error) {
@@ -457,7 +457,7 @@ app.use(async (ctx, next) => {
 ### Auth Middleware (Example)
 
 ```typescript
-app.use(async (ctx, next) => {
+router.use(async (ctx, next) => {
   const token = ctx.request.headers.get('Authorization');
   if (!token) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -472,18 +472,18 @@ app.use(async (ctx, next) => {
 Built-in CORS middleware handles preflight `OPTIONS` requests and adds the appropriate headers to actual responses.
 
 ```typescript
-import { createApp, cors } from '@bunary/http';
+import { createRouter, cors } from '@bunary/http';
 
-const app = createApp();
+const router = createRouter();
 
 // Allow any origin (default)
-app.use(cors());
+router.use(cors());
 ```
 
 #### Configuration
 
 ```typescript
-app.use(cors({
+router.use(cors({
   origin: 'https://myapp.com',             // string, string[], or "*" (default)
   methods: ['GET', 'POST'],                 // default: GET, HEAD, PUT, POST, DELETE, PATCH
   allowHeaders: ['Content-Type', 'X-Token'], // default: reflects Access-Control-Request-Headers
@@ -496,7 +496,7 @@ app.use(cors({
 #### Multiple Origins
 
 ```typescript
-app.use(cors({
+router.use(cors({
   origin: ['https://app1.com', 'https://app2.com'],
   credentials: true,
 }));
@@ -509,8 +509,8 @@ When `origin` is a string or array (not `"*"`), a `Vary: Origin` header is inclu
 Apply CORS to specific route groups instead of globally:
 
 ```typescript
-app.group({ prefix: '/api', middleware: [cors()] }, (router) => {
-  router.get('/users', () => ({ users: [] }));
+router.group({ prefix: '/api', middleware: [cors()] }, (api) => {
+  api.get('/users', () => ({ users: [] }));
 });
 ```
 
@@ -522,9 +522,9 @@ Group routes together with shared prefixes, middleware, and name prefixes.
 
 ```typescript
 // Simple prefix
-app.group('/api', (router) => {
-  router.get('/users', () => ({ users: [] }));     // /api/users
-  router.get('/posts', () => ({ posts: [] }));     // /api/posts
+router.group('/api', (api) => {
+  api.get('/users', () => ({ users: [] }));     // /api/users
+  api.get('/posts', () => ({ posts: [] }));     // /api/posts
 });
 ```
 
@@ -538,20 +538,20 @@ const authMiddleware = async (ctx, next) => {
   return await next();
 };
 
-app.group({
+router.group({
   prefix: '/admin',
   middleware: [authMiddleware],
   name: 'admin.'
-}, (router) => {
-  router.get('/dashboard', () => ({})).name('dashboard');  // name: admin.dashboard
-  router.get('/users', () => ({})).name('users');          // name: admin.users
+}, (admin) => {
+  admin.get('/dashboard', () => ({})).name('dashboard');  // name: admin.dashboard
+  admin.get('/users', () => ({})).name('users');          // name: admin.users
 });
 ```
 
 ### Nested Groups
 
 ```typescript
-app.group('/api', (api) => {
+router.group('/api', (api) => {
   api.group('/v1', (v1) => {
     v1.get('/users', () => ({}));  // /api/v1/users
   });
@@ -568,28 +568,28 @@ Assign names to routes for URL generation.
 ### Naming Routes
 
 ```typescript
-app.get('/users/:id', (ctx) => ({})).name('users.show');
-app.get('/posts/:slug', (ctx) => ({})).name('posts.show');
+router.get('/users/:id', (ctx) => ({})).name('users.show');
+router.get('/posts/:slug', (ctx) => ({})).name('posts.show');
 ```
 
 ### Generating URLs
 
 ```typescript
 // Basic URL generation
-const url = app.route('users.show', { id: 42 });
+const url = router.route('users.show', { id: 42 });
 // "/users/42"
 
 // With query string
-const searchUrl = app.route('users.show', { id: 42, tab: 'profile' });
+const searchUrl = router.route('users.show', { id: 42, tab: 'profile' });
 // "/users/42?tab=profile"
 
 // Check if route exists
-if (app.hasRoute('users.show')) {
+if (router.hasRoute('users.show')) {
   // ...
 }
 
 // List all routes
-const routes = app.getRoutes();
+const routes = router.getRoutes();
 // [{ name: 'users.show', method: 'GET', path: '/users/:id' }, ...]
 ```
 
@@ -601,15 +601,15 @@ Add regex constraints to validate route parameters.
 
 ```typescript
 // Only match if :id is numeric
-app.get('/users/:id', (ctx) => ({}))
+router.get('/users/:id', (ctx) => ({}))
   .where('id', /^\d+$/);
 
 // Using string pattern
-app.get('/posts/:slug', (ctx) => ({}))
+router.get('/posts/:slug', (ctx) => ({}))
   .where('slug', '^[a-z0-9-]+$');
 
 // Multiple constraints
-app.get('/users/:id/posts/:postId', (ctx) => ({}))
+router.get('/users/:id/posts/:postId', (ctx) => ({}))
   .where({ id: /^\d+$/, postId: /^\d+$/ });
 ```
 
@@ -617,28 +617,28 @@ app.get('/users/:id/posts/:postId', (ctx) => ({}))
 
 ```typescript
 // whereNumber - digits only
-app.get('/users/:id', () => ({})).whereNumber('id');
+router.get('/users/:id', () => ({})).whereNumber('id');
 
 // whereAlpha - letters only (a-zA-Z)
-app.get('/categories/:name', () => ({})).whereAlpha('name');
+router.get('/categories/:name', () => ({})).whereAlpha('name');
 
 // whereAlphaNumeric - letters and digits
-app.get('/codes/:code', () => ({})).whereAlphaNumeric('code');
+router.get('/codes/:code', () => ({})).whereAlphaNumeric('code');
 
 // whereUuid - UUID format
-app.get('/items/:uuid', () => ({})).whereUuid('uuid');
+router.get('/items/:uuid', () => ({})).whereUuid('uuid');
 
 // whereUlid - ULID format
-app.get('/records/:ulid', () => ({})).whereUlid('ulid');
+router.get('/records/:ulid', () => ({})).whereUlid('ulid');
 
 // whereIn - specific allowed values
-app.get('/status/:status', () => ({})).whereIn('status', ['active', 'pending', 'archived']);
+router.get('/status/:status', () => ({})).whereIn('status', ['active', 'pending', 'archived']);
 ```
 
 ### Chaining Constraints
 
 ```typescript
-app.get('/users/:id/posts/:slug', (ctx) => ({}))
+router.get('/users/:id/posts/:slug', (ctx) => ({}))
   .whereNumber('id')
   .whereAlpha('slug')
   .name('users.posts');
@@ -650,7 +650,7 @@ Use `?` to mark route parameters as optional.
 
 ```typescript
 // :id is optional
-app.get('/users/:id?', (ctx) => {
+router.get('/users/:id?', (ctx) => {
   if (ctx.params.id) {
     return { user: ctx.params.id };
   }
@@ -658,14 +658,14 @@ app.get('/users/:id?', (ctx) => {
 });
 
 // Multiple optional params
-app.get('/archive/:year?/:month?', (ctx) => {
+router.get('/archive/:year?/:month?', (ctx) => {
   const { year, month } = ctx.params;
   // year and month may be undefined
   return { year, month };
 });
 
 // Constraints work with optional params
-app.get('/posts/:id?', (ctx) => ({})).whereNumber('id');
+router.get('/posts/:id?', (ctx) => ({})).whereNumber('id');
 ```
 
 ## Wildcard Routes
@@ -674,12 +674,12 @@ End a route path with `/*` or `/**` to create a catch-all route. The remaining p
 
 ```typescript
 // SPA fallback — serves index.html for any unmatched path
-app.get('/*', (ctx) => {
+router.get('/*', (ctx) => {
   return new Response(Bun.file('public/index.html'));
 });
 
 // Static file serving (with path traversal protection)
-app.get('/assets/*', (ctx) => {
+router.get('/assets/*', (ctx) => {
   const filePath = ctx.params['*'];
   if (!filePath) return new Response('Not Found', { status: 404 });
 
@@ -692,7 +692,7 @@ app.get('/assets/*', (ctx) => {
 });
 
 // GET /assets/css/style.css → ctx.params["*"] = "css/style.css"
-// GET /assets/js/app.js     → ctx.params["*"] = "js/app.js"
+// GET /assets/js/router.js     → ctx.params["*"] = "js/router.js"
 // GET /assets               → ctx.params["*"] = undefined
 ```
 
@@ -703,7 +703,7 @@ app.get('/assets/*', (ctx) => {
 Combine named parameters and a trailing wildcard:
 
 ```typescript
-app.get('/users/:id/*', (ctx) => {
+router.get('/users/:id/*', (ctx) => {
   const { id } = ctx.params;
   const remaining = ctx.params['*'];
   return { id, path: remaining };
@@ -717,8 +717,8 @@ app.get('/users/:id/*', (ctx) => {
 Wildcard routes compose with group prefixes and `basePath`:
 
 ```typescript
-app.group('/api', (router) => {
-  router.get('/proxy/*', async (ctx) => {
+router.group('/api', (api) => {
+  api.get('/proxy/*', async (ctx) => {
     const target = ctx.params['*'];
     return fetch(`https://backend.example.com/${target}`);
   });
@@ -732,8 +732,8 @@ app.group('/api', (router) => {
 Routes match in registration order (first match wins). Register specific routes before wildcard catch-alls:
 
 ```typescript
-app.get('/assets/manifest.json', (ctx) => ({ type: 'manifest' }));
-app.get('/assets/*', (ctx) => {
+router.get('/assets/manifest.json', (ctx) => ({ type: 'manifest' }));
+router.get('/assets/*', (ctx) => {
   return new Response(Bun.file(`public/${ctx.params['*']}`));
 });
 
@@ -743,13 +743,13 @@ app.get('/assets/*', (ctx) => {
 
 ### Wildcard URL Generation
 
-Named wildcard routes support URL generation via `app.route()`. Pass the `"*"` param for the remaining path:
+Named wildcard routes support URL generation via `router.route()`. Pass the `"*"` param for the remaining path:
 
 ```typescript
-app.get('/assets/*', () => ({})).name('assets');
+router.get('/assets/*', () => ({})).name('assets');
 
-app.route('assets', { '*': 'css/style.css' }); // → "/assets/css/style.css"
-app.route('assets');                            // → "/assets"
+router.route('assets', { '*': 'css/style.css' }); // → "/assets/css/style.css"
+router.route('assets');                            // → "/assets"
 ```
 
 > **Note:** The wildcard must appear at the end of the path. A `*` in the middle of a path (e.g., `/*/foo`) throws an error.
@@ -764,7 +764,7 @@ Uncaught errors in handlers return a 500 response. The default error handler is 
 For full control, use a custom `onError` handler:
 
 ```typescript
-createApp({
+createRouter({
   onError: (ctx, error) => {
     console.error('Request error:', error);
     return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });
@@ -778,7 +778,7 @@ All types are exported for TypeScript users:
 
 ```typescript
 import type { 
-  BunaryApp, 
+  Router, 
   BunaryServer,
   RequestContext, 
   RouteHandler,

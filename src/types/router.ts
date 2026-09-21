@@ -9,27 +9,27 @@ import type { RouteHandler } from "./routeHandler.js";
 import type { RouteInfo } from "./routeInfo.js";
 
 /**
- * The Bunary application instance for HTTP routing and middleware.
+ * The Bunary router instance for HTTP routing and middleware.
  *
  * @typeParam TLocals — Shape of the per-request `locals` store. Set via
- *   `createApp<TLocals>()` and propagated to all handlers and middleware.
+ *   `createRouter<TLocals>()` and propagated to all handlers and middleware.
  *
  * @example
  * ```ts
  * interface Locals { user: User }
  *
- * const app = createApp<Locals>();
+ * const router = createRouter<Locals>();
  *
- * app.get("/", () => ({ message: "Hello!" }));
- * app.get<{ id: string }>("/users/:id", (ctx) => ({
+ * router.get("/", () => ({ message: "Hello!" }));
+ * router.get<{ id: string }>("/users/:id", (ctx) => ({
  *   id: ctx.params.id,        // string
  *   user: ctx.locals.user,    // User
  * }));
  *
- * app.listen(3000);
+ * router.listen(3000);
  * ```
  */
-export interface BunaryApp<TLocals extends object = Record<string, unknown>> {
+export interface Router<TLocals extends object = Record<string, unknown>> {
 	/**
 	 * Register a GET route.
 	 * @param path - URL path pattern (supports :param and :param? syntax)
@@ -85,15 +85,15 @@ export interface BunaryApp<TLocals extends object = Record<string, unknown>> {
 	 * Middleware executes in registration order.
 	 * @param middleware - Middleware function
 	 */
-	use: (middleware: Middleware<TLocals>) => BunaryApp<TLocals>;
+	use: (middleware: Middleware<TLocals>) => Router<TLocals>;
 
 	/**
 	 * Create a route group with shared prefix, middleware, or name prefix.
 	 * @param prefix - URL prefix for all routes in the group
 	 * @param callback - Function to define routes within the group
 	 */
-	group: ((prefix: string, callback: GroupCallback<TLocals>) => BunaryApp<TLocals>) &
-		((options: GroupOptions<TLocals>, callback: GroupCallback<TLocals>) => BunaryApp<TLocals>);
+	group: ((prefix: string, callback: GroupCallback<TLocals>) => Router<TLocals>) &
+		((options: GroupOptions<TLocals>, callback: GroupCallback<TLocals>) => Router<TLocals>);
 
 	/**
 	 * Generate a URL for a named route.

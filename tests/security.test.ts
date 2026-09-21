@@ -9,18 +9,18 @@
  * will be expanded as the framework grows.
  */
 import { describe, expect, test } from "bun:test";
-import { createApp } from "../src/index.js";
+import { createRouter } from "../src/index.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 
 /** Convenience: fetch a path against an app and return the Response */
-function req(app: ReturnType<typeof createApp>, path: string, method = "GET") {
+function req(app: ReturnType<typeof createRouter>, path: string, method = "GET") {
 	return app.fetch(new Request(`http://localhost${path}`, { method }));
 }
 
 /** Build a simple app with a couple of parameterised routes */
 function securityApp() {
-	const app = createApp();
+	const app = createRouter();
 
 	// Echoes params back — lets us inspect what the framework decoded
 	app.get("/users/:id", (ctx) => ({
@@ -205,7 +205,7 @@ describe("SQL Injection Patterns in Params", () => {
 
 describe("Prototype Pollution via Params", () => {
 	test("__proto__ as param name does not pollute Object prototype", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/:key", (ctx) => ({ key: ctx.params.key }));
 
 		const res = await req(app, "/__proto__");
@@ -218,7 +218,7 @@ describe("Prototype Pollution via Params", () => {
 	});
 
 	test("constructor param does not affect prototype chain", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/:key", (ctx) => ({ key: ctx.params.key }));
 
 		const res = await req(app, "/constructor");
@@ -318,7 +318,7 @@ describe("Open Redirect via Path", () => {
 
 describe("Error Information Leak", () => {
 	test("throwing handler does not expose stack traces in default response", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/boom", () => {
 			throw new Error("SECRET_DATABASE_PASSWORD=hunter2");
 		});
@@ -334,7 +334,7 @@ describe("Error Information Leak", () => {
 	});
 
 	test("non-Error thrown objects do not expose internals", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/boom", () => {
 			throw { secret: "password123", code: 42 };
 		});
@@ -348,7 +348,7 @@ describe("Error Information Leak", () => {
 	});
 
 	test("error with circular reference does not crash", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/boom", () => {
 			const err = new Error("circular") as Error & { self: unknown };
 			err.self = err;
@@ -364,7 +364,7 @@ describe("Error Information Leak", () => {
 
 describe("Request Ambiguity", () => {
 	test("route with trailing slash and without are treated consistently", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/api/data", () => ({ ok: true }));
 
 		const res1 = await req(app, "/api/data");
@@ -388,7 +388,7 @@ describe("Request Ambiguity", () => {
 
 describe("Middleware Bypass Attempts", () => {
 	test("URL-encoded path still triggers middleware", async () => {
-		const app = createApp();
+		const app = createRouter();
 		let middlewareRan = false;
 
 		app.use(async (_ctx, next) => {
@@ -403,7 +403,7 @@ describe("Middleware Bypass Attempts", () => {
 	});
 
 	test("double-encoded path still triggers middleware", async () => {
-		const app = createApp();
+		const app = createRouter();
 		let middlewareRan = false;
 
 		app.use(async (_ctx, next) => {
@@ -418,7 +418,7 @@ describe("Middleware Bypass Attempts", () => {
 	});
 
 	test("encoded path does not bypass path-checking middleware", async () => {
-		const app = createApp();
+		const app = createRouter();
 
 		app.use(async (ctx, next) => {
 			const url = new URL(ctx.request.url);
@@ -470,7 +470,7 @@ describe("Host Header Attacks", () => {
 
 describe("Content-Type Confusion", () => {
 	test("string response always has text/plain content-type", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/html", () => "<h1>Hello</h1>");
 
 		const res = await req(app, "/html");
@@ -480,7 +480,7 @@ describe("Content-Type Confusion", () => {
 	});
 
 	test("object response always has application/json content-type", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/data", () => ({ html: "<script>alert(1)</script>" }));
 
 		const res = await req(app, "/data");

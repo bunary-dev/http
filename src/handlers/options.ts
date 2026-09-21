@@ -1,5 +1,5 @@
 import { getAllowedMethods } from "../routes/index.js";
-import type { AppOptions, Route } from "../types/index.js";
+import type { Route, RouterOptions } from "../types/index.js";
 import { handleNotFound } from "./notFound.js";
 
 /**
@@ -13,7 +13,7 @@ export async function handleOptions(
 	request: Request,
 	path: string,
 	routes: Route[],
-	options?: AppOptions,
+	options?: RouterOptions,
 ): Promise<Response> {
 	const allowedMethods = getAllowedMethods(routes, path);
 	if (allowedMethods.length > 0) {

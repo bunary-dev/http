@@ -2,12 +2,12 @@
  * Named Routes Tests
  */
 import { describe, expect, it } from "bun:test";
-import { createApp } from "../src/index.js";
+import { createRouter } from "../src/index.js";
 
 describe("Named Routes", () => {
 	describe("name() method", () => {
 		it("should register a named route", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users", () => ({ users: [] })).name("users.index");
 
@@ -17,7 +17,7 @@ describe("Named Routes", () => {
 		});
 
 		it("should allow chaining after name()", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			// name() should return a builder for chaining
 			const result = app
@@ -33,7 +33,7 @@ describe("Named Routes", () => {
 		});
 
 		it("should throw on duplicate route names", () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users", () => ({})).name("users");
 
@@ -45,7 +45,7 @@ describe("Named Routes", () => {
 
 	describe("route() URL generation", () => {
 		it("should generate URL for a named route without params", () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users", () => ({})).name("users.index");
 
@@ -53,7 +53,7 @@ describe("Named Routes", () => {
 		});
 
 		it("should generate URL for a named route with params", () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users/:id", () => ({})).name("users.show");
 
@@ -61,7 +61,7 @@ describe("Named Routes", () => {
 		});
 
 		it("should generate URL with multiple params", () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users/:userId/posts/:postId", () => ({})).name("users.posts.show");
 
@@ -69,7 +69,7 @@ describe("Named Routes", () => {
 		});
 
 		it("should throw for unknown route name", () => {
-			const app = createApp();
+			const app = createRouter();
 
 			expect(() => {
 				app.route("unknown.route");
@@ -77,7 +77,7 @@ describe("Named Routes", () => {
 		});
 
 		it("should throw for missing required params", () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users/:id", () => ({})).name("users.show");
 
@@ -87,7 +87,7 @@ describe("Named Routes", () => {
 		});
 
 		it("should append extra params as query string", () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users/:id", () => ({})).name("users.show");
 
@@ -96,7 +96,7 @@ describe("Named Routes", () => {
 		});
 
 		it("should handle optional params in URL generation", () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users/:id?", () => ({})).name("users.show");
 
@@ -108,7 +108,7 @@ describe("Named Routes", () => {
 		});
 
 		it("should URL-encode param values", () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/search/:query", () => ({})).name("search");
 
@@ -118,7 +118,7 @@ describe("Named Routes", () => {
 
 	describe("hasRoute() check", () => {
 		it("should return true for existing named route", () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users", () => ({})).name("users.index");
 
@@ -126,7 +126,7 @@ describe("Named Routes", () => {
 		});
 
 		it("should return false for non-existent route", () => {
-			const app = createApp();
+			const app = createRouter();
 
 			expect(app.hasRoute("unknown")).toBe(false);
 		});
@@ -134,7 +134,7 @@ describe("Named Routes", () => {
 
 	describe("getRoutes() listing", () => {
 		it("should return all named routes", () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users", () => ({})).name("users.index");
 			app.get("/users/:id", () => ({})).name("users.show");
@@ -160,7 +160,7 @@ describe("Named Routes", () => {
 		});
 
 		it("should include unnamed routes with null name", () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/health", () => ({})); // No name
 			app.get("/users", () => ({})).name("users.index");
@@ -177,7 +177,7 @@ describe("Named Routes", () => {
 
 	describe("deferred builder usage", () => {
 		it("should correctly name the original route when builder is stored and used later", () => {
-			const app = createApp();
+			const app = createRouter();
 
 			// Store the builder for route1
 			const route1Builder = app.get("/route1", () => ({ route: 1 }));
@@ -199,7 +199,7 @@ describe("Named Routes", () => {
 		});
 
 		it("should correctly apply constraints when builder is stored and used later", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			// Store the builder for route1
 			const route1Builder = app.get("/users/:id", (ctx) => ({ id: ctx.params.id }));
@@ -225,7 +225,7 @@ describe("Named Routes", () => {
 
 	describe("parameter validation", () => {
 		it("should reject parameter values with newlines", () => {
-			const app = createApp();
+			const app = createRouter();
 			app.get("/users/:id", () => ({})).name("users.show");
 
 			expect(() => app.route("users.show", { id: "123\n456" })).toThrow(
@@ -234,7 +234,7 @@ describe("Named Routes", () => {
 		});
 
 		it("should reject parameter values with carriage returns", () => {
-			const app = createApp();
+			const app = createRouter();
 			app.get("/users/:id", () => ({})).name("users.show");
 
 			expect(() => app.route("users.show", { id: "123\r456" })).toThrow(
@@ -243,7 +243,7 @@ describe("Named Routes", () => {
 		});
 
 		it("should reject parameter values with null bytes", () => {
-			const app = createApp();
+			const app = createRouter();
 			app.get("/users/:id", () => ({})).name("users.show");
 
 			expect(() => app.route("users.show", { id: "123\x00456" })).toThrow(
@@ -252,14 +252,14 @@ describe("Named Routes", () => {
 		});
 
 		it("should allow normal parameter values", () => {
-			const app = createApp();
+			const app = createRouter();
 			app.get("/users/:id", () => ({})).name("users.show");
 
 			expect(app.route("users.show", { id: "user-123_abc" })).toBe("/users/user-123_abc");
 		});
 
 		it("should validate query parameters too", () => {
-			const app = createApp();
+			const app = createRouter();
 			app.get("/users", () => ({})).name("users.index");
 
 			expect(() => app.route("users.index", { sort: "name\ninjected" })).toThrow(

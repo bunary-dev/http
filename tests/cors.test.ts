@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { cors } from "../src/cors.js";
-import { createApp } from "../src/index.js";
+import { createRouter } from "../src/index.js";
 
 describe("CORS Middleware", () => {
 	describe("Default configuration (allow all)", () => {
 		test("adds CORS headers to simple GET request with Origin", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors());
 			app.get("/api/data", () => ({ data: "value" }));
 
@@ -21,7 +21,7 @@ describe("CORS Middleware", () => {
 		});
 
 		test("does not add CORS headers when no Origin header", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors());
 			app.get("/api/data", () => ({ data: "value" }));
 
@@ -32,7 +32,7 @@ describe("CORS Middleware", () => {
 		});
 
 		test("handles preflight OPTIONS request", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors());
 			app.get("/api/data", () => ({ data: "value" }));
 
@@ -52,7 +52,7 @@ describe("CORS Middleware", () => {
 		});
 
 		test("preflight includes default allowed methods", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors());
 			app.get("/api/data", () => ({ data: "value" }));
 
@@ -76,7 +76,7 @@ describe("CORS Middleware", () => {
 		});
 
 		test("preflight reflects Access-Control-Request-Headers", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors());
 			app.get("/api/data", () => ({ data: "value" }));
 
@@ -100,7 +100,7 @@ describe("CORS Middleware", () => {
 
 	describe("Configured origin", () => {
 		test("single string origin — matching request", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors({ origin: "https://myapp.com" }));
 			app.get("/api/data", () => ({ ok: true }));
 
@@ -116,7 +116,7 @@ describe("CORS Middleware", () => {
 		});
 
 		test("single string origin — non-matching request", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors({ origin: "https://myapp.com" }));
 			app.get("/api/data", () => ({ ok: true }));
 
@@ -131,7 +131,7 @@ describe("CORS Middleware", () => {
 		});
 
 		test("array of origins — matching one", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors({ origin: ["https://app1.com", "https://app2.com"] }));
 			app.get("/api/data", () => ({ ok: true }));
 
@@ -147,7 +147,7 @@ describe("CORS Middleware", () => {
 		});
 
 		test("array of origins — none matching", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors({ origin: ["https://app1.com", "https://app2.com"] }));
 			app.get("/api/data", () => ({ ok: true }));
 
@@ -164,7 +164,7 @@ describe("CORS Middleware", () => {
 
 	describe("Configured methods", () => {
 		test("custom methods in preflight", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors({ methods: ["GET", "POST"] }));
 			app.get("/api/data", () => ({ ok: true }));
 
@@ -185,7 +185,7 @@ describe("CORS Middleware", () => {
 
 	describe("Configured headers", () => {
 		test("custom allowHeaders in preflight", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors({ allowHeaders: ["Content-Type", "X-Custom"] }));
 			app.get("/api/data", () => ({ ok: true }));
 
@@ -208,7 +208,7 @@ describe("CORS Middleware", () => {
 
 	describe("Expose headers", () => {
 		test("exposeHeaders on actual response", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors({ exposeHeaders: ["X-Request-Id", "X-Total-Count"] }));
 			app.get("/api/data", () => ({ ok: true }));
 
@@ -227,7 +227,7 @@ describe("CORS Middleware", () => {
 
 	describe("Credentials", () => {
 		test("credentials: true adds Allow-Credentials header", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors({ origin: "https://myapp.com", credentials: true }));
 			app.get("/api/data", () => ({ ok: true }));
 
@@ -242,7 +242,7 @@ describe("CORS Middleware", () => {
 		});
 
 		test("credentials: true on preflight", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors({ origin: "https://myapp.com", credentials: true }));
 			app.get("/api/data", () => ({ ok: true }));
 
@@ -263,7 +263,7 @@ describe("CORS Middleware", () => {
 
 	describe("Max age", () => {
 		test("maxAge sets Access-Control-Max-Age on preflight", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors({ maxAge: 86400 }));
 			app.get("/api/data", () => ({ ok: true }));
 
@@ -282,7 +282,7 @@ describe("CORS Middleware", () => {
 		});
 
 		test("no maxAge by default", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors());
 			app.get("/api/data", () => ({ ok: true }));
 
@@ -302,7 +302,7 @@ describe("CORS Middleware", () => {
 
 	describe("Works with route groups", () => {
 		test("CORS middleware in group applies to group routes", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.group({ prefix: "/api", middleware: [cors()] }, (router) => {
 				router.get("/users", () => ({ users: [] }));
 			});
@@ -318,7 +318,7 @@ describe("CORS Middleware", () => {
 		});
 
 		test("group-level CORS handles preflight OPTIONS with full CORS headers", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.group(
 				{
 					prefix: "/api",
@@ -359,7 +359,7 @@ describe("CORS Middleware", () => {
 		});
 
 		test("preflight OPTIONS uses group middleware, not just global", async () => {
-			const app = createApp();
+			const app = createRouter();
 			// No global CORS — only the /api group has it
 			app.group({ prefix: "/api", middleware: [cors()] }, (router) => {
 				router.get("/users", () => ({ users: [] }));
@@ -399,7 +399,7 @@ describe("CORS Middleware", () => {
 
 	describe("Works with handler responses", () => {
 		test("adds CORS headers to custom Response objects", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors());
 			app.get(
 				"/api/custom",
@@ -422,7 +422,7 @@ describe("CORS Middleware", () => {
 		});
 
 		test("adds CORS headers to string responses", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors());
 			app.get("/api/text", () => "hello");
 
@@ -440,7 +440,7 @@ describe("CORS Middleware", () => {
 
 	describe("Credentials with wildcard origin", () => {
 		test("reflects request origin instead of * when credentials: true", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors({ credentials: true }));
 			app.get("/api/data", () => ({ ok: true }));
 
@@ -457,7 +457,7 @@ describe("CORS Middleware", () => {
 		});
 
 		test("reflects request origin on preflight when credentials: true", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors({ credentials: true }));
 			app.get("/api/data", () => ({ ok: true }));
 
@@ -478,7 +478,7 @@ describe("CORS Middleware", () => {
 		});
 
 		test("different origins get different reflected values", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors({ credentials: true }));
 			app.get("/api/data", () => ({ ok: true }));
 
@@ -500,7 +500,7 @@ describe("CORS Middleware", () => {
 
 	describe("Non-CORS OPTIONS requests", () => {
 		test("OPTIONS without Origin still returns normal 204", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.use(cors());
 			app.get("/api/data", () => ({ ok: true }));
 

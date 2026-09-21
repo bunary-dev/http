@@ -9,7 +9,7 @@
  * @see {@link ../src/router.ts}
  */
 import { describe, expect, test } from "bun:test";
-import { createApp } from "../src/index.js";
+import { createRouter } from "../src/index.js";
 import { compilePath } from "../src/router.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -95,7 +95,7 @@ describe("compilePath wildcard", () => {
 
 describe("Wildcard routes", () => {
 	test("basic wildcard captures remaining path", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/assets/*", (ctx) => ({
 			path: ctx.params["*"],
 		}));
@@ -107,7 +107,7 @@ describe("Wildcard routes", () => {
 	});
 
 	test("/** syntax works identically to /*", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/files/**", (ctx) => ({
 			path: ctx.params["*"],
 		}));
@@ -119,7 +119,7 @@ describe("Wildcard routes", () => {
 	});
 
 	test("wildcard matches prefix alone (no remaining path)", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/assets/*", (ctx) => ({
 			path: ctx.params["*"] ?? "none",
 		}));
@@ -131,7 +131,7 @@ describe("Wildcard routes", () => {
 	});
 
 	test("root wildcard /* matches everything", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/*", (ctx) => ({
 			path: ctx.params["*"] ?? "root",
 		}));
@@ -146,7 +146,7 @@ describe("Wildcard routes", () => {
 	});
 
 	test("specific routes take priority over wildcard when registered first", async () => {
-		const app = createApp();
+		const app = createRouter();
 		// Register specific route first
 		app.get("/assets/favicon.ico", () => ({ type: "specific" }));
 		// Then wildcard
@@ -162,7 +162,7 @@ describe("Wildcard routes", () => {
 	});
 
 	test("wildcard with named param before it", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/:id/*", (ctx) => ({
 			id: ctx.params.id,
 			rest: ctx.params["*"] ?? "none",
@@ -176,7 +176,7 @@ describe("Wildcard routes", () => {
 	});
 
 	test("wildcard with named param, no remaining path", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/:id/*", (ctx) => ({
 			id: ctx.params.id,
 			rest: ctx.params["*"] ?? "none",
@@ -190,7 +190,7 @@ describe("Wildcard routes", () => {
 	});
 
 	test("wildcard works with POST method", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.post("/api/*", (ctx) => ({
 			captured: ctx.params["*"],
 		}));
@@ -202,7 +202,7 @@ describe("Wildcard routes", () => {
 	});
 
 	test("wildcard works with PUT, DELETE, PATCH", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.put("/proxy/*", (ctx) => ({ method: "PUT", path: ctx.params["*"] }));
 		app.delete("/proxy/*", (ctx) => ({ method: "DELETE", path: ctx.params["*"] }));
 		app.patch("/proxy/*", (ctx) => ({ method: "PATCH", path: ctx.params["*"] }));
@@ -218,7 +218,7 @@ describe("Wildcard routes", () => {
 	});
 
 	test("wildcard works inside route groups", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.group("/api", (router) => {
 			router.get("/*", (ctx) => ({
 				captured: ctx.params["*"] ?? "root",
@@ -232,7 +232,7 @@ describe("Wildcard routes", () => {
 	});
 
 	test("wildcard works inside nested groups", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.group("/api", (api) => {
 			api.group("/v1", (v1) => {
 				v1.get("/*", (ctx) => ({
@@ -248,7 +248,7 @@ describe("Wildcard routes", () => {
 	});
 
 	test("wildcard works with basePath", async () => {
-		const app = createApp({ basePath: "/app" });
+		const app = createRouter({ basePath: "/app" });
 		app.get("/static/*", (ctx) => ({
 			file: ctx.params["*"],
 		}));
@@ -260,7 +260,7 @@ describe("Wildcard routes", () => {
 	});
 
 	test("wildcard captures URL-decoded values", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/files/*", (ctx) => ({
 			path: ctx.params["*"],
 		}));
@@ -272,7 +272,7 @@ describe("Wildcard routes", () => {
 	});
 
 	test("HEAD request works with wildcard routes", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/assets/*", () => ({ ok: true }));
 
 		const res = await req(app, "/assets/style.css", "HEAD");
@@ -281,7 +281,7 @@ describe("Wildcard routes", () => {
 	});
 
 	test("405 works for wildcard routes on wrong method", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/assets/*", () => ({ ok: true }));
 
 		const res = await req(app, "/assets/style.css", "POST");
@@ -290,7 +290,7 @@ describe("Wildcard routes", () => {
 	});
 
 	test("bare ../ is resolved by URL parser before reaching router", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/files/*", (ctx) => ({ path: ctx.params["*"] }));
 
 		// The URL constructor resolves /files/../../etc/passwd → /etc/passwd,
@@ -301,7 +301,7 @@ describe("Wildcard routes", () => {
 	});
 
 	test("wildcard captures encoded path traversal sequences", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/files/*", (ctx) => ({ path: ctx.params["*"] }));
 
 		// %2F-encoded dots bypass URL normalization and arrive as-is.
@@ -313,7 +313,7 @@ describe("Wildcard routes", () => {
 	});
 
 	test("wildcard captures encoded dot segments without collapsing", async () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/assets/*", (ctx) => ({ path: ctx.params["*"] }));
 
 		const res = await req(app, "/assets/css%2F..%2F..%2F..%2Fsecret");
@@ -327,7 +327,7 @@ describe("Wildcard routes", () => {
 
 describe("Wildcard named routes", () => {
 	test("URL generation with wildcard param", () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/assets/*", () => ({})).name("assets");
 
 		const url = app.route("assets", { "*": "css/style.css" });
@@ -335,7 +335,7 @@ describe("Wildcard named routes", () => {
 	});
 
 	test("URL generation without wildcard param strips suffix", () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/assets/*", () => ({})).name("assets");
 
 		const url = app.route("assets");
@@ -343,7 +343,7 @@ describe("Wildcard named routes", () => {
 	});
 
 	test("URL generation with wildcard and named param", () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/users/:id/*", () => ({})).name("user.files");
 
 		const url = app.route("user.files", { id: 42, "*": "docs/readme.md" });
@@ -351,7 +351,7 @@ describe("Wildcard named routes", () => {
 	});
 
 	test("URL generation encodes special characters in wildcard segments", () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/files/*", () => ({})).name("files");
 
 		const url = app.route("files", { "*": "hello world/café.txt" });
@@ -359,7 +359,7 @@ describe("Wildcard named routes", () => {
 	});
 
 	test("extra params become query string with wildcard routes", () => {
-		const app = createApp();
+		const app = createRouter();
 		app.get("/assets/*", () => ({})).name("assets");
 
 		const url = app.route("assets", { "*": "style.css", v: "2" });

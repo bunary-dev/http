@@ -2,12 +2,12 @@
  * Optional Parameters Tests
  */
 import { describe, expect, it } from "bun:test";
-import { createApp } from "../src/index.js";
+import { createRouter } from "../src/index.js";
 
 describe("Optional Route Parameters", () => {
 	describe("basic optional params", () => {
 		it("should match route with optional param provided", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users/:id?", (ctx) => ({
 				id: ctx.params.id ?? null,
@@ -19,7 +19,7 @@ describe("Optional Route Parameters", () => {
 		});
 
 		it("should match route with optional param omitted", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users/:id?", (ctx) => ({
 				id: ctx.params.id ?? null,
@@ -31,7 +31,7 @@ describe("Optional Route Parameters", () => {
 		});
 
 		it("should match route with trailing slash when param omitted", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users/:id?", (ctx) => ({
 				id: ctx.params.id ?? null,
@@ -43,7 +43,7 @@ describe("Optional Route Parameters", () => {
 		});
 
 		it("should omit optional param from params when not provided", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users/:id?", (ctx) => ({
 				hasId: "id" in ctx.params,
@@ -59,7 +59,7 @@ describe("Optional Route Parameters", () => {
 
 	describe("multiple optional params", () => {
 		it("should support multiple optional params", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/archive/:year?/:month?", (ctx) => ({
 				year: ctx.params.year ?? null,
@@ -82,7 +82,7 @@ describe("Optional Route Parameters", () => {
 
 	describe("mixed required and optional params", () => {
 		it("should require params before optional ones", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users/:id/posts/:postId?", (ctx) => ({
 				id: ctx.params.id,
@@ -103,7 +103,7 @@ describe("Optional Route Parameters", () => {
 		});
 
 		it("should handle prefix before optional param", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/blog/:slug?", (ctx) => ({
 				slug: ctx.params.slug ?? "index",
@@ -119,7 +119,7 @@ describe("Optional Route Parameters", () => {
 
 	describe("optional params with constraints", () => {
 		it("should apply constraints to optional params when provided", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app
 				.get("/users/:id?", (ctx) => ({
@@ -143,7 +143,7 @@ describe("Optional Route Parameters", () => {
 
 	describe("optional params in groups", () => {
 		it("should work with optional params in route groups", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.group("/api", (router) => {
 				router.get("/items/:id?", (ctx) => ({
@@ -161,7 +161,7 @@ describe("Optional Route Parameters", () => {
 
 	describe("edge cases", () => {
 		it("should differentiate between similar routes with optional params", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users", () => ({ route: "list" }));
 			app.get("/users/:id", () => ({ route: "show" }));
@@ -174,7 +174,7 @@ describe("Optional Route Parameters", () => {
 		});
 
 		it("should handle empty string param value", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/search/:query?", (ctx) => ({
 				query: ctx.params.query ?? null,
@@ -197,7 +197,7 @@ describe("Optional Route Parameters", () => {
 		 */
 
 		it("should handle trailing slashes consistently with no optional params provided", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/archive/:year?/:month?", (ctx) => ({
 				year: ctx.params.year,
@@ -214,7 +214,7 @@ describe("Optional Route Parameters", () => {
 		});
 
 		it("should handle trailing slashes consistently with one optional param provided", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/archive/:year?/:month?", (ctx) => ({
 				year: ctx.params.year,
@@ -231,7 +231,7 @@ describe("Optional Route Parameters", () => {
 		});
 
 		it("should handle trailing slashes consistently with all optional params provided", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/archive/:year?/:month?", (ctx) => ({
 				year: ctx.params.year,

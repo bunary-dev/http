@@ -1,7 +1,7 @@
 import { createRequestContext } from "../context.js";
 import { toResponse } from "../response.js";
 import { getAllowedMethods } from "../routes/index.js";
-import type { AppOptions, RequestContext, Route } from "../types/index.js";
+import type { RequestContext, Route, RouterOptions } from "../types/index.js";
 
 /**
  * Handle 405 Method Not Allowed responses.
@@ -15,7 +15,7 @@ export async function handleMethodNotAllowed(
 	request: Request,
 	path: string,
 	routes: Route[],
-	options?: AppOptions,
+	options?: RouterOptions,
 	precomputed?: string[],
 ): Promise<Response> {
 	const url = new URL(request.url);

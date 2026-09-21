@@ -1,13 +1,13 @@
-import type { BunaryApp } from "./bunaryApp.js";
+import type { Router } from "./router.js";
 
 /**
  * Fluent builder for route configuration.
  * Allows chaining methods like name(), where(), etc.
  *
- * @typeParam TLocals — Shape of `ctx.locals` (inherited from `createApp<TLocals>()`)
+ * @typeParam TLocals — Shape of `ctx.locals` (inherited from `createRouter<TLocals>()`)
  */
 export interface RouteBuilder<TLocals extends object = Record<string, unknown>>
-	extends BunaryApp<TLocals> {
+	extends Router<TLocals> {
 	/** Assign a name to the route for URL generation */
 	name: (name: string) => RouteBuilder<TLocals>;
 	/** Add a regex constraint to a route parameter */

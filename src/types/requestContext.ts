@@ -5,18 +5,18 @@ import type { PathParams } from "./pathParams.js";
  *
  * @typeParam TLocals — Shape of the per-request `locals` store. Defaults to
  *   `Record<string, unknown>` for backward compatibility. Narrow it via
- *   `createApp<TLocals>()` to get type-safe middleware→handler data passing.
+ *   `createRouter<TLocals>()` to get type-safe middleware→handler data passing.
  * @typeParam TParams — Shape of the route parameters. Defaults to `PathParams`
  *   (`Record<string, string | undefined>`). Narrow it per-route via
- *   `app.get<TParams>()` to get typed parameter access.
+ *   `router.get<TParams>()` to get typed parameter access.
  *
  * @example
  * ```ts
  * interface Locals { user: User; requestId: string }
  *
- * const app = createApp<Locals>();
+ * const router = createRouter<Locals>();
  *
- * app.get<{ id: string }>("/users/:id", (ctx) => {
+ * router.get<{ id: string }>("/users/:id", (ctx) => {
  *   ctx.params.id;        // string
  *   ctx.locals.user;      // User
  *   ctx.locals.requestId; // string
@@ -40,7 +40,7 @@ export interface RequestContext<
 	 *
 	 * @example
 	 * ```ts
-	 * app.use(async (ctx, next) => {
+	 * router.use(async (ctx, next) => {
 	 *   ctx.locals.userId = "123";
 	 *   return await next();
 	 * });
@@ -60,7 +60,7 @@ export interface RequestContext<
 	 *
 	 * @example
 	 * ```ts
-	 * app.post("/users", async (ctx) => {
+	 * router.post("/users", async (ctx) => {
 	 *   const body = await ctx.json<{ name: string }>();
 	 *   return { id: 1, name: body.name };
 	 * });
@@ -77,7 +77,7 @@ export interface RequestContext<
 	 *
 	 * @example
 	 * ```ts
-	 * app.post("/echo", async (ctx) => {
+	 * router.post("/echo", async (ctx) => {
 	 *   const text = await ctx.text();
 	 *   return { echo: text };
 	 * });
@@ -96,7 +96,7 @@ export interface RequestContext<
 	 *
 	 * @example
 	 * ```ts
-	 * app.post("/upload", async (ctx) => {
+	 * router.post("/upload", async (ctx) => {
 	 *   const form = await ctx.formData();
 	 *   const name = form.get("name");
 	 *   return { name };

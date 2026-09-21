@@ -5,9 +5,9 @@ import type { RouteHandler } from "./routeHandler.js";
 
 /**
  * Router interface for route groups.
- * Provides the same routing methods as BunaryApp but scoped to a group.
+ * Provides the same routing methods as Router but scoped to a group.
  *
- * @typeParam TLocals — Shape of `ctx.locals` (inherited from `createApp<TLocals>()`)
+ * @typeParam TLocals — Shape of `ctx.locals` (inherited from `createRouter<TLocals>()`)
  */
 export interface GroupRouter<TLocals extends object = Record<string, unknown>> {
 	/** Register a GET route */
@@ -43,7 +43,7 @@ export interface GroupRouter<TLocals extends object = Record<string, unknown>> {
 /**
  * Callback function for defining routes within a group.
  *
- * @typeParam TLocals — Shape of `ctx.locals` (inherited from `createApp<TLocals>()`)
+ * @typeParam TLocals — Shape of `ctx.locals` (inherited from `createRouter<TLocals>()`)
  */
 export type GroupCallback<TLocals extends object = Record<string, unknown>> = (
 	router: GroupRouter<TLocals>,

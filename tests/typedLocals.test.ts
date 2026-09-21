@@ -1,5 +1,5 @@
 /**
- * Tests for typed ctx.locals via createApp<TLocals>() generic (#43).
+ * Tests for typed ctx.locals via createRouter<TLocals>() generic (#43).
  *
  * Verifies that the TLocals generic propagates through middleware,
  * handlers, groups, and custom error/notFound/methodNotAllowed hooks.
@@ -10,7 +10,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import type { Middleware } from "../src/index.js";
-import { createApp } from "../src/index.js";
+import { createRouter } from "../src/index.js";
 
 // ─── Shared types ─────────────────────────────────────────────────────
 
@@ -38,9 +38,9 @@ function req(
 
 // ─── Tests ────────────────────────────────────────────────────────────
 
-describe("Typed locals (createApp<TLocals>)", () => {
+describe("Typed locals (createRouter<TLocals>)", () => {
 	test("handler receives typed locals set by middleware", async () => {
-		const app = createApp<AppLocals>();
+		const app = createRouter<AppLocals>();
 		app.use(authMiddleware);
 		app.get("/me", (ctx) => ({
 			name: ctx.locals.user.name,
@@ -54,7 +54,7 @@ describe("Typed locals (createApp<TLocals>)", () => {
 	});
 
 	test("locals start empty and are populated by middleware", async () => {
-		const app = createApp<Partial<AppLocals>>();
+		const app = createRouter<Partial<AppLocals>>();
 
 		// No middleware — locals not yet populated
 		app.get("/empty", (ctx) => ({
@@ -67,7 +67,7 @@ describe("Typed locals (createApp<TLocals>)", () => {
 	});
 
 	test("typed locals work in POST handlers", async () => {
-		const app = createApp<AppLocals>();
+		const app = createRouter<AppLocals>();
 		app.use(authMiddleware);
 		app.post("/action", (ctx) => ({
 			userId: ctx.locals.user.id,
@@ -80,7 +80,7 @@ describe("Typed locals (createApp<TLocals>)", () => {
 	});
 
 	test("typed locals propagate into route groups", async () => {
-		const app = createApp<AppLocals>();
+		const app = createRouter<AppLocals>();
 		app.use(authMiddleware);
 
 		app.group("/api", (router) => {
@@ -96,7 +96,7 @@ describe("Typed locals (createApp<TLocals>)", () => {
 	});
 
 	test("typed locals propagate into nested groups", async () => {
-		const app = createApp<AppLocals>();
+		const app = createRouter<AppLocals>();
 		app.use(authMiddleware);
 
 		app.group("/api", (router) => {
@@ -114,7 +114,7 @@ describe("Typed locals (createApp<TLocals>)", () => {
 	});
 
 	test("typed locals work in custom onNotFound handler", async () => {
-		const app = createApp<AppLocals>({
+		const app = createRouter<AppLocals>({
 			onNotFound: (ctx) => {
 				ctx.locals.requestId = "not-found-req";
 				return new Response(JSON.stringify({ requestId: ctx.locals.requestId }), {
@@ -131,7 +131,7 @@ describe("Typed locals (createApp<TLocals>)", () => {
 	});
 
 	test("typed locals work in custom onError handler", async () => {
-		const app = createApp<AppLocals>({
+		const app = createRouter<AppLocals>({
 			onError: (ctx, error) => {
 				ctx.locals.requestId = "error-req";
 				return new Response(
@@ -154,9 +154,9 @@ describe("Typed locals (createApp<TLocals>)", () => {
 		expect(body.error).toBe("kaboom");
 	});
 
-	test("default createApp() accepts Record<string, unknown> locals", async () => {
+	test("default createRouter() accepts Record<string, unknown> locals", async () => {
 		// Backward-compatible: no generic needed
-		const app = createApp();
+		const app = createRouter();
 		app.use(async (ctx, next) => {
 			ctx.locals.anything = "works";
 			return next();
@@ -172,7 +172,7 @@ describe("Typed locals (createApp<TLocals>)", () => {
 	});
 
 	test("locals are not shared between requests", async () => {
-		const app = createApp<AppLocals>();
+		const app = createRouter<AppLocals>();
 		let callCount = 0;
 
 		app.use(async (ctx, next) => {

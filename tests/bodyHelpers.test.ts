@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { createApp } from "../src/index.js";
+import { createRouter } from "../src/index.js";
 
 describe("Body Parsing Helpers", () => {
 	describe("ctx.json()", () => {
 		test("parses JSON body from POST request", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.post("/users", async (ctx) => {
 				const body = await ctx.json();
 				return { received: body };
@@ -30,7 +30,7 @@ describe("Body Parsing Helpers", () => {
 				age: number;
 			}
 
-			const app = createApp();
+			const app = createRouter();
 			app.post("/users", async (ctx) => {
 				const body = await ctx.json<CreateUser>();
 				// Type-level check: body.name and body.age should be accessible
@@ -50,7 +50,7 @@ describe("Body Parsing Helpers", () => {
 		});
 
 		test("throws BodyParseError for invalid JSON", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.post("/users", async (ctx) => {
 				const body = await ctx.json();
 				return { received: body };
@@ -71,7 +71,7 @@ describe("Body Parsing Helpers", () => {
 		test("BodyParseError can be caught in handler for custom 400 response", async () => {
 			const { BodyParseError } = await import("../src/index.js");
 
-			const app = createApp();
+			const app = createRouter();
 			app.post("/users", async (ctx) => {
 				try {
 					return await ctx.json();
@@ -100,7 +100,7 @@ describe("Body Parsing Helpers", () => {
 		});
 
 		test("parses nested JSON objects", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.post("/data", async (ctx) => {
 				return await ctx.json();
 			});
@@ -119,7 +119,7 @@ describe("Body Parsing Helpers", () => {
 		});
 
 		test("parses JSON array body", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.post("/items", async (ctx) => {
 				const items = await ctx.json();
 				return { items };
@@ -140,7 +140,7 @@ describe("Body Parsing Helpers", () => {
 
 	describe("ctx.text()", () => {
 		test("returns request body as string", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.post("/echo", async (ctx) => {
 				const text = await ctx.text();
 				return { echo: text };
@@ -159,7 +159,7 @@ describe("Body Parsing Helpers", () => {
 		});
 
 		test("returns empty string for empty body", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.post("/echo", async (ctx) => {
 				const text = await ctx.text();
 				return { echo: text };
@@ -177,7 +177,7 @@ describe("Body Parsing Helpers", () => {
 		});
 
 		test("returns raw JSON string without parsing", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.post("/raw", async (ctx) => {
 				const text = await ctx.text();
 				return { raw: text };
@@ -200,7 +200,7 @@ describe("Body Parsing Helpers", () => {
 
 	describe("ctx.formData()", () => {
 		test("parses multipart form data", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.post("/form", async (ctx) => {
 				const form = await ctx.formData();
 				return {
@@ -228,7 +228,7 @@ describe("Body Parsing Helpers", () => {
 		});
 
 		test("parses URL-encoded form data", async () => {
-			const app = createApp();
+			const app = createRouter();
 			app.post("/form", async (ctx) => {
 				const form = await ctx.formData();
 				return {
@@ -255,7 +255,7 @@ describe("Body Parsing Helpers", () => {
 		test("throws BodyParseError for invalid form data", async () => {
 			const { BodyParseError } = await import("../src/index.js");
 
-			const app = createApp();
+			const app = createRouter();
 			app.post("/form", async (ctx) => {
 				try {
 					return await ctx.formData();
@@ -286,7 +286,7 @@ describe("Body Parsing Helpers", () => {
 
 	describe("helpers work with middleware", () => {
 		test("body helpers are available after middleware runs", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.use(async (_ctx, next) => {
 				// Middleware runs before handler — helpers should still work
@@ -311,7 +311,7 @@ describe("Body Parsing Helpers", () => {
 		});
 
 		test("fails when middleware consumes body before handler", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.use(async (ctx, next) => {
 				// Middleware consumes the body before the handler

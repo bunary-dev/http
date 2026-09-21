@@ -5,31 +5,29 @@
  *
  * @example
  * ```ts
- * import { createApp } from "@bunary/http";
+ * import { createRouter } from "@bunary/http";
  *
- * const app = createApp();
+ * const router = createRouter();
  *
- * app.get("/", () => ({ message: "Hello, Bunary!" }));
- * app.get("/users/:id", (ctx) => ({ id: ctx.params.id }));
+ * router.get("/", () => ({ message: "Hello, Bunary!" }));
+ * router.get("/users/:id", (ctx) => ({ id: ctx.params.id }));
  *
- * app.listen(3000);
+ * router.listen(3000);
  * console.log("Server running on http://localhost:3000");
  * ```
  *
  * @packageDocumentation
  */
 
-// Export app factory
-export { createApp } from "./app.js";
 export type { CorsOptions } from "./cors.js";
 // Export CORS middleware
 export { cors } from "./cors.js";
+// Export router factory
+export { createRouter } from "./createRouter.js";
 // Export error classes
 export { BodyParseError } from "./errors.js";
 // Export types
 export type {
-	AppOptions,
-	BunaryApp,
 	BunaryServer,
 	GroupCallback,
 	GroupOptions,
@@ -43,4 +41,6 @@ export type {
 	RouteBuilder,
 	RouteHandler,
 	RouteInfo,
+	Router,
+	RouterOptions,
 } from "./types/index.js";

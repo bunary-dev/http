@@ -5,12 +5,12 @@
  * parameter constraints in the implemented feature.
  */
 import { describe, expect, it } from "bun:test";
-import { createApp } from "../src/index.js";
+import { createRouter } from "../src/index.js";
 
 describe("Route Constraints", () => {
 	describe("where() method", () => {
 		it("should match when param satisfies regex constraint", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users/:id", (ctx) => ({ id: ctx.params.id })).where("id", /^\d+$/);
 
@@ -20,7 +20,7 @@ describe("Route Constraints", () => {
 		});
 
 		it("should return 404 when param fails regex constraint", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users/:id", (ctx) => ({ id: ctx.params.id })).where("id", /^\d+$/);
 
@@ -29,7 +29,7 @@ describe("Route Constraints", () => {
 		});
 
 		it("should support string regex pattern", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users/:id", (ctx) => ({ id: ctx.params.id })).where("id", "^\\d+$");
 
@@ -41,7 +41,7 @@ describe("Route Constraints", () => {
 		});
 
 		it("should support multiple constraints", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app
 				.get("/users/:id/posts/:slug", (ctx) => ({
@@ -66,7 +66,7 @@ describe("Route Constraints", () => {
 		});
 
 		it("should support object syntax for multiple constraints", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app
 				.get("/users/:id/posts/:slug", (ctx) => ({
@@ -86,7 +86,7 @@ describe("Route Constraints", () => {
 		});
 
 		it("should allow chaining after where()", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			const result = app
 				.get("/users/:id", () => ({}))
@@ -105,7 +105,7 @@ describe("Route Constraints", () => {
 
 	describe("helper methods", () => {
 		it("whereNumber() should constrain to digits only", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/users/:id", (ctx) => ({ id: ctx.params.id })).whereNumber("id");
 
@@ -117,7 +117,7 @@ describe("Route Constraints", () => {
 		});
 
 		it("whereAlpha() should constrain to letters only", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/category/:name", (ctx) => ({ name: ctx.params.name })).whereAlpha("name");
 
@@ -129,7 +129,7 @@ describe("Route Constraints", () => {
 		});
 
 		it("whereAlphaNumeric() should constrain to letters and digits", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/code/:code", (ctx) => ({ code: ctx.params.code })).whereAlphaNumeric("code");
 
@@ -141,7 +141,7 @@ describe("Route Constraints", () => {
 		});
 
 		it("whereUuid() should constrain to UUID format", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/items/:id", (ctx) => ({ id: ctx.params.id })).whereUuid("id");
 
@@ -155,7 +155,7 @@ describe("Route Constraints", () => {
 		});
 
 		it("whereUlid() should constrain to ULID format", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.get("/items/:id", (ctx) => ({ id: ctx.params.id })).whereUlid("id");
 
@@ -169,7 +169,7 @@ describe("Route Constraints", () => {
 		});
 
 		it("whereIn() should constrain to specific values", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app
 				.get("/status/:status", (ctx) => ({ status: ctx.params.status }))
@@ -183,7 +183,7 @@ describe("Route Constraints", () => {
 		});
 
 		it("should support chaining multiple helper methods", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app
 				.get("/users/:id/status/:status", (ctx) => ({
@@ -208,7 +208,7 @@ describe("Route Constraints", () => {
 
 	describe("constraints in groups", () => {
 		it("should apply constraints to routes within groups", async () => {
-			const app = createApp();
+			const app = createRouter();
 
 			app.group("/api", (router) => {
 				router.get("/users/:id", (ctx) => ({ id: ctx.params.id })).whereNumber("id");
@@ -224,7 +224,7 @@ describe("Route Constraints", () => {
 
 	describe("error handling", () => {
 		it("should throw descriptive error for invalid regex pattern", () => {
-			const app = createApp();
+			const app = createRouter();
 
 			expect(() => {
 				app.get("/users/:id", () => ({})).where("id", "(?<");
@@ -232,7 +232,7 @@ describe("Route Constraints", () => {
 		});
 
 		it("should throw descriptive error for invalid pattern in object syntax", () => {
-			const app = createApp();
+			const app = createRouter();
 
 			expect(() => {
 				app
@@ -245,7 +245,7 @@ describe("Route Constraints", () => {
 		});
 
 		it("should throw error when whereIn is called with empty array", () => {
-			const app = createApp();
+			const app = createRouter();
 
 			expect(() => {
 				app.get("/status/:status", () => ({})).whereIn("status", []);

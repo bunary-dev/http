@@ -8,7 +8,7 @@
  * ```ts
  * import { BodyParseError } from "@bunary/http";
  *
- * app.post("/users", async (ctx) => {
+ * router.post("/users", async (ctx) => {
  *   try {
  *     const body = await ctx.json();
  *     return { received: body };

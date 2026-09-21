@@ -1,4 +1,4 @@
-import type { BunaryApp, Route, RouteBuilder } from "../types/index.js";
+import type { Route, RouteBuilder, Router } from "../types/index.js";
 
 /**
  * Safely compile a string pattern to RegExp with error handling.
@@ -20,7 +20,7 @@ export function compilePattern(pattern: string, param: string): RegExp {
 export function createRouteBuilder(
 	route: Route,
 	namedRoutes: Map<string, Route>,
-	app: BunaryApp,
+	router: Router,
 ): RouteBuilder {
 	function addConstraint(param: string, pattern: RegExp): void {
 		if (!route.constraints) {
@@ -30,42 +30,42 @@ export function createRouteBuilder(
 	}
 
 	const builder: RouteBuilder = {
-		// Forward all BunaryApp methods
+		// Forward all Router methods
 		get get() {
-			return app.get;
+			return router.get;
 		},
 		get post() {
-			return app.post;
+			return router.post;
 		},
 		get put() {
-			return app.put;
+			return router.put;
 		},
 		get delete() {
-			return app.delete;
+			return router.delete;
 		},
 		get patch() {
-			return app.patch;
+			return router.patch;
 		},
 		get use() {
-			return app.use;
+			return router.use;
 		},
 		get group() {
-			return app.group;
+			return router.group;
 		},
 		get route() {
-			return app.route;
+			return router.route;
 		},
 		get hasRoute() {
-			return app.hasRoute;
+			return router.hasRoute;
 		},
 		get getRoutes() {
-			return app.getRoutes;
+			return router.getRoutes;
 		},
 		get listen() {
-			return app.listen;
+			return router.listen;
 		},
 		get fetch() {
-			return app.fetch;
+			return router.fetch;
 		},
 
 		// Route-specific methods that capture this specific route

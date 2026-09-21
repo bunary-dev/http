@@ -3,7 +3,7 @@ import type { Middleware } from "./middleware.js";
 /**
  * Options for route groups.
  *
- * @typeParam TLocals — Shape of `ctx.locals` (inherited from `createApp<TLocals>()`)
+ * @typeParam TLocals — Shape of `ctx.locals` (inherited from `createRouter<TLocals>()`)
  */
 export interface GroupOptions<TLocals extends object = Record<string, unknown>> {
 	/** URL prefix for all routes in the group */
