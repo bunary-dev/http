@@ -172,7 +172,7 @@ describe("global middleware wraps every response (#65)", () => {
 		const response = await app.fetch(new Request("http://localhost/users"));
 
 		expect(response.status).toBe(500);
-		expect(await response.json()).toEqual({ error: "middleware exploded" });
+		expect(await response.json()).toMatchObject({ status: 500, detail: "middleware exploded" });
 	});
 
 	test("an error thrown by global middleware after next() reaches the error handler", async () => {
@@ -186,7 +186,10 @@ describe("global middleware wraps every response (#65)", () => {
 		const response = await app.fetch(new Request("http://localhost/users"));
 
 		expect(response.status).toBe(500);
-		expect(await response.json()).toEqual({ error: "post-processing exploded" });
+		expect(await response.json()).toMatchObject({
+			status: 500,
+			detail: "post-processing exploded",
+		});
 	});
 
 	test("global middleware errors reach a custom onError handler", async () => {

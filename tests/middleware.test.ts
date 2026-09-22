@@ -226,8 +226,8 @@ describe("Middleware Pipeline", () => {
 
 			const response = await app.fetch(new Request("http://localhost/test"));
 			expect(response.status).toBe(500);
-			const data = (await response.json()) as { error: string };
-			expect(data.error).toBe("Middleware failed");
+			const data = (await response.json()) as { detail: string };
+			expect(data.detail).toBe("Middleware failed");
 		});
 
 		test("error in later middleware still returns 500", async () => {
@@ -272,7 +272,7 @@ describe("Middleware Pipeline", () => {
 			const response = await app.fetch(new Request("http://localhost/test"));
 			expect(response.status).toBe(200);
 			expect(response.headers.get("X-Recovered")).toBe("true");
-			expect(await response.json()).toEqual({ error: "Handler error" });
+			expect(await response.json()).toMatchObject({ status: 500, detail: "Handler error" });
 		});
 
 		test("group middleware can still catch and handle errors from next()", async () => {
