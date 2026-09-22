@@ -1,3 +1,4 @@
+import type { CookieJar } from "../cookies.js";
 import type { BodyReader } from "./bodyReader.js";
 import type { PathParams } from "./pathParams.js";
 
@@ -88,6 +89,24 @@ export interface RequestContext<
 	 * value instead of wrapping it (#78).
 	 */
 	body: TBody;
+
+	/**
+	 * Cookie jar for the request: read incoming cookies and queue
+	 * `Set-Cookie` headers for the response.
+	 *
+	 * Queued `set()`/`delete()` calls are appended onto whatever `Response`
+	 * the router ultimately returns — helper-built responses, plain-object
+	 * returns, 404/405, and error responses alike.
+	 *
+	 * @example
+	 * ```ts
+	 * router.get("/login", (ctx) => {
+	 *   ctx.cookies.set("session", "abc123", { httpOnly: true, path: "/" });
+	 *   return ctx.json({ ok: true });
+	 * });
+	 * ```
+	 */
+	cookies: CookieJar;
 
 	/**
 	 * Build a JSON `Response`.
