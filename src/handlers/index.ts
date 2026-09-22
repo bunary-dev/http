@@ -1,3 +1,4 @@
+export { expandAllowedMethods } from "./allow.js";
 export { handleError } from "./error.js";
 export { toHeadResponse } from "./head.js";
 export { handleMethodNotAllowed } from "./methodNotAllowed.js";

@@ -83,8 +83,10 @@ export function compilePath(path: string): CompiledPath {
 		// The captured value is the remaining path (without leading slash).
 		regexString += "(?:/(.*))?";
 		paramNames.push("*");
-	} else {
-		// Allow optional trailing slash at the end
+	} else if (processedPath !== "/") {
+		// Allow optional trailing slash at the end.
+		// The root route is excluded: "^//?$" would also match "//", letting a
+		// request slip past prefix-based checks in a fronting proxy.
 		regexString += "/?";
 	}
 
