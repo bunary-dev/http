@@ -2,11 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { createRouter } from "../src/index.js";
 
 describe("Body Parsing Helpers", () => {
-	describe("ctx.json()", () => {
+	describe("ctx.body.json()", () => {
 		test("parses JSON body from POST request", async () => {
 			const app = createRouter();
 			app.post("/users", async (ctx) => {
-				const body = await ctx.json();
+				const body = await ctx.body.json();
 				return { received: body };
 			});
 
@@ -32,7 +32,7 @@ describe("Body Parsing Helpers", () => {
 
 			const app = createRouter();
 			app.post("/users", async (ctx) => {
-				const body = await ctx.json<CreateUser>();
+				const body = await ctx.body.json<CreateUser>();
 				// Type-level check: body.name and body.age should be accessible
 				return { name: body.name, age: body.age };
 			});
@@ -52,7 +52,7 @@ describe("Body Parsing Helpers", () => {
 		test("throws BodyParseError for invalid JSON", async () => {
 			const app = createRouter();
 			app.post("/users", async (ctx) => {
-				const body = await ctx.json();
+				const body = await ctx.body.json();
 				return { received: body };
 			});
 
@@ -74,7 +74,7 @@ describe("Body Parsing Helpers", () => {
 			const app = createRouter();
 			app.post("/users", async (ctx) => {
 				try {
-					return await ctx.json();
+					return await ctx.body.json();
 				} catch (error) {
 					if (error instanceof BodyParseError) {
 						return new Response(JSON.stringify({ error: error.message }), {
@@ -102,7 +102,7 @@ describe("Body Parsing Helpers", () => {
 		test("parses nested JSON objects", async () => {
 			const app = createRouter();
 			app.post("/data", async (ctx) => {
-				return await ctx.json();
+				return await ctx.body.json();
 			});
 
 			const nested = { user: { name: "Alice", roles: ["admin", "user"] } };
@@ -121,7 +121,7 @@ describe("Body Parsing Helpers", () => {
 		test("parses JSON array body", async () => {
 			const app = createRouter();
 			app.post("/items", async (ctx) => {
-				const items = await ctx.json();
+				const items = await ctx.body.json();
 				return { items };
 			});
 
@@ -138,11 +138,11 @@ describe("Body Parsing Helpers", () => {
 		});
 	});
 
-	describe("ctx.text()", () => {
+	describe("ctx.body.text()", () => {
 		test("returns request body as string", async () => {
 			const app = createRouter();
 			app.post("/echo", async (ctx) => {
-				const text = await ctx.text();
+				const text = await ctx.body.text();
 				return { echo: text };
 			});
 
@@ -161,7 +161,7 @@ describe("Body Parsing Helpers", () => {
 		test("returns empty string for empty body", async () => {
 			const app = createRouter();
 			app.post("/echo", async (ctx) => {
-				const text = await ctx.text();
+				const text = await ctx.body.text();
 				return { echo: text };
 			});
 
@@ -179,7 +179,7 @@ describe("Body Parsing Helpers", () => {
 		test("returns raw JSON string without parsing", async () => {
 			const app = createRouter();
 			app.post("/raw", async (ctx) => {
-				const text = await ctx.text();
+				const text = await ctx.body.text();
 				return { raw: text };
 			});
 
@@ -198,11 +198,11 @@ describe("Body Parsing Helpers", () => {
 		});
 	});
 
-	describe("ctx.formData()", () => {
+	describe("ctx.body.formData()", () => {
 		test("parses multipart form data", async () => {
 			const app = createRouter();
 			app.post("/form", async (ctx) => {
-				const form = await ctx.formData();
+				const form = await ctx.body.formData();
 				return {
 					name: form.get("name"),
 					email: form.get("email"),
@@ -230,7 +230,7 @@ describe("Body Parsing Helpers", () => {
 		test("parses URL-encoded form data", async () => {
 			const app = createRouter();
 			app.post("/form", async (ctx) => {
-				const form = await ctx.formData();
+				const form = await ctx.body.formData();
 				return {
 					name: form.get("name"),
 					email: form.get("email"),
@@ -258,7 +258,7 @@ describe("Body Parsing Helpers", () => {
 			const app = createRouter();
 			app.post("/form", async (ctx) => {
 				try {
-					return await ctx.formData();
+					return await ctx.body.formData();
 				} catch (error) {
 					if (error instanceof BodyParseError) {
 						return new Response(JSON.stringify({ error: error.message }), {
@@ -294,7 +294,7 @@ describe("Body Parsing Helpers", () => {
 			});
 
 			app.post("/users", async (ctx) => {
-				const body = await ctx.json();
+				const body = await ctx.body.json();
 				return body;
 			});
 
@@ -315,13 +315,13 @@ describe("Body Parsing Helpers", () => {
 
 			app.use(async (ctx, next) => {
 				// Middleware consumes the body before the handler
-				await ctx.json();
+				await ctx.body.json();
 				return await next();
 			});
 
 			app.post("/users", async (ctx) => {
 				// Second attempt to read body should fail per Fetch API spec
-				const body = await ctx.json();
+				const body = await ctx.body.json();
 				return body;
 			});
 

@@ -1,7 +1,9 @@
+import type { BodyReader } from "./bodyReader.js";
 import type { PathParams } from "./pathParams.js";
 
 /**
- * Context object passed to route handlers containing request data.
+ * Context object passed to route handlers containing request data and response
+ * helpers.
  *
  * @typeParam TLocals — Shape of the per-request `locals` store. Defaults to
  *   `Record<string, unknown>` for backward compatibility. Narrow it via
@@ -20,6 +22,7 @@ import type { PathParams } from "./pathParams.js";
  *   ctx.params.id;        // string
  *   ctx.locals.user;      // User
  *   ctx.locals.requestId; // string
+ *   return ctx.json({ id: ctx.params.id });
  * });
  * ```
  */
@@ -27,7 +30,17 @@ export interface RequestContext<
 	TLocals extends object = Record<string, unknown>,
 	TParams extends PathParams = PathParams,
 > {
-	/** The original Bun Request object */
+	/**
+	 * The underlying Web `Request`.
+	 *
+	 * @example
+	 * ```ts
+	 * router.get("/whoami", (ctx) => ctx.json({
+	 *   method: ctx.request.method,
+	 *   agent: ctx.request.headers.get("user-agent"),
+	 * }));
+	 * ```
+	 */
 	request: Request;
 	/** Path parameters extracted from the route pattern */
 	params: TParams;
@@ -49,59 +62,98 @@ export interface RequestContext<
 	locals: TLocals;
 
 	/**
-	 * Parse the request body as JSON.
-	 *
-	 * Thin wrapper around `request.json()` with error handling.
-	 * Throws `BodyParseError` if the body is not valid JSON.
-	 *
-	 * @typeParam T — Expected shape of the parsed JSON body
-	 * @returns The parsed JSON body
-	 * @throws {BodyParseError} If the body cannot be parsed as JSON
+	 * Lazy readers for the request body: `ctx.body.json()`,
+	 * `ctx.body.text()` and `ctx.body.formData()`.
 	 *
 	 * @example
 	 * ```ts
 	 * router.post("/users", async (ctx) => {
-	 *   const body = await ctx.json<{ name: string }>();
-	 *   return { id: 1, name: body.name };
+	 *   const user = await ctx.body.json<{ name: string }>();
+	 *   return ctx.json({ id: 1, name: user.name }, { status: 201 });
 	 * });
 	 * ```
 	 */
-	json: <T = unknown>() => Promise<T>;
+	body: BodyReader;
 
 	/**
-	 * Get the request body as a string.
+	 * Build a JSON `Response`.
 	 *
-	 * Thin wrapper around `request.text()`.
+	 * Delegates to the standalone `json()` helper: sets
+	 * `content-type: application/json; charset=utf-8` unless `init` overrides it.
 	 *
-	 * @returns The request body as text
+	 * @typeParam T — Type of the value being serialized
+	 * @param data - Value to serialize
+	 * @param init - Optional `ResponseInit`; its headers are merged in
+	 * @returns A JSON `Response`
 	 *
 	 * @example
 	 * ```ts
-	 * router.post("/echo", async (ctx) => {
-	 *   const text = await ctx.text();
-	 *   return { echo: text };
-	 * });
+	 * router.post("/users", (ctx) => ctx.json({ id: 1 }, { status: 201 }));
 	 * ```
 	 */
-	text: () => Promise<string>;
+	json: <T>(data: T, init?: ResponseInit) => Response;
 
 	/**
-	 * Parse the request body as FormData.
+	 * Build a plain-text `Response`.
 	 *
-	 * Thin wrapper around `request.formData()` with error handling.
-	 * Throws `BodyParseError` if the body cannot be parsed as form data.
+	 * Delegates to the standalone `text()` helper.
 	 *
-	 * @returns The parsed FormData
-	 * @throws {BodyParseError} If the body cannot be parsed as form data
+	 * @param body - The response body
+	 * @param init - Optional `ResponseInit`; its headers are merged in
+	 * @returns A `text/plain` `Response`
 	 *
 	 * @example
 	 * ```ts
-	 * router.post("/upload", async (ctx) => {
-	 *   const form = await ctx.formData();
-	 *   const name = form.get("name");
-	 *   return { name };
-	 * });
+	 * router.get("/ping", (ctx) => ctx.text("pong"));
 	 * ```
 	 */
-	formData: () => ReturnType<Request["formData"]>;
+	text: (body: string, init?: ResponseInit) => Response;
+
+	/**
+	 * Build an HTML `Response`.
+	 *
+	 * Delegates to the standalone `html()` helper.
+	 *
+	 * @param body - The HTML markup
+	 * @param init - Optional `ResponseInit`; its headers are merged in
+	 * @returns A `text/html` `Response`
+	 *
+	 * @example
+	 * ```ts
+	 * router.get("/", (ctx) => ctx.html("<h1>Hello</h1>"));
+	 * ```
+	 */
+	html: (body: string, init?: ResponseInit) => Response;
+
+	/**
+	 * Build a redirect `Response`.
+	 *
+	 * Delegates to the standalone `redirect()` helper.
+	 *
+	 * @param url - Target URL, absolute or relative
+	 * @param status - Redirect status code (default: `302`)
+	 * @returns A redirect `Response`
+	 *
+	 * @example
+	 * ```ts
+	 * router.get("/old", (ctx) => ctx.redirect("/new", 301));
+	 * ```
+	 */
+	redirect: (url: string, status?: number) => Response;
+
+	/**
+	 * Build an empty `Response` carrying only a status code.
+	 *
+	 * Delegates to the standalone `status()` helper.
+	 *
+	 * @param code - HTTP status code
+	 * @param init - Optional `ResponseInit` for `statusText` and headers
+	 * @returns An empty `Response` with the given status
+	 *
+	 * @example
+	 * ```ts
+	 * router.delete("/users/:id", (ctx) => ctx.status(204));
+	 * ```
+	 */
+	status: (code: number, init?: ResponseInit) => Response;
 }

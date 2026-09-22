@@ -1,7 +1,7 @@
 /**
  * Error thrown when request body parsing fails.
  *
- * Thrown by `ctx.json()` and `ctx.formData()` when the request body
+ * Thrown by `ctx.body.json()` and `ctx.body.formData()` when the request body
  * cannot be parsed. Handlers can catch this to return a custom 400 response.
  *
  * @example
@@ -10,7 +10,7 @@
  *
  * router.post("/users", async (ctx) => {
  *   try {
- *     const body = await ctx.json();
+ *     const body = await ctx.body.json();
  *     return { received: body };
  *   } catch (error) {
  *     if (error instanceof BodyParseError) {
