@@ -50,6 +50,12 @@ export {
 export type { ProblemDetails, ProblemOptions, ProblemResponseOptions } from "./problem.js";
 // Export RFC 9457 problem details
 export { problem, problemResponse } from "./problem.js";
+// The @bunary/core integration (`httpProvider`, `RouterToken`, `serve`) is
+// published on the `@bunary/http/provider` subpath, NOT here. `@bunary/core` is
+// an optional peer: a runtime re-export from this barrel would make every
+// standalone `import "@bunary/http"` resolve it, which fails outright when the
+// peer is not installed. Only the config type crosses over — types are erased.
+export type { HttpConfig } from "./provider.js";
 // Export types
 export type {
 	BodyOf,

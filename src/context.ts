@@ -1,3 +1,4 @@
+import type { Application } from "@bunary/core";
 import { createCookieJar } from "./cookies.js";
 import { BodyParseError } from "./errors.js";
 import {
@@ -45,18 +46,23 @@ function createBodyReader(request: Request): BodyReader {
  * everywhere a `RequestContext` is built — including the 404/405/error
  * handler contexts.
  *
+ * @param app - The core `Application` this router is mounted on, or
+ *   `undefined` for a standalone router.
+ *
  * @internal
  */
 export function createRequestContext(
 	request: Request,
 	params: PathParams,
 	query: URLSearchParams,
+	app?: Application,
 ): RequestContext {
 	return {
 		request,
 		params,
 		query,
 		locals: {},
+		app,
 		body: createBodyReader(request),
 		cookies: createCookieJar(request),
 		json: jsonResponse,

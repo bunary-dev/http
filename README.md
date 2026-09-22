@@ -70,6 +70,29 @@ becomes a `422` problem document listing every issue. Validation needs
 `@bunary/core` (`bun add @bunary/core`), which is an optional peer imported only
 when a route declares schemas.
 
+## Using with @bunary/core
+
+```typescript
+import { createApp } from '@bunary/core';
+import { createRouter } from '@bunary/http';
+import { httpProvider, serve } from '@bunary/http/provider';
+
+const router = createRouter();
+router.get('/', (ctx) => ctx.json({ app: ctx.app?.config.get('app.name') }));
+
+const app = await createApp({
+  config: { app: { name: 'my-api' }, http: { port: 3000 } },
+  providers: [httpProvider(router)],
+}).boot();
+
+serve(app);
+```
+
+`@bunary/core` is an optional peer dependency, and the integration is published
+on the `@bunary/http/provider` subpath only — importing the main barrel never
+resolves it, so a standalone install keeps working. (Route validation reaches
+for the same optional peer, but lazily, only when a route declares schemas.)
+
 For createRouter options, route groups, middleware, named routes, and types, see [docs/index.md](./docs/index.md).
 
 ## License
