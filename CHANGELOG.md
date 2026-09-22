@@ -14,14 +14,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `status()` always returns an empty body and the `code` argument wins over a `status` in `init`, so bodyless codes (`204`, `205`, `304`) stay valid
 - `BodyReader` type, exported from the barrel, describing `ctx.body` (#76)
 - Plain `Response` / string / object / `null` handler returns keep working unchanged through `toResponse()` (#76)
+- `listen()` passes `development` and `error` through to `Bun.serve`, so Bun's development error page and a last-resort error handler are reachable without dropping to `Bun.serve` by hand (#68)
 
 ### Changed
+
+- **BREAKING:** global middleware registered with `router.use()` now wraps **every** response the router produces — matched routes, 404, 405, the OPTIONS auto-response and error responses alike — so `cors()`, logging and tracing always run (#65)
+  - The pipeline is now `global middleware → error boundary → dispatcher`. Global middleware therefore receives a `Response` from `next()` rather than the handler's raw return value, and a handler that throws reaches it as a 500 response instead of a thrown error. Group and route middleware are unchanged: they run inside the boundary and still see raw handler return values and thrown errors
+  - Migration: a global middleware that spreads `await next()` (`{ ...result }`) or wraps it in `try`/`catch` should read the `Response` instead, or move to group middleware. An error thrown by a global middleware itself still reaches `onError`
+- **BREAKING:** `Access-Control-Allow-Methods` on a preflight now advertises the methods the matched path actually serves instead of a fixed list; an explicit `cors({ methods })` still wins, and `cors()` composed outside a router keeps the previous default list (#66)
+- **BREAKING:** `Allow` on OPTIONS and 405 responses now also names `OPTIONS`, and `HEAD` wherever a `GET` route exists, since the router serves both without them being registered. The `onMethodNotAllowed` callback still receives the registered methods only (#68)
+- **BREAKING:** the root route `/` no longer matches `//`, which previously slipped past prefix-based checks in a fronting proxy. Non-root routes keep their optional trailing slash (#68)
+- A CORS preflight for a path with no routes now falls through to the 404 handler (carrying CORS headers) rather than answering 204, so the caller sees the real status (#66)
+- `normalizeHeadMethod()` removed from `src/handlers/head.ts` — dead since `resolveRoute()` took over the HEAD→GET fallback, and it cost two extra route-table scans (#68)
 
 - **BREAKING:** the request-body readers moved from the context root onto `ctx.body` so that `ctx.json(data)` can be the response helper, matching Hono and Elysia (#76)
   - Migration: `await ctx.json()` → `await ctx.body.json()`; `await ctx.text()` → `await ctx.body.text()`; `await ctx.formData()` → `await ctx.body.formData()`. Generics and `BodyParseError` behaviour are unchanged, and `ctx.request` still exposes the underlying Web `Request` for streaming, `arrayBuffer()` and `blob()`. TypeScript catches every un-migrated call site: the new `ctx.json(data)` and `ctx.text(body)` require an argument, and `ctx.formData` no longer exists on the context
 
 - **BREAKING:** `createApp()` is now `createRouter()`, the `BunaryApp` type is now `Router`, and `AppOptions` is now `RouterOptions` — no aliases are kept, since `@bunary/core` owns `createApp()` (#74)
   - Migration: `import { createApp } from "@bunary/http"` → `import { createRouter } from "@bunary/http"`; every other member (`get`/`post`/`put`/`patch`/`delete`, `use`, `group`, `route`, `hasRoute`, `getRoutes`, `listen`, `fetch`) is unchanged
+
+### Fixed
+
+- 404, 405 and 500 responses carry CORS headers again; previously a browser reported a CORS failure instead of the real status because `cors()` never ran for them (#65)
+- `Vary: Origin` is now sent when an origin is **rejected**, not only when it is allowed — without it a shared cache could serve the no-CORS variant to an allowed origin, and vice versa (#66)
+- `Vary` is appended rather than overwritten, so an upstream `Vary: Accept-Encoding` survives; preflight responses also vary on `Access-Control-Request-Method` and `Access-Control-Request-Headers`, and a name already present is not repeated (#66)
+- A preflight now takes its group middleware from the route matching `Access-Control-Request-Method`; it previously used whichever route was registered first at that path, so a preflight for `POST /x` could pick up (or miss) middleware belonging to `GET /x` in another group (#66)
+- HEAD responses set `Content-Length` to the length of the discarded body (RFC 9110), and HEAD 404/405 responses no longer carry a body (#68)
+- `ctx.params` values are documented as being decoded after matching, so `%2F` yields a `/` inside a single-segment parameter — handlers doing file lookups must validate or constrain them (#68)
 
 ## [0.4.0] - 2026-09-21
 

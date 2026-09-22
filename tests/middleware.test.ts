@@ -251,16 +251,18 @@ describe("Middleware Pipeline", () => {
 			expect(order).toEqual(["first", "second"]);
 		});
 
-		test("middleware can catch and handle errors from next()", async () => {
+		test("global middleware receives the error response rather than a throw", async () => {
+			// Since #65 the error boundary sits inside the global chain, so a
+			// handler throw reaches global middleware as a 500 Response — that is
+			// what lets cors() and logging run for failures.
 			const app = createRouter();
 
 			app.use(async (_ctx, next) => {
-				try {
-					return await next();
-				} catch (error) {
-					const message = error instanceof Error ? error.message : "Unknown error";
-					return { caught: true, error: message };
-				}
+				const result = (await next()) as Response;
+				return new Response(await result.text(), {
+					status: result.status === 500 ? 200 : result.status,
+					headers: { "X-Recovered": "true" },
+				});
 			});
 
 			app.get("/test", () => {
@@ -269,8 +271,39 @@ describe("Middleware Pipeline", () => {
 
 			const response = await app.fetch(new Request("http://localhost/test"));
 			expect(response.status).toBe(200);
-			const data = await response.json();
-			expect(data).toEqual({ caught: true, error: "Handler error" });
+			expect(response.headers.get("X-Recovered")).toBe("true");
+			expect(await response.json()).toEqual({ error: "Handler error" });
+		});
+
+		test("group middleware can still catch and handle errors from next()", async () => {
+			// Group middleware runs inside the error boundary, so a try/catch
+			// around next() still intercepts the throw itself.
+			const app = createRouter();
+
+			app.group(
+				{
+					prefix: "/api",
+					middleware: [
+						async (_ctx, next) => {
+							try {
+								return await next();
+							} catch (error) {
+								const message = error instanceof Error ? error.message : "Unknown error";
+								return { caught: true, error: message };
+							}
+						},
+					],
+				},
+				(router) => {
+					router.get("/test", () => {
+						throw new Error("Handler error");
+					});
+				},
+			);
+
+			const response = await app.fetch(new Request("http://localhost/api/test"));
+			expect(response.status).toBe(200);
+			expect(await response.json()).toEqual({ caught: true, error: "Handler error" });
 		});
 
 		test("middleware can catch errors from other middleware", async () => {
@@ -327,15 +360,15 @@ describe("Middleware Pipeline", () => {
 			expect(data).toEqual({ middleware: true });
 		});
 
-		test("middleware can modify handler response", async () => {
+		test("global middleware can modify the handler response", async () => {
+			// Global middleware sits outside the dispatcher, so next() hands it a
+			// Response — the handler's raw return value has already been converted.
 			const app = createRouter();
 
 			app.use(async (_ctx, next) => {
-				const result = await next();
-				if (result && typeof result === "object" && !("timestamp" in result)) {
-					return { ...result, timestamp: "2026-01-24" };
-				}
-				return result;
+				const response = (await next()) as Response;
+				const body = (await response.json()) as Record<string, unknown>;
+				return { ...body, timestamp: "2026-01-24" };
 			});
 
 			app.get("/test", () => ({ message: "hello" }));
@@ -343,6 +376,31 @@ describe("Middleware Pipeline", () => {
 			const response = await app.fetch(new Request("http://localhost/test"));
 			const data = await response.json();
 			expect(data).toEqual({ message: "hello", timestamp: "2026-01-24" });
+		});
+
+		test("group middleware still sees the handler's raw return value", async () => {
+			const app = createRouter();
+
+			app.group(
+				{
+					prefix: "/api",
+					middleware: [
+						async (_ctx, next) => {
+							const result = await next();
+							if (result && typeof result === "object" && !("timestamp" in result)) {
+								return { ...result, timestamp: "2026-01-24" };
+							}
+							return result;
+						},
+					],
+				},
+				(router) => {
+					router.get("/test", () => ({ message: "hello" }));
+				},
+			);
+
+			const response = await app.fetch(new Request("http://localhost/api/test"));
+			expect(await response.json()).toEqual({ message: "hello", timestamp: "2026-01-24" });
 		});
 	});
 
@@ -370,9 +428,9 @@ describe("Middleware Pipeline", () => {
 
 			const response = await app.fetch(new Request("http://localhost/not-found"));
 			expect(response.status).toBe(404);
-			// Middleware should NOT run for non-existent routes
-			// (per current implementation - middleware runs after route match)
-			expect(middlewareRan).toBe(false);
+			// Since #65 global middleware wraps every response, 404 included, so
+			// cors() and logging always run.
+			expect(middlewareRan).toBe(true);
 		});
 
 		test("async middleware works correctly", async () => {

@@ -1,34 +1,33 @@
-import { findRoute } from "../routes/index.js";
-import type { HttpMethod, Route } from "../types/index.js";
-
 /**
- * Normalize HEAD requests to use GET route if no explicit HEAD route exists.
- * Returns the method to use for route matching.
+ * Convert a response to HEAD format: the body is discarded while status,
+ * statusText and headers are preserved.
+ *
+ * Per RFC 9110 §9.3.2 a HEAD response SHOULD carry the same `Content-Length`
+ * the equivalent GET would have sent, so the discarded body is measured and
+ * the header set when the origin response did not already provide one.
+ * Responses that have no body at all (204, 304, …) are left untouched.
+ *
+ * @param response - The response whose body should be stripped
+ * @returns A bodyless response with `Content-Length` filled in
+ *
+ * @example
+ * ```ts
+ * const head = await toHeadResponse(new Response("hello"));
+ * head.headers.get("Content-Length"); // "5"
+ * await head.text();                  // ""
+ * ```
  */
-export function normalizeHeadMethod(method: HttpMethod, path: string, routes: Route[]): HttpMethod {
-	if (method !== "HEAD") {
-		return method;
-	}
-	// First check if there's an explicit HEAD route
-	const headMatch = findRoute(routes, "HEAD", path);
-	if (headMatch) {
-		return "HEAD";
-	}
-	// Fall back to GET route
-	const getMatch = findRoute(routes, "GET", path);
-	if (getMatch) {
-		return "GET";
-	}
-	return "HEAD";
-}
+export async function toHeadResponse(response: Response): Promise<Response> {
+	const headers = new Headers(response.headers);
 
-/**
- * Convert a response to HEAD format (empty body, preserve headers and status).
- */
-export function toHeadResponse(response: Response): Response {
+	if (response.body !== null && !headers.has("Content-Length")) {
+		const body = await response.arrayBuffer();
+		headers.set("Content-Length", String(body.byteLength));
+	}
+
 	return new Response(null, {
 		status: response.status,
 		statusText: response.statusText,
-		headers: response.headers,
+		headers,
 	});
 }

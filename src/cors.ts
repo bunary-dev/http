@@ -1,3 +1,4 @@
+import { getPreflightAllowMethods } from "./handlers/preflight.js";
 import { toResponse } from "./response.js";
 import type { Middleware } from "./types/index.js";
 
@@ -56,6 +57,39 @@ export interface CorsOptions {
 }
 
 const DEFAULT_METHODS = ["GET", "HEAD", "PUT", "POST", "DELETE", "PATCH"];
+
+/**
+ * Append cache-key header names to `Vary` without dropping what is already
+ * there, and without repeating a name the response already lists.
+ *
+ * Overwriting `Vary` is how a CORS layer silently breaks an upstream
+ * `Vary: Accept-Encoding`; repeating a name bloats the header for no gain.
+ */
+function appendVary(headers: Headers, names: string[]): void {
+	const present = new Set(
+		(headers.get("Vary") ?? "")
+			.split(",")
+			.map((token) => token.trim().toLowerCase())
+			.filter(Boolean),
+	);
+	for (const name of names) {
+		if (present.has(name.toLowerCase())) continue;
+		present.add(name.toLowerCase());
+		headers.append("Vary", name);
+	}
+}
+
+/**
+ * Copy a response, adding headers. `Response` headers are immutable once
+ * constructed, so every mutation means a new object.
+ */
+function withHeaders(response: Response, headers: Headers): Response {
+	return new Response(response.body, {
+		status: response.status,
+		statusText: response.statusText,
+		headers,
+	});
+}
 
 /**
  * Resolve whether the request origin is allowed.
@@ -120,6 +154,10 @@ export function cors(options: CorsOptions = {}): Middleware {
 		maxAge,
 	} = options;
 
+	// Preflight responses depend on what the client asked for, so caches must
+	// key on those request headers too.
+	const PREFLIGHT_VARY = ["Access-Control-Request-Method", "Access-Control-Request-Headers"];
+
 	return async (ctx, next) => {
 		const requestOrigin = ctx.request.headers.get("Origin");
 
@@ -128,28 +166,56 @@ export function cors(options: CorsOptions = {}): Middleware {
 			return await next();
 		}
 
+		const isPreflight = ctx.request.method === "OPTIONS";
+
+		// When credentials are used with a wildcard origin the resolved value is
+		// the reflected request origin, so Vary must include Origin either way.
+		// A configured origin always varies — including when the origin is
+		// rejected, or a shared cache can hand the no-CORS variant to an allowed
+		// origin and the CORS variant to a rejected one (#66).
+		const needsVary = origin !== "*" || credentials;
+		const varyNames = [...(needsVary ? ["Origin"] : []), ...(isPreflight ? PREFLIGHT_VARY : [])];
+
 		// Is this origin allowed?
 		const allowedOrigin = resolveOrigin(origin, requestOrigin, credentials);
 		if (!allowedOrigin) {
-			// Origin not allowed — respond normally without CORS headers.
-			return await next();
+			// Origin not allowed — respond normally, without CORS headers but
+			// still declaring that the response varies by Origin. A rejection
+			// implies a configured origin, so `varyNames` always holds "Origin".
+			const rejected = toResponse(await next());
+			const rejectedHeaders = new Headers(rejected.headers);
+			appendVary(rejectedHeaders, varyNames);
+			return withHeaders(rejected, rejectedHeaders);
 		}
 
-		// When credentials are used with wildcard origin, the resolved
-		// value is the reflected request origin — Vary must include Origin
-		// so caches distinguish per-origin responses.
-		const needsVary = origin !== "*" || credentials;
-
 		// ── Preflight (OPTIONS) ────────────────────────────────────
-		if (ctx.request.method === "OPTIONS") {
-			const headers = new Headers();
-			headers.set("Access-Control-Allow-Origin", allowedOrigin);
-
-			if (needsVary) {
-				headers.append("Vary", "Origin");
+		if (isPreflight) {
+			// The router records the Allow set for this path. An empty set means
+			// no route matches, so the real 404 is more useful to the caller than
+			// a 204 that pretends the endpoint exists (#66).
+			const routerAllow = getPreflightAllowMethods(ctx.request);
+			if (routerAllow !== undefined && routerAllow.length === 0) {
+				const missing = toResponse(await next());
+				const missingHeaders = new Headers(missing.headers);
+				missingHeaders.set("Access-Control-Allow-Origin", allowedOrigin);
+				if (credentials) {
+					missingHeaders.set("Access-Control-Allow-Credentials", "true");
+				}
+				appendVary(missingHeaders, varyNames);
+				return withHeaders(missing, missingHeaders);
 			}
 
-			headers.set("Access-Control-Allow-Methods", methods.join(", "));
+			const headers = new Headers();
+			headers.set("Access-Control-Allow-Origin", allowedOrigin);
+			appendVary(headers, varyNames);
+
+			// An explicit `methods` option wins; otherwise advertise what the
+			// route table actually serves, falling back to the generic list when
+			// cors() is composed outside a router.
+			headers.set(
+				"Access-Control-Allow-Methods",
+				(options.methods ?? routerAllow ?? methods).join(", "),
+			);
 
 			if (allowHeaders) {
 				headers.set("Access-Control-Allow-Headers", allowHeaders.join(", "));
@@ -173,16 +239,12 @@ export function cors(options: CorsOptions = {}): Middleware {
 		}
 
 		// ── Actual request ─────────────────────────────────────────
-		const result = await next();
-		const response = toResponse(result);
+		const response = toResponse(await next());
 
 		// Build a new Response with CORS headers added.
 		const newHeaders = new Headers(response.headers);
 		newHeaders.set("Access-Control-Allow-Origin", allowedOrigin);
-
-		if (needsVary) {
-			newHeaders.append("Vary", "Origin");
-		}
+		appendVary(newHeaders, varyNames);
 
 		if (exposeHeaders && exposeHeaders.length > 0) {
 			newHeaders.set("Access-Control-Expose-Headers", exposeHeaders.join(", "));
@@ -192,10 +254,6 @@ export function cors(options: CorsOptions = {}): Middleware {
 			newHeaders.set("Access-Control-Allow-Credentials", "true");
 		}
 
-		return new Response(response.body, {
-			status: response.status,
-			statusText: response.statusText,
-			headers: newHeaders,
-		});
+		return withHeaders(response, newHeaders);
 	};
 }
