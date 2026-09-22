@@ -5,7 +5,9 @@ All notable changes to `@bunary/http` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0-rc.1] - 2026-09-22
+
+API freeze for the 1.0 line. Nothing is published to npm yet; the tag marks the contract. Epic: #84. Works standalone or mounted on a `@bunary/core` 1.0.0-rc.1 Application (optional peer).
 
 ### Added
 
