@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createApp } from "@bunary/core";
 import type { RequestContext } from "../src/index.js";
 import { createRouter } from "../src/index.js";
 
@@ -325,6 +326,58 @@ describe("Configurable Error Handlers", () => {
 				});
 			} finally {
 				Bun.env.NODE_ENV = original;
+			}
+		});
+
+		test("hides error message when APP_ENV is production", async () => {
+			const originalApp = Bun.env.APP_ENV;
+			const originalNode = Bun.env.NODE_ENV;
+			Bun.env.APP_ENV = "production";
+			Bun.env.NODE_ENV = "development";
+			try {
+				const app = createRouter();
+				app.get("/error", () => {
+					throw new Error("postgres://app:hunter2@db/app refused the connection");
+				});
+
+				const response = await app.fetch(new Request("http://localhost/error"));
+
+				expect(response.status).toBe(500);
+				expect(await response.json()).toEqual({
+					type: "about:blank",
+					title: "Internal Server Error",
+					status: 500,
+					instance: "/error",
+				});
+			} finally {
+				Bun.env.APP_ENV = originalApp;
+				Bun.env.NODE_ENV = originalNode;
+			}
+		});
+
+		test("hides error message when the mounted Application runs in production", async () => {
+			const originalNode = Bun.env.NODE_ENV;
+			Bun.env.NODE_ENV = "development";
+			try {
+				const application = createApp({
+					config: { app: { name: "error-env-test", env: "production" } },
+				});
+				const app = createRouter({ app: application });
+				app.get("/error", () => {
+					throw new Error("postgres://app:hunter2@db/app refused the connection");
+				});
+
+				const response = await app.fetch(new Request("http://localhost/error"));
+
+				expect(response.status).toBe(500);
+				expect(await response.json()).toEqual({
+					type: "about:blank",
+					title: "Internal Server Error",
+					status: 500,
+					instance: "/error",
+				});
+			} finally {
+				Bun.env.NODE_ENV = originalNode;
 			}
 		});
 
