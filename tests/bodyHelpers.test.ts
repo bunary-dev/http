@@ -49,7 +49,7 @@ describe("Body Parsing Helpers", () => {
 			expect(await response.json()).toEqual({ name: "Bob", age: 25 });
 		});
 
-		test("throws BodyParseError for invalid JSON", async () => {
+		test("maps an uncaught BodyParseError to a 400 problem response", async () => {
 			const app = createRouter();
 			app.post("/users", async (ctx) => {
 				const body = await ctx.body.json();
@@ -64,8 +64,9 @@ describe("Body Parsing Helpers", () => {
 				}),
 			);
 
-			// Default error handler returns 500; handler didn't catch the error
-			expect(response.status).toBe(500);
+			// Default error handler maps an uncaught BodyParseError to 400
+			expect(response.status).toBe(400);
+			expect(response.headers.get("content-type")).toBe("application/problem+json; charset=utf-8");
 		});
 
 		test("BodyParseError can be caught in handler for custom 400 response", async () => {

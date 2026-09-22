@@ -1,10 +1,12 @@
+import { problem } from "../problem.js";
 import { toResponse } from "../response.js";
 import type { RequestContext, RouterOptions } from "../types/index.js";
 import { expandAllowedMethods } from "./allow.js";
 
 /**
  * Handle 405 Method Not Allowed responses.
- * Uses custom onMethodNotAllowed handler if provided, otherwise returns default JSON response.
+ * Uses custom onMethodNotAllowed handler if provided, otherwise returns an RFC 9457
+ * `application/problem+json` response.
  * Ensures the Allow header is always present.
  *
  * The header also names `OPTIONS` and `HEAD`, which the router serves without
@@ -36,11 +38,9 @@ export async function handleMethodNotAllowed(
 		}
 		return response;
 	}
-	return new Response(JSON.stringify({ error: "Method not allowed" }), {
-		status: 405,
-		headers: {
-			"Content-Type": "application/json",
-			Allow: advertisedMethods.join(", "),
-		},
+	const pathname = new URL(ctx.request.url).pathname;
+	return problem(405, `${ctx.request.method} is not allowed for ${pathname}`, {
+		headers: { Allow: advertisedMethods.join(", ") },
+		instance: pathname,
 	});
 }

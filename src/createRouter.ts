@@ -35,7 +35,9 @@ import type {
 	RouteInfo,
 	Router,
 	RouterOptions,
+	RouteSchemas,
 } from "./types/index.js";
+import { normalizeRouteArgs } from "./validation.js";
 
 /**
  * Append queued `Set-Cookie` header values onto a `Response`.
@@ -149,6 +151,7 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 		path: string,
 		handler: RouteHandler,
 		groupMiddleware: Middleware[] = [],
+		schemas?: RouteSchemas,
 	): RouteBuilder {
 		// Apply basePath prefix to the route path
 		const fullPath = basePath ? joinPaths(basePath, path) : path;
@@ -162,6 +165,7 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 			optionalParams: optionalParams.length > 0 ? optionalParams : undefined,
 			middleware: groupMiddleware.length > 0 ? [...groupMiddleware] : undefined,
 			isWildcard: isWildcard || undefined,
+			schemas,
 		};
 		routes.push(route);
 		return createRouteBuilder(route, namedRoutes, router);
@@ -282,15 +286,30 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 		return method === "HEAD" ? await toHeadResponse(response) : response;
 	}
 
+	/**
+	 * Build one route-registration method, in both the `(path, handler)` and
+	 * `(path, schemas, handler)` shapes (#78).
+	 */
+	function register(method: HttpMethod) {
+		return (
+			path: string,
+			schemasOrHandler: RouteSchemas | RouteHandler,
+			maybeHandler?: RouteHandler,
+		): RouteBuilder => {
+			const { schemas, handler } = normalizeRouteArgs(schemasOrHandler, maybeHandler);
+			return addRoute(method, path, handler, [], schemas);
+		};
+	}
+
 	// Internal implementation uses non-generic RouteHandler for storage.
 	// The cast to Router is safe — handler generics only exist at the
 	// public API boundary and are erased at runtime.
 	const router = {
-		get: (path: string, handler: RouteHandler) => addRoute("GET", path, handler),
-		post: (path: string, handler: RouteHandler) => addRoute("POST", path, handler),
-		put: (path: string, handler: RouteHandler) => addRoute("PUT", path, handler),
-		delete: (path: string, handler: RouteHandler) => addRoute("DELETE", path, handler),
-		patch: (path: string, handler: RouteHandler) => addRoute("PATCH", path, handler),
+		get: register("GET"),
+		post: register("POST"),
+		put: register("PUT"),
+		delete: register("DELETE"),
+		patch: register("PATCH"),
 
 		use: (middleware: Middleware) => {
 			middlewares.push(middleware);

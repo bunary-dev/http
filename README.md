@@ -48,6 +48,28 @@ router.get('/logout', (ctx) => {
 router.get('/whoami', (ctx) => ctx.json({ session: ctx.cookies.get('session') }));
 ```
 
+## Validation
+
+An options object between the path and the handler validates `params`, `query`
+and `body` with any [Standard Schema](https://standardschema.dev) validator (zod,
+valibot, arktype, …) or a plain function:
+
+```typescript
+import { z } from 'zod';
+
+router.post(
+  '/users/:id',
+  { params: z.object({ id: z.coerce.number() }), body: z.object({ name: z.string() }) },
+  (ctx) => ctx.json({ id: ctx.params.id, name: ctx.body.name }), // number, string
+);
+```
+
+A validated slot replaces its context value, so `ctx.body` *is* the validated
+body; without a `body` schema it stays the `BodyReader`. A rejected schema
+becomes a `422` problem document listing every issue. Validation needs
+`@bunary/core` (`bun add @bunary/core`), which is an optional peer imported only
+when a route declares schemas.
+
 For createRouter options, route groups, middleware, named routes, and types, see [docs/index.md](./docs/index.md).
 
 ## License

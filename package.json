@@ -1,72 +1,73 @@
 {
-  "name": "@bunary/http",
-  "version": "0.4.0",
-  "description": "HTTP routing and middleware for Bunary - a Bun-first backend framework inspired by Laravel",
-  "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
-    },
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "CHANGELOG.md"
-  ],
-  "sideEffects": false,
-  "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target bun && tsc -p tsconfig.build.json",
-    "typecheck": "tsc --noEmit",
-    "test": "bun test",
-    "lint": "biome check ./src ./tests",
-    "format": "biome check --write ./src ./tests",
-    "pack:check": "bun pm pack --dry-run"
-  },
-  "keywords": [
-    "bunary",
-    "bun",
-    "http",
-    "router",
-    "middleware",
-    "framework"
-  ],
-  "author": "Paul Radford",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/bunary-dev/http.git"
-  },
-  "homepage": "https://github.com/bunary-dev/http#readme",
-  "bugs": {
-    "url": "https://github.com/bunary-dev/http/issues"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "engines": {
-    "bun": ">=1.4.0"
-  },
-  "dependencies": {
-    "cookie": "^2.0.1"
-  },
-  "peerDependencies": {
-    "@bunary/core": "^1.0.0-rc.1"
-  },
-  "peerDependenciesMeta": {
-    "@bunary/core": {
-      "optional": true
-    }
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.5.1",
-    "@bunary/core": "file:./vendor/bunary-core-1.0.0-rc.1.tgz",
-    "@types/bun": "^1.4.2",
-    "typescript": "^7.0.2"
-  }
+	"name": "@bunary/http",
+	"version": "0.4.0",
+	"description": "HTTP routing and middleware for Bunary - a Bun-first backend framework inspired by Laravel",
+	"type": "module",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"CHANGELOG.md"
+	],
+	"sideEffects": false,
+	"scripts": {
+		"build": "bun build ./src/index.ts --outdir ./dist --target bun --external @bunary/core && tsc -p tsconfig.build.json",
+		"typecheck": "tsc --noEmit",
+		"test": "bun test",
+		"lint": "biome check ./src ./tests",
+		"format": "biome check --write ./src ./tests",
+		"pack:check": "bun pm pack --dry-run"
+	},
+	"keywords": [
+		"bunary",
+		"bun",
+		"http",
+		"router",
+		"middleware",
+		"framework"
+	],
+	"author": "Paul Radford",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/bunary-dev/http.git"
+	},
+	"homepage": "https://github.com/bunary-dev/http#readme",
+	"bugs": {
+		"url": "https://github.com/bunary-dev/http/issues"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"engines": {
+		"bun": ">=1.4.0"
+	},
+	"dependencies": {
+		"cookie": "2.0.1"
+	},
+	"peerDependencies": {
+		"@bunary/core": "^1.0.0-rc.1"
+	},
+	"peerDependenciesMeta": {
+		"@bunary/core": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.5.1",
+		"@bunary/core": "file:./vendor/bunary-core-1.0.0-rc.1.tgz",
+		"@types/bun": "^1.4.2",
+		"typescript": "^7.0.2",
+		"zod": "^4"
+	}
 }

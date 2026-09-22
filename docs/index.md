@@ -641,6 +641,111 @@ router.group({ prefix: '/api', middleware: [cors()] }, (api) => {
 });
 ```
 
+## Validation
+
+Pass an options object between the path and the handler to validate a route's
+`params`, `query` and `body`. Each slot takes a `SchemaLike`: a
+[Standard Schema](https://standardschema.dev) object (zod, valibot, arktype, …)
+or a plain function that returns the parsed value and throws on bad input.
+
+```typescript
+import { z } from 'zod';
+import { createRouter } from '@bunary/http';
+
+const router = createRouter();
+
+router.post(
+  '/users/:id',
+  {
+    params: z.object({ id: z.coerce.number() }),
+    query: z.object({ notify: z.enum(['yes', 'no']).default('no') }),
+    body: z.object({ name: z.string(), email: z.email() }),
+  },
+  (ctx) => {
+    ctx.params.id;    // number
+    ctx.query.notify; // "yes" | "no"
+    ctx.body.name;    // string
+    return ctx.json({ id: ctx.params.id }, { status: 201 });
+  },
+);
+```
+
+Validation needs `@bunary/core` for its `validateWith`. Core is an **optional
+peer**: it is imported dynamically and only when a route actually declares
+schemas, so a router that validates nothing never loads it.
+
+```bash
+bun add @bunary/core
+```
+
+### Typed context
+
+A validated slot **replaces** its context value with the schema's output; an
+unvalidated slot keeps its default. So with a `body` schema `ctx.body` *is* the
+validated value — not a `BodyReader` wrapping it — and without one `ctx.body`
+stays the reader with `json()`, `text()` and `formData()`.
+
+| Slot | Without a schema | With a schema |
+|---|---|---|
+| `ctx.params` | `PathParams` (`Record<string, string \| undefined>`) | the schema's output |
+| `ctx.query` | `URLSearchParams` | the schema's output |
+| `ctx.body` | `BodyReader` | the schema's output |
+
+The two-argument form and the per-route `TParams` generic are unchanged:
+
+```typescript
+router.get('/legacy/:id', (ctx) => ({ id: ctx.params.id }));      // string | undefined
+router.get<{ id: string }>('/typed/:id', (ctx) => ctx.params.id); // string
+```
+
+### What each schema receives
+
+- **`params`** — the matched path parameters, as strings.
+- **`query`** — `Object.fromEntries(url.searchParams)`, so a repeated key
+  collapses to its **last** value. Read `ctx.request.url` yourself if you need
+  every value of a repeated key.
+- **`body`** — parsed by `content-type`: `application/json` through
+  `ctx.body.json()`, and `application/x-www-form-urlencoded` or
+  `multipart/form-data` through `ctx.body.formData()` flattened to a plain
+  object. Any other content type — including a request with no body — validates
+  `undefined`, so `z.string().optional()` passes and `z.object({...})` does not.
+
+### Plain functions
+
+```typescript
+router.get(
+  '/feed',
+  { query: (raw) => ({ limit: Number(raw.limit ?? '10') }) },
+  (ctx) => ({ limit: ctx.query.limit }), // number
+);
+```
+
+A function that throws is wrapped in a `ValidationError` just like a rejected
+Standard Schema.
+
+### Failures
+
+Validation runs inside the route pipeline **after** route and group middleware
+and before the handler, so middleware still sees the raw context. A rejected
+schema throws `@bunary/core`'s `ValidationError`, which the default error mapper
+turns into a `422` RFC 9457 problem document listing every issue:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Unprocessable Content",
+  "status": 422,
+  "detail": "Body validation failed: email: Invalid email address",
+  "instance": "/users/1",
+  "errors": [{ "path": "email", "message": "Invalid email address" }]
+}
+```
+
+Slots are validated in `params` → `query` → `body` order and the first failure
+wins. A body that cannot be parsed at all (malformed JSON, bad form data) is a
+`BodyParseError` → `400`, not a `422`. A custom `onError` still overrides the
+whole mapping.
+
 ## Route Groups
 
 Group routes together with shared prefixes, middleware, and name prefixes.
@@ -919,6 +1024,14 @@ import type {
   BodyReader,
   CookieJar,
   CookieSerializeOptions,
+
+  PathParams,
+  QueryParams,
+  RouteSchema,
+  RouteSchemas,
+  InferSchemaOutput,
+  ValidatedContext,
+  ValidatedRouteHandler,
 } from '@bunary/http';
 ```
 

@@ -3,17 +3,21 @@ import type {
 	GroupCallback,
 	GroupOptions,
 	GroupRouter,
+	HttpMethod,
 	Middleware,
 	RouteBuilder,
 	RouteHandler,
+	RouteSchemas,
 } from "../types/index.js";
+import { normalizeRouteArgs } from "../validation.js";
 import { wrapBuilderWithNamePrefix } from "./builder.js";
 
 export type AddRouteFn = (
-	method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH",
+	method: HttpMethod,
 	path: string,
 	handler: RouteHandler,
 	groupMiddleware?: Middleware[],
+	schemas?: RouteSchemas,
 ) => RouteBuilder;
 
 /**
@@ -25,43 +29,31 @@ export function createGroupRouter(
 	namePrefix: string,
 	addRoute: AddRouteFn,
 ): GroupRouter {
+	/**
+	 * Build one group route-registration method, in both the `(path, handler)`
+	 * and `(path, schemas, handler)` shapes (#78).
+	 */
+	function register(method: HttpMethod) {
+		return (
+			path: string,
+			schemasOrHandler: RouteSchemas | RouteHandler,
+			maybeHandler?: RouteHandler,
+		): RouteBuilder => {
+			const { schemas, handler } = normalizeRouteArgs(schemasOrHandler, maybeHandler);
+			const builder = addRoute(method, joinPaths(prefix, path), handler, groupMiddleware, schemas);
+			return wrapBuilderWithNamePrefix(builder, namePrefix);
+		};
+	}
+
 	// Internal implementation uses non-generic RouteHandler for storage.
 	// The cast to GroupRouter is safe — handler generics only exist at the
 	// public API boundary and are erased at runtime.
 	const router = {
-		get: (path: string, handler: RouteHandler) => {
-			const fullPath = joinPaths(prefix, path);
-			const builder = addRoute("GET", fullPath, handler, groupMiddleware);
-			return wrapBuilderWithNamePrefix(builder, namePrefix);
-		},
-		post: (path: string, handler: RouteHandler) => {
-			const fullPath = joinPaths(prefix, path);
-			return wrapBuilderWithNamePrefix(
-				addRoute("POST", fullPath, handler, groupMiddleware),
-				namePrefix,
-			);
-		},
-		put: (path: string, handler: RouteHandler) => {
-			const fullPath = joinPaths(prefix, path);
-			return wrapBuilderWithNamePrefix(
-				addRoute("PUT", fullPath, handler, groupMiddleware),
-				namePrefix,
-			);
-		},
-		delete: (path: string, handler: RouteHandler) => {
-			const fullPath = joinPaths(prefix, path);
-			return wrapBuilderWithNamePrefix(
-				addRoute("DELETE", fullPath, handler, groupMiddleware),
-				namePrefix,
-			);
-		},
-		patch: (path: string, handler: RouteHandler) => {
-			const fullPath = joinPaths(prefix, path);
-			return wrapBuilderWithNamePrefix(
-				addRoute("PATCH", fullPath, handler, groupMiddleware),
-				namePrefix,
-			);
-		},
+		get: register("GET"),
+		post: register("POST"),
+		put: register("PUT"),
+		delete: register("DELETE"),
+		patch: register("PATCH"),
 		group: ((prefixOrOptions: string | GroupOptions, callback: GroupCallback) => {
 			const opts =
 				typeof prefixOrOptions === "string" ? { prefix: prefixOrOptions } : prefixOrOptions;
