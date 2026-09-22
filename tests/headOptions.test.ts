@@ -94,7 +94,7 @@ describe("OPTIONS requests", () => {
 		expect(response.status).toBe(204);
 		const allowHeader = response.headers.get("Allow");
 		expect(allowHeader).toBeTruthy();
-		expect(allowHeader?.split(", ").sort()).toEqual(["GET", "POST"].sort());
+		expect(allowHeader?.split(", ").sort()).toEqual(["GET", "HEAD", "OPTIONS", "POST"]);
 		expect(await response.text()).toBe("");
 	});
 
@@ -111,7 +111,7 @@ describe("OPTIONS requests", () => {
 		expect(response.status).toBe(204);
 		const allowHeader = response.headers.get("Allow");
 		const methods = allowHeader?.split(", ").sort() || [];
-		expect(methods).toEqual(["DELETE", "GET", "PATCH", "POST", "PUT"]);
+		expect(methods).toEqual(["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]);
 	});
 
 	test("OPTIONS request to non-existent route returns 404", async () => {
@@ -135,7 +135,7 @@ describe("OPTIONS requests", () => {
 
 		expect(response.status).toBe(204);
 		const allowHeader = response.headers.get("Allow");
-		expect(allowHeader?.split(", ").sort()).toEqual(["GET", "PUT"].sort());
+		expect(allowHeader?.split(", ").sort()).toEqual(["GET", "HEAD", "OPTIONS", "PUT"]);
 	});
 
 	test("OPTIONS request respects route constraints", async () => {
@@ -149,7 +149,7 @@ describe("OPTIONS requests", () => {
 		);
 		expect(response1.status).toBe(204);
 		const allow1 = response1.headers.get("Allow");
-		expect(allow1).toBe("GET");
+		expect(allow1).toBe("GET, HEAD, OPTIONS");
 
 		// Only alphabetic constraint matches
 		const response2 = await app.fetch(
@@ -157,7 +157,7 @@ describe("OPTIONS requests", () => {
 		);
 		expect(response2.status).toBe(204);
 		const allow2 = response2.headers.get("Allow");
-		expect(allow2).toBe("GET");
+		expect(allow2).toBe("GET, HEAD, OPTIONS");
 	});
 });
 
@@ -172,7 +172,7 @@ describe("405 Method Not Allowed with Allow header", () => {
 		expect(response.status).toBe(405);
 		const allowHeader = response.headers.get("Allow");
 		expect(allowHeader).toBeTruthy();
-		expect(allowHeader?.split(", ").sort()).toEqual(["GET", "POST"].sort());
+		expect(allowHeader?.split(", ").sort()).toEqual(["GET", "HEAD", "OPTIONS", "POST"]);
 	});
 
 	test("405 response includes all allowed methods", async () => {
@@ -186,7 +186,7 @@ describe("405 Method Not Allowed with Allow header", () => {
 		expect(response.status).toBe(405);
 		const allowHeader = response.headers.get("Allow");
 		const methods = allowHeader?.split(", ").sort() || [];
-		expect(methods).toEqual(["DELETE", "GET", "POST"]);
+		expect(methods).toEqual(["DELETE", "GET", "HEAD", "OPTIONS", "POST"]);
 	});
 
 	test("405 response respects route constraints", async () => {
@@ -198,7 +198,7 @@ describe("405 Method Not Allowed with Allow header", () => {
 
 		expect(response.status).toBe(405);
 		const allowHeader = response.headers.get("Allow");
-		expect(allowHeader?.split(", ").sort()).toEqual(["GET", "POST"].sort());
+		expect(allowHeader?.split(", ").sort()).toEqual(["GET", "HEAD", "OPTIONS", "POST"]);
 	});
 
 	test("405 response works with path parameters", async () => {
@@ -210,6 +210,6 @@ describe("405 Method Not Allowed with Allow header", () => {
 
 		expect(response.status).toBe(405);
 		const allowHeader = response.headers.get("Allow");
-		expect(allowHeader?.split(", ").sort()).toEqual(["DELETE", "GET"].sort());
+		expect(allowHeader?.split(", ").sort()).toEqual(["DELETE", "GET", "HEAD", "OPTIONS"]);
 	});
 });

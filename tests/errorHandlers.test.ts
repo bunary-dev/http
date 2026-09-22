@@ -105,7 +105,7 @@ describe("Configurable Error Handlers", () => {
 				detail: "PUT is not allowed for /users",
 				instance: "/users",
 			});
-			expect(response.headers.get("Allow")).toBe("GET, POST");
+			expect(response.headers.get("Allow")).toBe("GET, HEAD, OPTIONS, POST");
 			expect(response.headers.get("Content-Type")).toBe("application/problem+json; charset=utf-8");
 		});
 
@@ -177,7 +177,7 @@ describe("Configurable Error Handlers", () => {
 			const response = await app.fetch(new Request("http://localhost/users", { method: "PUT" }));
 
 			expect(response.status).toBe(405);
-			expect(response.headers.get("Allow")).toBe("GET, POST");
+			expect(response.headers.get("Allow")).toBe("GET, HEAD, OPTIONS, POST");
 		});
 
 		test("onMethodNotAllowed preserves Allow header if custom handler sets it", async () => {

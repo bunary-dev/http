@@ -1,36 +1,35 @@
-import { createRequestContext } from "../context.js";
 import { problem } from "../problem.js";
 import { toResponse } from "../response.js";
-import { getAllowedMethods } from "../routes/index.js";
-import type { RequestContext, Route, RouterOptions } from "../types/index.js";
+import type { RequestContext, RouterOptions } from "../types/index.js";
+import { expandAllowedMethods } from "./allow.js";
 
 /**
  * Handle 405 Method Not Allowed responses.
  * Uses custom onMethodNotAllowed handler if provided, otherwise returns an RFC 9457
  * `application/problem+json` response.
- * Ensures Allow header is always present.
+ * Ensures the Allow header is always present.
  *
- * @param precomputed - Pre-computed allowed methods from resolveRoute() to avoid re-scanning.
- *                      Falls back to scanning routes if not provided.
+ * The header also names `OPTIONS` and `HEAD`, which the router serves without
+ * them being registered, while the `onMethodNotAllowed` callback still
+ * receives the registered methods only.
+ *
+ * @param ctx - The request context
+ * @param allowedMethods - Methods registered at this path, from `resolveRoute()`
+ * @param options - Router options carrying an optional `onMethodNotAllowed`
  */
 export async function handleMethodNotAllowed(
-	request: Request,
-	path: string,
-	routes: Route[],
+	ctx: RequestContext,
+	allowedMethods: string[],
 	options?: RouterOptions,
-	precomputed?: string[],
 ): Promise<Response> {
-	const url = new URL(request.url);
-	const allowedMethods = precomputed ?? getAllowedMethods(routes, path);
-	const methodNotAllowedCtx: RequestContext = createRequestContext(request, {}, url.searchParams);
+	const advertisedMethods = expandAllowedMethods(allowedMethods);
 	if (options?.onMethodNotAllowed) {
-		const result = await options.onMethodNotAllowed(methodNotAllowedCtx, allowedMethods);
+		const result = await options.onMethodNotAllowed(ctx, allowedMethods);
 		const response = toResponse(result);
 		// Ensure Allow header is present even with custom handler
-		const allowHeader = response.headers.get("Allow");
-		if (!allowHeader) {
+		if (!response.headers.get("Allow")) {
 			const headers = new Headers(response.headers);
-			headers.set("Allow", allowedMethods.join(", "));
+			headers.set("Allow", advertisedMethods.join(", "));
 			return new Response(response.body, {
 				status: response.status,
 				statusText: response.statusText,
@@ -39,8 +38,9 @@ export async function handleMethodNotAllowed(
 		}
 		return response;
 	}
-	return problem(405, `${request.method} is not allowed for ${url.pathname}`, {
-		headers: { Allow: allowedMethods.join(", ") },
-		instance: url.pathname,
+	const pathname = new URL(ctx.request.url).pathname;
+	return problem(405, `${ctx.request.method} is not allowed for ${pathname}`, {
+		headers: { Allow: advertisedMethods.join(", ") },
+		instance: pathname,
 	});
 }

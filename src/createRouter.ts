@@ -1,10 +1,13 @@
 import { createRequestContext } from "./context.js";
 import {
 	executeRoute,
+	expandAllowedMethods,
 	handleError,
 	handleMethodNotAllowed,
 	handleNotFound,
 	handleOptions,
+	runMiddlewareChain,
+	setPreflightAllowMethods,
 	toHeadResponse,
 } from "./handlers/index.js";
 import { joinPaths, normalizePrefix } from "./pathUtils.js";
@@ -14,6 +17,7 @@ import {
 	createGroupRouter,
 	createRouteBuilder,
 	findRouteByPath,
+	getAllowedMethods,
 	resolveRoute,
 } from "./routes/index.js";
 import type {
@@ -22,6 +26,7 @@ import type {
 	GroupOptions,
 	HandlerResponse,
 	HttpMethod,
+	ListenOptions,
 	Middleware,
 	RequestContext,
 	Route,
@@ -101,30 +106,7 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 	const normalizedBasePath = internalOpts?.basePath ? normalizePrefix(internalOpts.basePath) : "";
 	const basePath = normalizedBasePath === "/" ? "" : normalizedBasePath;
 
-	// Cache for combined middleware chains per route
-	// Invalidated when global middleware changes
-	let globalMiddlewareVersion = 0;
-	const middlewareCache = new WeakMap<Route, { version: number; chain: Middleware[] }>();
-
-	/**
-	 * Get the combined middleware chain for a route (cached).
-	 */
-	function getMiddlewareChain(route: Route): Middleware[] {
-		const cached = middlewareCache.get(route);
-		if (cached && cached.version === globalMiddlewareVersion) {
-			return cached.chain;
-		}
-
-		// Build and cache the chain
-		const chain = route.middleware
-			? [...middlewares, ...route.middleware]
-			: middlewares.length > 0
-				? [...middlewares]
-				: [];
-
-		middlewareCache.set(route, { version: globalMiddlewareVersion, chain });
-		return chain;
-	}
+	const NO_MIDDLEWARE: readonly Middleware[] = [];
 
 	/**
 	 * Register a route for a specific HTTP method.
@@ -153,46 +135,53 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 	}
 
 	/**
-	 * Handle an incoming request.
+	 * A resolved request: the context every layer shares, and the dispatcher
+	 * that produces the response once global middleware has had its say.
 	 */
-	async function handleRequest(request: Request): Promise<Response> {
-		const url = new URL(request.url);
+	interface Dispatch {
+		ctx: RequestContext;
+		run: () => Promise<HandlerResponse>;
+	}
+
+	/**
+	 * Resolve a request into its dispatcher.
+	 *
+	 * The dispatcher is whatever terminates the pipeline: a matched route
+	 * (behind its group middleware), or one of the 404 / 405 / OPTIONS
+	 * handlers. It deliberately does not include global middleware, which the
+	 * caller wraps around it so every outcome is covered (#65).
+	 */
+	function prepareDispatch(request: Request, url: URL, method: HttpMethod): Dispatch {
 		const path = url.pathname;
-		const method = request.method as HttpMethod;
 
-		// Handle OPTIONS requests — single pass via resolveRoute
 		if (method === "OPTIONS") {
-			// CORS preflight: if an Origin header is present, run the full
-			// middleware chain (global + group) so that cors() can intercept.
-			// We find the first route matching this path (any method) to pick
-			// up group-level middleware, then fall through to normal OPTIONS
-			// handling after the chain completes.
-			if (request.headers.get("Origin")) {
-				const routeMatch = findRouteByPath(routes, path);
-				const chain = routeMatch
-					? getMiddlewareChain(routeMatch.route)
-					: middlewares.length > 0
-						? [...middlewares]
-						: [];
+			const allowedMethods = getAllowedMethods(routes, path);
 
-				if (chain.length > 0) {
-					const params = routeMatch?.params ?? {};
-					const ctx: RequestContext = createRequestContext(request, params, url.searchParams);
-					let index = 0;
-					const next = async (): Promise<HandlerResponse> => {
-						const mw = chain[index++];
-						if (mw) {
-							return await mw(ctx, next);
-						}
-						// After all middleware, fall through to normal OPTIONS handling
-						return await handleOptions(request, path, routes, internalOpts);
-					};
-					const result = await next();
-					return toResponse(result);
-				}
-			}
+			// Hand cors() the Allow set so a preflight advertises the methods
+			// this path really serves. An empty set means "no such path", and
+			// cors() then steps aside so the 404 surfaces (#66).
+			setPreflightAllowMethods(
+				request,
+				allowedMethods.length > 0 ? expandAllowedMethods(allowedMethods) : [],
+			);
 
-			return await handleOptions(request, path, routes, internalOpts);
+			// Prefer the route matching Access-Control-Request-Method, so group
+			// middleware comes from the route the preflight is actually for
+			// rather than whichever route was registered first at this path (#66).
+			const requestedMethod = request.headers.get("Access-Control-Request-Method");
+			const target =
+				(requestedMethod
+					? resolveRoute(routes, requestedMethod.trim().toUpperCase(), path).match
+					: null) ?? findRouteByPath(routes, path);
+
+			const ctx = createRequestContext(request, target?.params ?? {}, url.searchParams);
+			return {
+				ctx,
+				run: () =>
+					runMiddlewareChain(target?.route.middleware ?? NO_MIDDLEWARE, ctx, () =>
+						handleOptions(ctx, allowedMethods, internalOpts),
+					),
+			};
 		}
 
 		// Single-pass route resolution: finds match, handles HEAD→GET
@@ -200,30 +189,58 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 		const { match, allowedMethods } = resolveRoute(routes, method, path);
 
 		if (!match) {
-			if (allowedMethods.length > 0) {
-				// Path exists for other methods → 405
-				return await handleMethodNotAllowed(request, path, routes, internalOpts, allowedMethods);
-			}
-			// No route at all → 404
-			return await handleNotFound(request, path, internalOpts);
+			const ctx = createRequestContext(request, {}, url.searchParams);
+			return {
+				ctx,
+				run: () =>
+					allowedMethods.length > 0
+						? // Path exists for other methods → 405
+							handleMethodNotAllowed(ctx, allowedMethods, internalOpts)
+						: // No route at all → 404
+							handleNotFound(ctx, internalOpts),
+			};
 		}
 
-		// Build request context
-		const ctx: RequestContext = createRequestContext(request, match.params, url.searchParams);
+		const ctx = createRequestContext(request, match.params, url.searchParams);
+		return {
+			ctx,
+			run: () => executeRoute(match, ctx, match.route.middleware ?? NO_MIDDLEWARE),
+		};
+	}
 
+	/**
+	 * Handle an incoming request.
+	 *
+	 * The pipeline is: global middleware → error boundary → dispatcher. Putting
+	 * the error boundary *inside* the global chain means global middleware sees
+	 * the error response as an ordinary response, so `cors()` and logging run
+	 * for 500s just as they do for 200s. A global middleware that throws is
+	 * outside that boundary, so the outer `catch` hands it to the same error
+	 * handler (#65).
+	 */
+	async function handleRequest(request: Request): Promise<Response> {
+		const url = new URL(request.url);
+		const method = request.method as HttpMethod;
+		const { ctx, run } = prepareDispatch(request, url, method);
+
+		const guarded = async (): Promise<HandlerResponse> => {
+			try {
+				return await run();
+			} catch (error) {
+				return await handleError(ctx, error, internalOpts);
+			}
+		};
+
+		let response: Response;
 		try {
-			const response = await executeRoute(match, ctx, getMiddlewareChain);
-
-			// For HEAD requests, return response with empty body
-			if (method === "HEAD") {
-				return toHeadResponse(response);
-			}
-
-			return response;
+			response = toResponse(await runMiddlewareChain(middlewares, ctx, guarded));
 		} catch (error) {
-			// Error handling - return 500
-			return await handleError(ctx, error, internalOpts);
+			response = await handleError(ctx, error, internalOpts);
 		}
+
+		// HEAD is answered from the GET route, so the body is stripped last —
+		// after global middleware has seen the full response.
+		return method === "HEAD" ? await toHeadResponse(response) : response;
 	}
 
 	// Internal implementation uses non-generic RouteHandler for storage.
@@ -238,8 +255,6 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 
 		use: (middleware: Middleware) => {
 			middlewares.push(middleware);
-			// Invalidate cached middleware chains
-			globalMiddlewareVersion++;
 			return router;
 		},
 
@@ -342,15 +357,14 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 			}));
 		},
 
-		listen: (
-			portOrOptions?: number | { port?: number; hostname?: string },
-			hostnameArg?: string,
-		): BunaryServer => {
+		listen: (portOrOptions?: number | ListenOptions, hostnameArg?: string): BunaryServer => {
 			let port: number;
 			let hostname: string;
+			let listenOpts: ListenOptions = {};
 			const isOptionsObject =
 				portOrOptions !== undefined && portOrOptions !== null && typeof portOrOptions === "object";
 			if (isOptionsObject) {
+				listenOpts = portOrOptions;
 				port = portOrOptions.port ?? 3000;
 				hostname = portOrOptions.hostname ?? "localhost";
 			} else {
@@ -358,10 +372,14 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 				hostname = hostnameArg ?? "localhost";
 			}
 
+			// `development` and `error` are passed straight through to Bun.serve,
+			// and only when supplied, so Bun's own defaults still apply (#68).
 			const server = Bun.serve({
 				port,
 				hostname,
 				fetch: handleRequest,
+				...(listenOpts.development !== undefined && { development: listenOpts.development }),
+				...(listenOpts.error !== undefined && { error: listenOpts.error }),
 			});
 
 			return {
