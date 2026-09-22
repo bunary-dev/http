@@ -21,6 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `problemResponse(error, { debug?, instance? })`, the router's default error mapper, exported for reuse inside a custom `onError` (#77)
   - `HttpError` → its own status and headers, with `details` as `errors`; a `@bunary/core` `ValidationError` → 422 with its `issues` as `errors` (matched structurally, so core stays an optional peer); `BodyParseError` → 400; anything else → 500, whose `detail` appears only when `debug` is on
 - `problem(status, detail?, options?)` builder and the `ProblemDetails`, `ProblemOptions` and `ProblemResponseOptions` types (#77)
+- Route-level validation: every route method takes an optional `{ params?, query?, body? }` options object between the path and the handler, on both the router and group routers (#78)
+  - Each slot accepts a `SchemaLike` — a [Standard Schema](https://standardschema.dev) object (zod, valibot, arktype, ...) or a plain function that returns the parsed value and throws on bad input
+  - A validated slot **replaces** its context value with the schema's output: with a `body` schema `ctx.body` *is* the validated body rather than a `BodyReader` wrapping it; unvalidated slots keep `PathParams`, `URLSearchParams` and the `BodyReader` as before
+  - `ctx.params`, `ctx.query` and `ctx.body` are typed from the schemas' output types, inferred from `StandardSchemaV1.InferOutput` or a plain function's return type
+  - `params` receives the matched path parameters; `query` receives `Object.fromEntries(url.searchParams)`, so a repeated key collapses to its last value; `body` is parsed by `content-type` — `application/json` via `ctx.body.json()`, `application/x-www-form-urlencoded` and `multipart/form-data` via `ctx.body.formData()` flattened to a plain object, and anything else (including a bodyless request) validates `undefined`
+  - Validation runs inside the route pipeline after route and group middleware, so middleware still sees the raw context. A rejected schema throws `@bunary/core`'s `ValidationError`, which the default mapper turns into a 422 problem document with every issue in `errors`; a body that cannot be parsed at all stays a `BodyParseError` → 400
+  - `@bunary/core` remains an optional peer: `validateWith` is reached through a dynamic `import("@bunary/core")` that only runs for a route declaring schemas, and nothing in the bundled entry point imports core statically
+  - New exported types `RouteSchema`, `RouteSchemas`, `InferSchemaOutput`, `ParamsOf`, `QueryOf`, `BodyOf`, `ValidatedContext`, `ValidatedRouteHandler`, `StandardSchemaLike` and `QueryParams`
+  - The existing two-argument `(path, handler)` form and the per-route `TParams` generic are unchanged
 - `listen()` passes `development` and `error` through to `Bun.serve`, so Bun's development error page and a last-resort error handler are reachable without dropping to `Bun.serve` by hand (#68)
 
 ### Changed

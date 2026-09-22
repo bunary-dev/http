@@ -49,6 +49,7 @@ export type { ProblemDetails, ProblemOptions, ProblemResponseOptions } from "./p
 export { problem, problemResponse } from "./problem.js";
 // Export types
 export type {
+	BodyOf,
 	BodyReader,
 	BunaryServer,
 	GroupCallback,
@@ -56,13 +57,22 @@ export type {
 	GroupRouter,
 	HandlerResponse,
 	HttpMethod,
+	InferSchemaOutput,
 	ListenOptions,
 	Middleware,
+	ParamsOf,
 	PathParams,
+	QueryOf,
+	QueryParams,
 	RequestContext,
 	RouteBuilder,
 	RouteHandler,
 	RouteInfo,
 	Router,
 	RouterOptions,
+	RouteSchema,
+	RouteSchemas,
+	StandardSchemaLike,
+	ValidatedContext,
+	ValidatedRouteHandler,
 } from "./types/index.js";
