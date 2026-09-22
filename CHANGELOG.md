@@ -14,8 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `status()` always returns an empty body and the `code` argument wins over a `status` in `init`, so bodyless codes (`204`, `205`, `304`) stay valid
 - `BodyReader` type, exported from the barrel, describing `ctx.body` (#76)
 - Plain `Response` / string / object / `null` handler returns keep working unchanged through `toResponse()` (#76)
+- `HttpError` and the status subclasses `BadRequestError` (400), `UnauthorizedError` (401), `ForbiddenError` (403), `NotFoundError` (404), `MethodNotAllowedError` (405), `ConflictError` (409), `UnprocessableError` (422), `TooManyRequestsError` (429) and `InternalServerError` (500), all exported from the barrel (#77)
+  - Each carries `status`, `message`, and optional `headers`, `details` and `cause`; the message defaults to the status' standard reason phrase
+- `abort(status, message?, options?)`, which throws the matching subclass for a known status and a generic `HttpError` for any other, and returns `never` so the code after it narrows as unreachable (#77)
+- `isHttpError(error)` type guard (#77)
+- `problemResponse(error, { debug?, instance? })`, the router's default error mapper, exported for reuse inside a custom `onError` (#77)
+  - `HttpError` → its own status and headers, with `details` as `errors`; a `@bunary/core` `ValidationError` → 422 with its `issues` as `errors` (matched structurally, so core stays an optional peer); `BodyParseError` → 400; anything else → 500, whose `detail` appears only when `debug` is on
+- `problem(status, detail?, options?)` builder and the `ProblemDetails`, `ProblemOptions` and `ProblemResponseOptions` types (#77)
 
 ### Changed
+
+- **BREAKING:** every built-in error response is now an RFC 9457 problem document — `content-type: application/problem+json; charset=utf-8` with a body of `{ type, title, status, detail?, instance?, errors? }` — replacing the old `{ "error": "..." }` JSON for the default 404, 405 and 500 responses (#77)
+  - Migration: read `body.detail` (or `body.title`) instead of `body.error`, and match `application/problem+json` rather than `application/json` when asserting on error responses. An uncaught `BodyParseError` is now a 400 instead of a 500. A custom `onNotFound`, `onMethodNotAllowed` or `onError` still overrides the default entirely, and the 405 `Allow` header is unchanged
+  - Detail hiding is unchanged in spirit: outside `NODE_ENV=production` an unexpected error's message appears as `detail`; in production only `title` and `status` are sent
 
 - **BREAKING:** the request-body readers moved from the context root onto `ctx.body` so that `ctx.json(data)` can be the response helper, matching Hono and Elysia (#76)
   - Migration: `await ctx.json()` → `await ctx.body.json()`; `await ctx.text()` → `await ctx.body.text()`; `await ctx.formData()` → `await ctx.body.formData()`. Generics and `BodyParseError` behaviour are unchanged, and `ctx.request` still exposes the underlying Web `Request` for streaming, `arrayBuffer()` and `blob()`. TypeScript catches every un-migrated call site: the new `ctx.json(data)` and `ctx.text(body)` require an argument, and `ctx.formData` no longer exists on the context

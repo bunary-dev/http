@@ -11,8 +11,14 @@ describe("Configurable Error Handlers", () => {
 			const response = await app.fetch(new Request("http://localhost/posts"));
 
 			expect(response.status).toBe(404);
-			expect(await response.json()).toEqual({ error: "Not found" });
-			expect(response.headers.get("Content-Type")).toBe("application/json");
+			expect(await response.json()).toEqual({
+				type: "about:blank",
+				title: "Not Found",
+				status: 404,
+				detail: "No route matches GET /posts",
+				instance: "/posts",
+			});
+			expect(response.headers.get("Content-Type")).toBe("application/problem+json; charset=utf-8");
 		});
 
 		test("custom onNotFound handler overrides default 404", async () => {
@@ -92,9 +98,15 @@ describe("Configurable Error Handlers", () => {
 			const response = await app.fetch(new Request("http://localhost/users", { method: "PUT" }));
 
 			expect(response.status).toBe(405);
-			expect(await response.json()).toEqual({ error: "Method not allowed" });
+			expect(await response.json()).toEqual({
+				type: "about:blank",
+				title: "Method Not Allowed",
+				status: 405,
+				detail: "PUT is not allowed for /users",
+				instance: "/users",
+			});
 			expect(response.headers.get("Allow")).toBe("GET, POST");
-			expect(response.headers.get("Content-Type")).toBe("application/json");
+			expect(response.headers.get("Content-Type")).toBe("application/problem+json; charset=utf-8");
 		});
 
 		test("custom onMethodNotAllowed handler overrides default 405", async () => {
@@ -212,8 +224,14 @@ describe("Configurable Error Handlers", () => {
 			const response = await app.fetch(new Request("http://localhost/error"));
 
 			expect(response.status).toBe(500);
-			expect(await response.json()).toEqual({ error: "Test error" });
-			expect(response.headers.get("Content-Type")).toBe("application/json");
+			expect(await response.json()).toEqual({
+				type: "about:blank",
+				title: "Internal Server Error",
+				status: 500,
+				detail: "Test error",
+				instance: "/error",
+			});
+			expect(response.headers.get("Content-Type")).toBe("application/problem+json; charset=utf-8");
 		});
 
 		test("hides error message in production mode", async () => {
@@ -229,7 +247,10 @@ describe("Configurable Error Handlers", () => {
 
 				expect(response.status).toBe(500);
 				expect(await response.json()).toEqual({
-					error: "Internal Server Error",
+					type: "about:blank",
+					title: "Internal Server Error",
+					status: 500,
+					instance: "/error",
 				});
 			} finally {
 				Bun.env.NODE_ENV = original;
@@ -249,7 +270,11 @@ describe("Configurable Error Handlers", () => {
 
 				expect(response.status).toBe(500);
 				expect(await response.json()).toEqual({
-					error: "Detailed dev error",
+					type: "about:blank",
+					title: "Internal Server Error",
+					status: 500,
+					detail: "Detailed dev error",
+					instance: "/error",
 				});
 			} finally {
 				Bun.env.NODE_ENV = original;
@@ -269,7 +294,11 @@ describe("Configurable Error Handlers", () => {
 
 				expect(response.status).toBe(500);
 				expect(await response.json()).toEqual({
-					error: "Visible without NODE_ENV",
+					type: "about:blank",
+					title: "Internal Server Error",
+					status: 500,
+					detail: "Visible without NODE_ENV",
+					instance: "/error",
 				});
 			} finally {
 				Bun.env.NODE_ENV = original;
@@ -289,7 +318,10 @@ describe("Configurable Error Handlers", () => {
 
 				expect(response.status).toBe(500);
 				expect(await response.json()).toEqual({
-					error: "Internal Server Error",
+					type: "about:blank",
+					title: "Internal Server Error",
+					status: 500,
+					instance: "/error",
 				});
 			} finally {
 				Bun.env.NODE_ENV = original;

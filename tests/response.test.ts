@@ -129,8 +129,9 @@ describe("Error Handling", () => {
 		const response = await app.fetch(new Request("http://localhost/error"));
 
 		expect(response.status).toBe(500);
-		const body = (await response.json()) as { error: string };
-		expect(body.error).toBeDefined();
+		const body = (await response.json()) as { title: string; status: number };
+		expect(body.title).toBe("Internal Server Error");
+		expect(body.status).toBe(500);
 	});
 
 	test("returns 500 when async handler rejects", async () => {

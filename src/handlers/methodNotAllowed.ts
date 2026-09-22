@@ -1,11 +1,13 @@
 import { createRequestContext } from "../context.js";
+import { problem } from "../problem.js";
 import { toResponse } from "../response.js";
 import { getAllowedMethods } from "../routes/index.js";
 import type { RequestContext, Route, RouterOptions } from "../types/index.js";
 
 /**
  * Handle 405 Method Not Allowed responses.
- * Uses custom onMethodNotAllowed handler if provided, otherwise returns default JSON response.
+ * Uses custom onMethodNotAllowed handler if provided, otherwise returns an RFC 9457
+ * `application/problem+json` response.
  * Ensures Allow header is always present.
  *
  * @param precomputed - Pre-computed allowed methods from resolveRoute() to avoid re-scanning.
@@ -37,11 +39,8 @@ export async function handleMethodNotAllowed(
 		}
 		return response;
 	}
-	return new Response(JSON.stringify({ error: "Method not allowed" }), {
-		status: 405,
-		headers: {
-			"Content-Type": "application/json",
-			Allow: allowedMethods.join(", "),
-		},
+	return problem(405, `${request.method} is not allowed for ${url.pathname}`, {
+		headers: { Allow: allowedMethods.join(", ") },
+		instance: url.pathname,
 	});
 }
