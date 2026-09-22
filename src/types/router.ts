@@ -7,6 +7,7 @@ import type { PathParams } from "./pathParams.js";
 import type { RouteBuilder } from "./routeBuilder.js";
 import type { RouteHandler } from "./routeHandler.js";
 import type { RouteInfo } from "./routeInfo.js";
+import type { RouteSchemas, ValidatedRouteHandler } from "./validation.js";
 
 /**
  * The Bunary router instance for HTTP routing and middleware.
@@ -32,53 +33,106 @@ import type { RouteInfo } from "./routeInfo.js";
 export interface Router<TLocals extends object = Record<string, unknown>> {
 	/**
 	 * Register a GET route.
+	 *
+	 * An options object between the path and the handler declares validators
+	 * for `params`, `query` and `body`. Each is a Standard Schema object or a
+	 * plain function; a failure becomes a 422 problem document, and the
+	 * validated slots retype `ctx` (#78).
+	 *
 	 * @param path - URL path pattern (supports :param and :param? syntax)
+	 * @param schemas - Optional `{ params?, query?, body? }` validators
 	 * @param handler - Function to handle requests
+	 *
+	 * @example
+	 * ```ts
+	 * import { z } from "zod";
+	 *
+	 * router.get(
+	 *   "/users/:id",
+	 *   { params: z.object({ id: z.coerce.number() }) },
+	 *   (ctx) => ctx.json({ id: ctx.params.id }), // number
+	 * );
+	 * ```
 	 */
-	get: <P extends PathParams = PathParams>(
-		path: string,
-		handler: RouteHandler<TLocals, P>,
-	) => RouteBuilder<TLocals>;
+	get: {
+		<P extends PathParams = PathParams>(
+			path: string,
+			handler: RouteHandler<TLocals, P>,
+		): RouteBuilder<TLocals>;
+		<S extends RouteSchemas>(
+			path: string,
+			schemas: S,
+			handler: ValidatedRouteHandler<TLocals, S>,
+		): RouteBuilder<TLocals>;
+	};
 
 	/**
 	 * Register a POST route.
 	 * @param path - URL path pattern (supports :param and :param? syntax)
 	 * @param handler - Function to handle requests
 	 */
-	post: <P extends PathParams = PathParams>(
-		path: string,
-		handler: RouteHandler<TLocals, P>,
-	) => RouteBuilder<TLocals>;
+	post: {
+		<P extends PathParams = PathParams>(
+			path: string,
+			handler: RouteHandler<TLocals, P>,
+		): RouteBuilder<TLocals>;
+		<S extends RouteSchemas>(
+			path: string,
+			schemas: S,
+			handler: ValidatedRouteHandler<TLocals, S>,
+		): RouteBuilder<TLocals>;
+	};
 
 	/**
 	 * Register a PUT route.
 	 * @param path - URL path pattern (supports :param and :param? syntax)
 	 * @param handler - Function to handle requests
 	 */
-	put: <P extends PathParams = PathParams>(
-		path: string,
-		handler: RouteHandler<TLocals, P>,
-	) => RouteBuilder<TLocals>;
+	put: {
+		<P extends PathParams = PathParams>(
+			path: string,
+			handler: RouteHandler<TLocals, P>,
+		): RouteBuilder<TLocals>;
+		<S extends RouteSchemas>(
+			path: string,
+			schemas: S,
+			handler: ValidatedRouteHandler<TLocals, S>,
+		): RouteBuilder<TLocals>;
+	};
 
 	/**
 	 * Register a DELETE route.
 	 * @param path - URL path pattern (supports :param and :param? syntax)
 	 * @param handler - Function to handle requests
 	 */
-	delete: <P extends PathParams = PathParams>(
-		path: string,
-		handler: RouteHandler<TLocals, P>,
-	) => RouteBuilder<TLocals>;
+	delete: {
+		<P extends PathParams = PathParams>(
+			path: string,
+			handler: RouteHandler<TLocals, P>,
+		): RouteBuilder<TLocals>;
+		<S extends RouteSchemas>(
+			path: string,
+			schemas: S,
+			handler: ValidatedRouteHandler<TLocals, S>,
+		): RouteBuilder<TLocals>;
+	};
 
 	/**
 	 * Register a PATCH route.
 	 * @param path - URL path pattern (supports :param and :param? syntax)
 	 * @param handler - Function to handle requests
 	 */
-	patch: <P extends PathParams = PathParams>(
-		path: string,
-		handler: RouteHandler<TLocals, P>,
-	) => RouteBuilder<TLocals>;
+	patch: {
+		<P extends PathParams = PathParams>(
+			path: string,
+			handler: RouteHandler<TLocals, P>,
+		): RouteBuilder<TLocals>;
+		<S extends RouteSchemas>(
+			path: string,
+			schemas: S,
+			handler: ValidatedRouteHandler<TLocals, S>,
+		): RouteBuilder<TLocals>;
+	};
 
 	/**
 	 * Add middleware to the request pipeline.

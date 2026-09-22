@@ -1,6 +1,7 @@
 import type { HttpMethod } from "./httpMethod.js";
 import type { Middleware } from "./middleware.js";
 import type { RouteHandler } from "./routeHandler.js";
+import type { RouteSchemas } from "./validation.js";
 
 /**
  * Internal route definition stored by the router.
@@ -26,4 +27,6 @@ export interface Route {
 	optionalParams?: string[];
 	/** Whether this route uses a wildcard catch-all (/* or /**) */
 	isWildcard?: boolean;
+	/** Validators declared for this route's params, query and body (#78) */
+	schemas?: RouteSchemas;
 }
