@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Response helpers `json(data, init?)`, `text(body, init?)`, `html(body, init?)`, `redirect(url, status = 302)` and `status(code, init?)`, exported standalone from the barrel and available on the request context as `ctx.json()`, `ctx.text()`, `ctx.html()`, `ctx.redirect()` and `ctx.status()` (#76)
+  - Each returns a plain Web `Response` with the right content-type (`application/json; charset=utf-8`, `text/plain; charset=utf-8`, `text/html; charset=utf-8`); `init` is a standard `ResponseInit` whose headers are merged in, and an explicit `content-type` in `init` wins
+  - `status()` always returns an empty body and the `code` argument wins over a `status` in `init`, so bodyless codes (`204`, `205`, `304`) stay valid
+- `BodyReader` type, exported from the barrel, describing `ctx.body` (#76)
+- Plain `Response` / string / object / `null` handler returns keep working unchanged through `toResponse()` (#76)
+
 ### Changed
+
+- **BREAKING:** the request-body readers moved from the context root onto `ctx.body` so that `ctx.json(data)` can be the response helper, matching Hono and Elysia (#76)
+  - Migration: `await ctx.json()` → `await ctx.body.json()`; `await ctx.text()` → `await ctx.body.text()`; `await ctx.formData()` → `await ctx.body.formData()`. Generics and `BodyParseError` behaviour are unchanged, and `ctx.request` still exposes the underlying Web `Request` for streaming, `arrayBuffer()` and `blob()`. TypeScript catches every un-migrated call site: the new `ctx.json(data)` and `ctx.text(body)` require an argument, and `ctx.formData` no longer exists on the context
 
 - **BREAKING:** `createApp()` is now `createRouter()`, the `BunaryApp` type is now `Router`, and `AppOptions` is now `RouterOptions` — no aliases are kept, since `@bunary/core` owns `createApp()` (#74)
   - Migration: `import { createApp } from "@bunary/http"` → `import { createRouter } from "@bunary/http"`; every other member (`get`/`post`/`put`/`patch`/`delete`, `use`, `group`, `route`, `hasRoute`, `getRoutes`, `listen`, `fetch`) is unchanged
