@@ -7,7 +7,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 ## Features
 
 - 🚀 **Bun-native** - Uses `Bun.serve()` directly, no Node.js compatibility layer
-- 📦 **Zero dependencies** - No runtime dependencies
+- 📦 **Minimal dependencies** - Only the `cookie` package at runtime
 - 🔒 **Type-safe** - Full TypeScript support with strict types
 - ⚡ **Fast** - Minimal overhead, direct routing
 - 🧩 **Simple API** - Chainable route registration with automatic JSON serialization
@@ -18,6 +18,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 - 🌐 **Wildcard Routes** - Catch-all `/*` and `/**` patterns for SPA fallbacks and proxies
 - 🔀 **CORS** - Built-in CORS middleware with configurable origins, methods, headers, and credentials
 - 📨 **Response Helpers** - `json`, `text`, `html`, `redirect`, `status` on `ctx` and as standalone functions
+- 🍪 **Cookies** - `ctx.cookies` reads the request and queues `Set-Cookie` headers for the response
 
 ## Installation
 
@@ -327,6 +328,34 @@ router.post('/users', async (ctx) => {
 
 > The original `ctx.request` is still available for advanced use cases (e.g. streaming, `arrayBuffer()`, `blob()`).
 > Note: per the Fetch API, the request body can only be consumed once. If middleware calls `ctx.body.json()`, `ctx.body.text()`, or `ctx.body.formData()`, the downstream handler cannot read the body again; instead, share the parsed data via `ctx.locals` or work with a cloned request if you need to access the body in multiple places.
+
+#### Cookies
+
+`ctx.cookies` reads the incoming `Cookie` header lazily and queues `Set-Cookie` headers for the response. Queued cookies are appended onto whatever `Response` the router ultimately returns — a route handler's return value, a 404/405 fallback, or an error response — from one place in the pipeline, after global middleware has produced the final response.
+
+```typescript
+router.get('/login', (ctx) => {
+  ctx.cookies.set('session', 'abc123', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 7, // 1 week
+  });
+  return ctx.json({ ok: true });
+});
+
+router.get('/logout', (ctx) => {
+  ctx.cookies.delete('session'); // Max-Age=0 + an epoch Expires
+  return ctx.json({ ok: true });
+});
+
+router.get('/whoami', (ctx) =>
+  ctx.json({ session: ctx.cookies.get('session'), all: ctx.cookies.getAll() })
+);
+```
+
+`ctx.cookies.set()`/`delete()` accept a `CookieSerializeOptions` (`path`, `domain`, `maxAge`, `expires`, `httpOnly`, `secure`, `sameSite`, `partitioned`, `priority`) — a re-export of the [`cookie`](https://www.npmjs.com/package/cookie) package's serialize options. There is no signing or encryption; that belongs to a future security package.
 
 `TLocals` is set once via `createRouter<TLocals>()` and flows to all handlers and middleware.
 `TParams` is set per-route via `router.get<TParams>()` and only affects that handler's `ctx.params`.
@@ -888,6 +917,8 @@ import type {
   RouteInfo,
   CorsOptions,
   BodyReader,
+  CookieJar,
+  CookieSerializeOptions,
 } from '@bunary/http';
 ```
 

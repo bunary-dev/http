@@ -1,3 +1,4 @@
+import { createCookieJar } from "./cookies.js";
 import { BodyParseError } from "./errors.js";
 import {
 	html as htmlResponse,
@@ -38,10 +39,11 @@ function createBodyReader(request: Request): BodyReader {
 /**
  * Create a RequestContext for a given request and params.
  *
- * Centralises context construction so that the body readers (`ctx.body.*`) and
- * the response helpers (`ctx.json`, `ctx.text`, `ctx.html`, `ctx.redirect`,
- * `ctx.status`) are available everywhere a `RequestContext` is built —
- * including the 404/405/error handler contexts.
+ * Centralises context construction so that the body readers (`ctx.body.*`),
+ * the cookie jar (`ctx.cookies`), and the response helpers (`ctx.json`,
+ * `ctx.text`, `ctx.html`, `ctx.redirect`, `ctx.status`) are available
+ * everywhere a `RequestContext` is built — including the 404/405/error
+ * handler contexts.
  *
  * @internal
  */
@@ -56,6 +58,7 @@ export function createRequestContext(
 		query,
 		locals: {},
 		body: createBodyReader(request),
+		cookies: createCookieJar(request),
 		json: jsonResponse,
 		text: textResponse,
 		html: htmlResponse,

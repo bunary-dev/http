@@ -52,7 +52,9 @@
   "engines": {
     "bun": ">=1.4.0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "cookie": "^2.0.1"
+  },
   "peerDependencies": {
     "@bunary/core": "^1.0.0-rc.1"
   },

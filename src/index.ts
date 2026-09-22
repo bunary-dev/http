@@ -19,6 +19,9 @@
  * @packageDocumentation
  */
 
+export type { CookieJar, CookieSerializeOptions } from "./cookies.js";
+// Export cookie jar
+export { createCookieJar } from "./cookies.js";
 export type { CorsOptions } from "./cors.js";
 // Export CORS middleware
 export { cors } from "./cors.js";

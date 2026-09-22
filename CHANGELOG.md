@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ctx.cookies` cookie jar backed by the `cookie` package (the package's first runtime dependency): `get(name)` and `getAll()` read the incoming `Cookie` header lazily, `set(name, value, options?)` and `delete(name, options?)` queue `Set-Cookie` header values (`delete()` forces `Max-Age=0` and an epoch `Expires`) (#79)
+  - Queued cookies are appended onto whatever `Response` the router ultimately returns — matched routes, plain-object returns via `toResponse()`, 404/405, and error responses alike — from one point in `createRouter.ts`, after global middleware has produced the final response; an immutable `Response` (e.g. `Response.redirect()`) is cloned with the extra headers
+  - `CookieJar` and `createCookieJar` are exported from the barrel, along with `CookieSerializeOptions` (a re-export of `cookie`'s `SerializeOptions`)
+  - No signing or encryption — that belongs to a future security package
 - Response helpers `json(data, init?)`, `text(body, init?)`, `html(body, init?)`, `redirect(url, status = 302)` and `status(code, init?)`, exported standalone from the barrel and available on the request context as `ctx.json()`, `ctx.text()`, `ctx.html()`, `ctx.redirect()` and `ctx.status()` (#76)
   - Each returns a plain Web `Response` with the right content-type (`application/json; charset=utf-8`, `text/plain; charset=utf-8`, `text/html; charset=utf-8`); `init` is a standard `ResponseInit` whose headers are merged in, and an explicit `content-type` in `init` wins
   - `status()` always returns an empty body and the `code` argument wins over a `status` in `init`, so bodyless codes (`204`, `205`, `304`) stay valid

@@ -38,6 +38,39 @@ import type {
 } from "./types/index.js";
 
 /**
+ * Append queued `Set-Cookie` header values onto a `Response`.
+ *
+ * Appends in place when the `Response`'s headers are mutable. Some `Response`
+ * instances (e.g. `Response.redirect()`) carry an immutable header list per
+ * the Fetch spec, so a mutating `append()` throws; when it does, this clones
+ * the response with a fresh, mutable `Headers` instead.
+ *
+ * @internal
+ */
+function withQueuedCookies(response: Response, cookieHeaders: readonly string[]): Response {
+	if (cookieHeaders.length === 0) {
+		return response;
+	}
+
+	try {
+		for (const value of cookieHeaders) {
+			response.headers.append("set-cookie", value);
+		}
+		return response;
+	} catch {
+		const headers = new Headers(response.headers);
+		for (const value of cookieHeaders) {
+			headers.append("set-cookie", value);
+		}
+		return new Response(response.body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers,
+		});
+	}
+}
+
+/**
  * Create a new Bunary HTTP router instance.
  *
  * Provides a simple, chainable API for defining routes and middleware.
@@ -237,6 +270,12 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 		} catch (error) {
 			response = await handleError(ctx, error, internalOpts);
 		}
+
+		// `ctx.cookies.set()`/`delete()` only queue Set-Cookie values; applying
+		// them here, after global middleware has produced the final Response,
+		// covers every outcome — matched routes, 404/405, OPTIONS, and error
+		// responses alike (#79).
+		response = withQueuedCookies(response, ctx.cookies.headers());
 
 		// HEAD is answered from the GET route, so the body is stripped last —
 		// after global middleware has seen the full response.
