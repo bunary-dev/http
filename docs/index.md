@@ -18,6 +18,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 - 🌐 **Wildcard Routes** - Catch-all `/*` and `/**` patterns for SPA fallbacks and proxies
 - 🔀 **CORS** - Built-in CORS middleware with configurable origins, methods, headers, and credentials
 - 📨 **Response Helpers** - `json`, `text`, `html`, `redirect`, `status` on `ctx` and as standalone functions
+- 🔌 **Core integration** - Optional `httpProvider()` / `serve()` mount the router on a `@bunary/core` Application
 
 ## Installation
 
@@ -870,6 +871,93 @@ createRouter({
 });
 ```
 
+## Using with @bunary/core
+
+`@bunary/http` works standalone. To mount a router on a [`@bunary/core`](https://github.com/bunary-dev/core)
+Application, install core alongside it and import the integration from the
+`@bunary/http/provider` subpath:
+
+```typescript
+import { createApp } from '@bunary/core';
+import { createRouter } from '@bunary/http';
+import { httpProvider, RouterToken, serve } from '@bunary/http/provider';
+
+const router = createRouter();
+router.get('/', (ctx) => ctx.json({ app: ctx.app?.config.get('app.name') }));
+
+const app = await createApp({
+  config: {
+    app: { name: 'my-api' },
+    http: { port: 3000, hostname: '0.0.0.0' },
+  },
+  providers: [httpProvider(router)],
+}).boot();
+
+const server = serve(app);          // reads config.http.port / .hostname
+// serve(app, { port: 0 });         // overrides win over the config
+// app.get(RouterToken) === router
+server.stop();
+```
+
+`@bunary/core` is an **optional peer dependency**. The integration lives on the
+`@bunary/http/provider` subpath and *only* there, so the main barrel
+(`@bunary/http`) never resolves `@bunary/core` at runtime — a standalone install
+with no core present keeps working.
+
+### `httpProvider(router)`
+
+Returns a core `Provider`. Its `register()` hook:
+
+- binds the router under `RouterToken` (`app.get(RouterToken)`),
+- validates the `http` configuration namespace, throwing a core `BunaryError`
+  for a non-object `http`, a `http.port` that is not an integer in `0..65535`,
+  a non-string `http.hostname` or a non-object `http.cors`,
+- makes the Application available to every handler as `ctx.app`.
+
+It never listens — starting the server is `serve()`'s job, so a booted
+application is still safe to use from a test or a CLI command.
+
+### `serve(app, overrides?)`
+
+Reads the router from `RouterToken` and `port` / `hostname` from the `http`
+config namespace, then calls `router.listen()` and returns its `BunaryServer`
+handle unchanged. `overrides` is a `ListenOptions` and wins over the config;
+anything neither sets falls through to `listen()`'s own defaults
+(`localhost:3000`). It throws core's `MissingBindingError` if `httpProvider()`
+was never registered.
+
+### `BunaryConfig.http`
+
+Importing the subpath augments core's `BunaryConfig` with an optional `http`
+namespace, so `defineConfig()` type-checks it:
+
+```typescript
+import { defineConfig } from '@bunary/core';
+import type { HttpConfig } from '@bunary/http';
+
+export default defineConfig({
+  app: { name: 'my-api' },
+  http: { port: 3000, hostname: '0.0.0.0', cors: { origin: '*' } },
+});
+```
+
+Every key is optional — the augmentation is program-wide, so a core application
+that never serves HTTP still type-checks.
+
+### `ctx.app`
+
+`ctx.app` is the Application the router is mounted on, or `undefined` for a
+standalone router. `httpProvider()` is the recommended way to set it;
+`createRouter({ app })` is the manual equivalent for code that builds an
+Application without a provider.
+
+```typescript
+const app = createApp({ config: { app: { name: 'my-api' } } });
+const router = createRouter({ app });
+
+router.get('/name', (ctx) => ctx.json({ name: ctx.app?.config.get('app.name') }));
+```
+
 ## Types
 
 All types are exported for TypeScript users:
@@ -888,6 +976,7 @@ import type {
   RouteInfo,
   CorsOptions,
   BodyReader,
+  HttpConfig,
 } from '@bunary/http';
 ```
 

@@ -1,3 +1,4 @@
+import type { Application } from "@bunary/core";
 import type { BodyReader } from "./bodyReader.js";
 import type { PathParams } from "./pathParams.js";
 
@@ -60,6 +61,22 @@ export interface RequestContext<
 	 * ```
 	 */
 	locals: TLocals;
+
+	/**
+	 * The `@bunary/core` Application this router is mounted on, or `undefined`
+	 * for a standalone router.
+	 *
+	 * Set by `httpProvider()` (the recommended mount) or by
+	 * `createRouter({ app })`.
+	 *
+	 * @example
+	 * ```ts
+	 * router.get("/version", (ctx) => ctx.json({
+	 *   app: ctx.app?.config.get("app.name"),
+	 * }));
+	 * ```
+	 */
+	app?: Application;
 
 	/**
 	 * Lazy readers for the request body: `ctx.body.json()`,

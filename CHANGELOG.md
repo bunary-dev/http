@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `httpProvider(router)`, `serve(app, overrides?)`, `RouterToken` and the `HttpConfig` type, mounting a router on a `@bunary/core` Application (#80)
+  - Published on the new `@bunary/http/provider` subpath export. `@bunary/core` is an optional peer, so the integration is deliberately **not** re-exported from the main barrel: a runtime re-export would make every standalone `import "@bunary/http"` resolve the peer. Only the `HttpConfig` type is re-exported from the barrel (types are erased)
+  - `register()` binds the router under `RouterToken`, validates the `http` config namespace (`port` an integer in `0..65535`, `hostname` a string, `cors` an object) with a core `BunaryError`, and exposes the Application to handlers. It never listens
+  - `serve(app, overrides?)` reads `RouterToken` and `config.http`, calls `router.listen()` and returns its handle unchanged; `overrides` win over the config, and it throws core's `MissingBindingError` when the provider was never registered
+- `BunaryConfig.http` module augmentation adding an optional `{ port?, hostname?, cors? }` namespace — every key optional, since the augmentation is program-wide (#80)
+- `ctx.app`, the `@bunary/core` Application the router is mounted on, or `undefined` for a standalone router. Set by `httpProvider()`, or manually via the new `createRouter({ app })` option (#80)
 - Response helpers `json(data, init?)`, `text(body, init?)`, `html(body, init?)`, `redirect(url, status = 302)` and `status(code, init?)`, exported standalone from the barrel and available on the request context as `ctx.json()`, `ctx.text()`, `ctx.html()`, `ctx.redirect()` and `ctx.status()` (#76)
   - Each returns a plain Web `Response` with the right content-type (`application/json; charset=utf-8`, `text/plain; charset=utf-8`, `text/html; charset=utf-8`); `init` is a standard `ResponseInit` whose headers are merged in, and an explicit `content-type` in `init` wins
   - `status()` always returns an empty body and the `code` argument wins over a `status` in `init`, so bodyless codes (`204`, `205`, `304`) stay valid

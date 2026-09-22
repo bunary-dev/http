@@ -28,6 +28,12 @@ export { createRouter } from "./createRouter.js";
 export { BodyParseError } from "./errors.js";
 // Export standalone response helpers
 export { html, json, redirect, status, text } from "./helpers.js";
+// The @bunary/core integration (`httpProvider`, `RouterToken`, `serve`) is
+// published on the `@bunary/http/provider` subpath, NOT here. `@bunary/core` is
+// an optional peer: a runtime re-export from this barrel would make every
+// standalone `import "@bunary/http"` resolve it, which fails outright when the
+// peer is not installed. Only the config type crosses over — types are erased.
+export type { HttpConfig } from "./provider.js";
 // Export types
 export type {
 	BodyReader,

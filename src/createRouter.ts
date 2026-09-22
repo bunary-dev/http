@@ -1,3 +1,4 @@
+import { bindApp, getBoundApp } from "./appBinding.js";
 import { createRequestContext } from "./context.js";
 import {
 	executeRoute,
@@ -153,6 +154,9 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 	 */
 	function prepareDispatch(request: Request, url: URL, method: HttpMethod): Dispatch {
 		const path = url.pathname;
+		// Read per-request: httpProvider binds the Application during register(),
+		// which happens after createRouter() has returned.
+		const app = getBoundApp(router);
 
 		if (method === "OPTIONS") {
 			const allowedMethods = getAllowedMethods(routes, path);
@@ -174,7 +178,7 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 					? resolveRoute(routes, requestedMethod.trim().toUpperCase(), path).match
 					: null) ?? findRouteByPath(routes, path);
 
-			const ctx = createRequestContext(request, target?.params ?? {}, url.searchParams);
+			const ctx = createRequestContext(request, target?.params ?? {}, url.searchParams, app);
 			return {
 				ctx,
 				run: () =>
@@ -189,7 +193,7 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 		const { match, allowedMethods } = resolveRoute(routes, method, path);
 
 		if (!match) {
-			const ctx = createRequestContext(request, {}, url.searchParams);
+			const ctx = createRequestContext(request, {}, url.searchParams, app);
 			return {
 				ctx,
 				run: () =>
@@ -201,7 +205,7 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 			};
 		}
 
-		const ctx = createRequestContext(request, match.params, url.searchParams);
+		const ctx = createRequestContext(request, match.params, url.searchParams, app);
 		return {
 			ctx,
 			run: () => executeRoute(match, ctx, match.route.middleware ?? NO_MIDDLEWARE),
@@ -392,6 +396,12 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 
 		fetch: handleRequest,
 	} as unknown as Router;
+
+	// `createRouter({ app })` is the manual mount; `httpProvider()` is the
+	// recommended one and binds the same way during register().
+	if (internalOpts?.app) {
+		bindApp(router, internalOpts.app);
+	}
 
 	// The cast is safe: TLocals only narrows handler/middleware context types
 	// at compile time. At runtime, ctx.locals starts as {} and is populated

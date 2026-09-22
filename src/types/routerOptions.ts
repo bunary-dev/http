@@ -1,3 +1,4 @@
+import type { Application } from "@bunary/core";
 import type { HandlerResponse } from "./handlerResponse.js";
 import type { RequestContext } from "./requestContext.js";
 
@@ -9,6 +10,26 @@ import type { RequestContext } from "./requestContext.js";
 export interface RouterOptions<TLocals extends object = Record<string, unknown>> {
 	/** Base path prefix for all routes (default: "") */
 	basePath?: string;
+	/**
+	 * The `@bunary/core` Application to expose to handlers as `ctx.app`.
+	 *
+	 * The manual alternative to mounting the router with `httpProvider()`,
+	 * which binds the same Application during `register()`. Leave it unset for
+	 * a standalone router: `ctx.app` is then `undefined` and nothing imports
+	 * `@bunary/core` at runtime.
+	 *
+	 * @example
+	 * ```ts
+	 * import { createApp } from "@bunary/core";
+	 * import { createRouter } from "@bunary/http";
+	 *
+	 * const app = createApp({ config: { app: { name: "my-api" } } });
+	 * const router = createRouter({ app });
+	 *
+	 * router.get("/", (ctx) => ctx.json({ name: ctx.app?.config.get("app.name") }));
+	 * ```
+	 */
+	app?: Application;
 	/**
 	 * Custom handler for 404 Not Found responses.
 	 * Called when no route matches the request path.

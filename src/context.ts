@@ -1,3 +1,4 @@
+import type { Application } from "@bunary/core";
 import { BodyParseError } from "./errors.js";
 import {
 	html as htmlResponse,
@@ -43,18 +44,23 @@ function createBodyReader(request: Request): BodyReader {
  * `ctx.status`) are available everywhere a `RequestContext` is built —
  * including the 404/405/error handler contexts.
  *
+ * @param app - The core `Application` this router is mounted on, or
+ *   `undefined` for a standalone router.
+ *
  * @internal
  */
 export function createRequestContext(
 	request: Request,
 	params: PathParams,
 	query: URLSearchParams,
+	app?: Application,
 ): RequestContext {
 	return {
 		request,
 		params,
 		query,
 		locals: {},
+		app,
 		body: createBodyReader(request),
 		json: jsonResponse,
 		text: textResponse,
