@@ -210,6 +210,17 @@ router.get('/files/:path', (ctx) => {
 
 > **Note:** Route constraints (`.where()`) are checked against the **decoded** parameter value.
 
+> **Security:** matching happens on the raw path, but decoding runs afterwards, so a
+> single-segment parameter can still come back holding `/` or `..`:
+> `GET /files/a%2F..%2Fb` matches `/files/:path` and yields `ctx.params.path === "a/../b"`.
+> Never concatenate `ctx.params` straight into a filesystem path, a shell argument or
+> another URL — validate it, or pin it down with a constraint:
+>
+> ```typescript
+> router.get('/files/:name', (ctx) => Bun.file(`./uploads/${ctx.params.name}`))
+>   .where('name', /^[a-zA-Z0-9_-]+\.txt$/);
+> ```
+
 ### Query Parameters
 
 Query parameters are accessed via `URLSearchParams` API:
@@ -332,12 +343,13 @@ HEAD requests are automatically handled for GET routes. They return the same sta
 router.get('/users', () => ({ users: [] }));
 
 // HEAD /users returns 200 with empty body
-// Preserves all headers from GET handler
+// Preserves all headers from GET handler, and sets Content-Length
+// to the size the GET body would have had (RFC 9110)
 ```
 
 #### OPTIONS Requests
 
-OPTIONS requests return `204 No Content` with an `Allow` header listing all permitted methods for the path:
+OPTIONS requests return `204 No Content` with an `Allow` header listing all permitted methods for the path. `OPTIONS` is always included, and `HEAD` whenever a `GET` route exists, since the router serves both without them being registered:
 
 ```typescript
 router.get('/users', () => ({}));
@@ -466,6 +478,20 @@ const data = await response.json();
 
 Add middleware to handle cross-cutting concerns like logging, authentication, and error handling.
 
+Global middleware — registered with `router.use()` — wraps **every** response the router
+produces: matched routes, `404`, `405`, the `OPTIONS` auto-response and error responses
+alike. That is what lets `cors()` and request logging apply uniformly.
+
+The pipeline is `global middleware → error boundary → dispatcher`, which has two
+consequences worth knowing:
+
+- `next()` hands global middleware a `Response`, not the handler's raw return value.
+- A handler that throws reaches global middleware as a `500` response rather than a
+  thrown error. An error thrown by a global middleware itself still reaches `onError`.
+
+Group and route middleware run *inside* the error boundary, so they still see raw
+handler return values and can `try`/`catch` a throwing handler.
+
 ### Basic Middleware
 
 ```typescript
@@ -537,6 +563,11 @@ router.use(async (ctx, next) => {
 ### CORS Middleware
 
 Built-in CORS middleware handles preflight `OPTIONS` requests and adds the appropriate headers to actual responses.
+
+Registered globally with `router.use(cors())`, it covers error and not-found responses too.
+`Access-Control-Allow-Methods` advertises the methods the path actually serves (an explicit
+`methods` option still wins), `Vary` is appended rather than overwritten, and `Vary: Origin`
+is sent even when an origin is rejected so shared caches cannot mix the two variants.
 
 ```typescript
 import { createRouter, cors } from '@bunary/http';

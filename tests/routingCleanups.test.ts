@@ -65,7 +65,9 @@ describe("HEAD Content-Length (#68)", () => {
 
 		const head = await toHeadResponse(original);
 
-		expect(head.headers.get("Content-Length")).toBe(String(new TextEncoder().encode("héllo").length));
+		expect(head.headers.get("Content-Length")).toBe(
+			String(new TextEncoder().encode("héllo").length),
+		);
 	});
 
 	test("toHeadResponse keeps an existing Content-Length header", async () => {

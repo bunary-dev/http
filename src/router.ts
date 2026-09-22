@@ -117,9 +117,29 @@ function safeDecodeURIComponent(value: string): string {
  * Handles optional parameters by only including them if they have values.
  * Applies `decodeURIComponent` to each captured value (standard behaviour).
  *
+ * **Security — percent-encoded separators.** Matching happens on the raw path,
+ * so a single-segment parameter (`/files/:name`) matches one URL segment, but
+ * decoding runs afterwards: `/files/a%2F..%2Fb` matches and yields
+ * `ctx.params.name === "a/../b"`. A decoded value can therefore contain `/`,
+ * `..` or a NUL byte even though the pattern allows only one segment. Handlers
+ * that turn `ctx.params` into a filesystem path, a shell argument or another
+ * URL must validate or normalise the value themselves — never concatenate it
+ * into a path. Use `.where()` constraints (which run on the decoded value) to
+ * pin a parameter down, e.g. `.where("name", /^[a-zA-Z0-9_-]+$/)`.
+ *
  * @param path - The request path
  * @param route - The matched route
  * @returns Record of parameter names to decoded values (undefined for missing optional params)
+ *
+ * @example
+ * ```ts
+ * // Unsafe: the decoded value may traverse directories
+ * router.get("/files/:name", (ctx) => Bun.file(`./uploads/${ctx.params.name}`));
+ *
+ * // Safe: constrain the parameter to a known-good shape
+ * router.get("/files/:name", (ctx) => Bun.file(`./uploads/${ctx.params.name}`))
+ *   .where("name", /^[a-zA-Z0-9_-]+\.txt$/);
+ * ```
  */
 export function extractParams(path: string, route: Route): Record<string, string | undefined> {
 	const match = path.match(route.pattern);

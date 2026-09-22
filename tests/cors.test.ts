@@ -51,10 +51,11 @@ describe("CORS Middleware", () => {
 			expect(response.headers.get("Access-Control-Allow-Methods")).toBeTruthy();
 		});
 
-		test("preflight includes default allowed methods", async () => {
+		test("preflight advertises the methods the path serves", async () => {
 			const app = createRouter();
 			app.use(cors());
 			app.get("/api/data", () => ({ data: "value" }));
+			app.post("/api/data", () => ({ created: true }));
 
 			const response = await app.fetch(
 				new Request("http://localhost/api/data", {
@@ -70,9 +71,10 @@ describe("CORS Middleware", () => {
 			const methods = response.headers.get("Access-Control-Allow-Methods");
 			expect(methods).toContain("GET");
 			expect(methods).toContain("POST");
-			expect(methods).toContain("PUT");
-			expect(methods).toContain("DELETE");
-			expect(methods).toContain("PATCH");
+			// Methods the path does not serve are no longer advertised (#66)
+			expect(methods).not.toContain("PUT");
+			expect(methods).not.toContain("DELETE");
+			expect(methods).not.toContain("PATCH");
 		});
 
 		test("preflight reflects Access-Control-Request-Headers", async () => {

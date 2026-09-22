@@ -191,8 +191,7 @@ describe("global middleware wraps every response (#65)", () => {
 
 	test("global middleware errors reach a custom onError handler", async () => {
 		const app = createRouter({
-			onError: (_ctx, error) =>
-				new Response((error as Error).message, { status: 502 }),
+			onError: (_ctx, error) => new Response((error as Error).message, { status: 502 }),
 		});
 		app.use(() => {
 			throw new Error("middleware exploded");

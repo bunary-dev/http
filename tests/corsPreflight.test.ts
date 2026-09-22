@@ -94,9 +94,7 @@ describe("CORS Vary handling (#66)", () => {
 			}),
 		);
 
-		const originTokens = varyTokens(response).filter(
-			(token) => token.toLowerCase() === "origin",
-		);
+		const originTokens = varyTokens(response).filter((token) => token.toLowerCase() === "origin");
 		expect(originTokens).toHaveLength(1);
 	});
 
@@ -156,9 +154,7 @@ describe("CORS preflight Allow-Methods from the route table (#66)", () => {
 		);
 
 		expect(response.status).toBe(204);
-		const methods = (response.headers.get("Access-Control-Allow-Methods") ?? "")
-			.split(", ")
-			.sort();
+		const methods = (response.headers.get("Access-Control-Allow-Methods") ?? "").split(", ").sort();
 		expect(methods).toEqual(["GET", "HEAD", "OPTIONS", "POST"]);
 	});
 
@@ -220,6 +216,27 @@ describe("CORS preflight Allow-Methods from the route table (#66)", () => {
 
 		expect(response.status).toBe(404);
 		expect(response.headers.get("Access-Control-Allow-Origin")).toBe("https://myapp.com");
+	});
+
+	test("preflight for an unknown path keeps credentials headers on the 404", async () => {
+		const app = createRouter();
+		app.use(cors({ origin: "https://myapp.com", credentials: true }));
+		app.get("/api/data", () => ({}));
+
+		const response = await app.fetch(
+			new Request("http://localhost/api/nope", {
+				method: "OPTIONS",
+				headers: {
+					Origin: "https://myapp.com",
+					"Access-Control-Request-Method": "GET",
+				},
+			}),
+		);
+
+		expect(response.status).toBe(404);
+		expect(response.headers.get("Access-Control-Allow-Origin")).toBe("https://myapp.com");
+		expect(response.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+		expect(varyTokens(response)).toContain("Origin");
 	});
 
 	test("cors() used outside the router still advertises the default methods", async () => {
