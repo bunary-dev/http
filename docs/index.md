@@ -7,7 +7,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 ## Features
 
 - 🚀 **Bun-native** - Uses `Bun.serve()` directly, no Node.js compatibility layer
-- 📦 **Zero dependencies** - No runtime dependencies
+- 📦 **Minimal dependencies** - Only the `cookie` package at runtime
 - 🔒 **Type-safe** - Full TypeScript support with strict types
 - ⚡ **Fast** - Minimal overhead, direct routing
 - 🧩 **Simple API** - Chainable route registration with automatic JSON serialization
@@ -18,6 +18,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 - 🌐 **Wildcard Routes** - Catch-all `/*` and `/**` patterns for SPA fallbacks and proxies
 - 🔀 **CORS** - Built-in CORS middleware with configurable origins, methods, headers, and credentials
 - 📨 **Response Helpers** - `json`, `text`, `html`, `redirect`, `status` on `ctx` and as standalone functions
+- 🍪 **Cookies** - `ctx.cookies` reads the request and queues `Set-Cookie` headers for the response
 - 🔌 **Core integration** - Optional `httpProvider()` / `serve()` mount the router on a `@bunary/core` Application
 
 ## Installation
@@ -329,6 +330,34 @@ router.post('/users', async (ctx) => {
 > The original `ctx.request` is still available for advanced use cases (e.g. streaming, `arrayBuffer()`, `blob()`).
 > Note: per the Fetch API, the request body can only be consumed once. If middleware calls `ctx.body.json()`, `ctx.body.text()`, or `ctx.body.formData()`, the downstream handler cannot read the body again; instead, share the parsed data via `ctx.locals` or work with a cloned request if you need to access the body in multiple places.
 
+#### Cookies
+
+`ctx.cookies` reads the incoming `Cookie` header lazily and queues `Set-Cookie` headers for the response. Queued cookies are appended onto whatever `Response` the router ultimately returns — a route handler's return value, a 404/405 fallback, or an error response — from one place in the pipeline, after global middleware has produced the final response.
+
+```typescript
+router.get('/login', (ctx) => {
+  ctx.cookies.set('session', 'abc123', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 7, // 1 week
+  });
+  return ctx.json({ ok: true });
+});
+
+router.get('/logout', (ctx) => {
+  ctx.cookies.delete('session'); // Max-Age=0 + an epoch Expires
+  return ctx.json({ ok: true });
+});
+
+router.get('/whoami', (ctx) =>
+  ctx.json({ session: ctx.cookies.get('session'), all: ctx.cookies.getAll() })
+);
+```
+
+`ctx.cookies.set()`/`delete()` accept a `CookieSerializeOptions` (`path`, `domain`, `maxAge`, `expires`, `httpOnly`, `secure`, `sameSite`, `partitioned`, `priority`) — a re-export of the [`cookie`](https://www.npmjs.com/package/cookie) package's serialize options. There is no signing or encryption; that belongs to a future security package.
+
 `TLocals` is set once via `createRouter<TLocals>()` and flows to all handlers and middleware.
 `TParams` is set per-route via `router.get<TParams>()` and only affects that handler's `ctx.params`.
 
@@ -612,6 +641,111 @@ router.group({ prefix: '/api', middleware: [cors()] }, (api) => {
   api.get('/users', () => ({ users: [] }));
 });
 ```
+
+## Validation
+
+Pass an options object between the path and the handler to validate a route's
+`params`, `query` and `body`. Each slot takes a `SchemaLike`: a
+[Standard Schema](https://standardschema.dev) object (zod, valibot, arktype, …)
+or a plain function that returns the parsed value and throws on bad input.
+
+```typescript
+import { z } from 'zod';
+import { createRouter } from '@bunary/http';
+
+const router = createRouter();
+
+router.post(
+  '/users/:id',
+  {
+    params: z.object({ id: z.coerce.number() }),
+    query: z.object({ notify: z.enum(['yes', 'no']).default('no') }),
+    body: z.object({ name: z.string(), email: z.email() }),
+  },
+  (ctx) => {
+    ctx.params.id;    // number
+    ctx.query.notify; // "yes" | "no"
+    ctx.body.name;    // string
+    return ctx.json({ id: ctx.params.id }, { status: 201 });
+  },
+);
+```
+
+Validation needs `@bunary/core` for its `validateWith`. Core is an **optional
+peer**: it is imported dynamically and only when a route actually declares
+schemas, so a router that validates nothing never loads it.
+
+```bash
+bun add @bunary/core
+```
+
+### Typed context
+
+A validated slot **replaces** its context value with the schema's output; an
+unvalidated slot keeps its default. So with a `body` schema `ctx.body` *is* the
+validated value — not a `BodyReader` wrapping it — and without one `ctx.body`
+stays the reader with `json()`, `text()` and `formData()`.
+
+| Slot | Without a schema | With a schema |
+|---|---|---|
+| `ctx.params` | `PathParams` (`Record<string, string \| undefined>`) | the schema's output |
+| `ctx.query` | `URLSearchParams` | the schema's output |
+| `ctx.body` | `BodyReader` | the schema's output |
+
+The two-argument form and the per-route `TParams` generic are unchanged:
+
+```typescript
+router.get('/legacy/:id', (ctx) => ({ id: ctx.params.id }));      // string | undefined
+router.get<{ id: string }>('/typed/:id', (ctx) => ctx.params.id); // string
+```
+
+### What each schema receives
+
+- **`params`** — the matched path parameters, as strings.
+- **`query`** — `Object.fromEntries(url.searchParams)`, so a repeated key
+  collapses to its **last** value. Read `ctx.request.url` yourself if you need
+  every value of a repeated key.
+- **`body`** — parsed by `content-type`: `application/json` through
+  `ctx.body.json()`, and `application/x-www-form-urlencoded` or
+  `multipart/form-data` through `ctx.body.formData()` flattened to a plain
+  object. Any other content type — including a request with no body — validates
+  `undefined`, so `z.string().optional()` passes and `z.object({...})` does not.
+
+### Plain functions
+
+```typescript
+router.get(
+  '/feed',
+  { query: (raw) => ({ limit: Number(raw.limit ?? '10') }) },
+  (ctx) => ({ limit: ctx.query.limit }), // number
+);
+```
+
+A function that throws is wrapped in a `ValidationError` just like a rejected
+Standard Schema.
+
+### Failures
+
+Validation runs inside the route pipeline **after** route and group middleware
+and before the handler, so middleware still sees the raw context. A rejected
+schema throws `@bunary/core`'s `ValidationError`, which the default error mapper
+turns into a `422` RFC 9457 problem document listing every issue:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Unprocessable Content",
+  "status": 422,
+  "detail": "Body validation failed: email: Invalid email address",
+  "instance": "/users/1",
+  "errors": [{ "path": "email", "message": "Invalid email address" }]
+}
+```
+
+Slots are validated in `params` → `query` → `body` order and the first failure
+wins. A body that cannot be parsed at all (malformed JSON, bad form data) is a
+`BodyParseError` → `400`, not a `422`. A custom `onError` still overrides the
+whole mapping.
 
 ## Route Groups
 
@@ -900,9 +1034,10 @@ server.stop();
 ```
 
 `@bunary/core` is an **optional peer dependency**. The integration lives on the
-`@bunary/http/provider` subpath and *only* there, so the main barrel
-(`@bunary/http`) never resolves `@bunary/core` at runtime — a standalone install
-with no core present keeps working.
+`@bunary/http/provider` subpath and *only* there, so importing the main barrel
+(`@bunary/http`) never resolves `@bunary/core` — a standalone install with no
+core present keeps working. (Route validation reaches for the same optional
+peer, but lazily, only when a route declares schemas.)
 
 ### `httpProvider(router)`
 
@@ -976,6 +1111,16 @@ import type {
   RouteInfo,
   CorsOptions,
   BodyReader,
+  CookieJar,
+  CookieSerializeOptions,
+
+  PathParams,
+  QueryParams,
+  RouteSchema,
+  RouteSchemas,
+  InferSchemaOutput,
+  ValidatedContext,
+  ValidatedRouteHandler,
   HttpConfig,
 } from '@bunary/http';
 ```

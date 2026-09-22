@@ -1,4 +1,5 @@
 import type { Application } from "@bunary/core";
+import type { CookieJar } from "../cookies.js";
 import type { BodyReader } from "./bodyReader.js";
 import type { PathParams } from "./pathParams.js";
 
@@ -11,7 +12,11 @@ import type { PathParams } from "./pathParams.js";
  *   `createRouter<TLocals>()` to get type-safe middleware→handler data passing.
  * @typeParam TParams — Shape of the route parameters. Defaults to `PathParams`
  *   (`Record<string, string | undefined>`). Narrow it per-route via
- *   `router.get<TParams>()` to get typed parameter access.
+ *   `router.get<TParams>()`, or let a `params` schema type it (#78).
+ * @typeParam TQuery — Shape of `ctx.query`. Defaults to `URLSearchParams`; a
+ *   route's `query` schema replaces it with the schema's output type.
+ * @typeParam TBody — Shape of `ctx.body`. Defaults to {@link BodyReader}; a
+ *   route's `body` schema replaces it with the validated value.
  *
  * @example
  * ```ts
@@ -29,7 +34,9 @@ import type { PathParams } from "./pathParams.js";
  */
 export interface RequestContext<
 	TLocals extends object = Record<string, unknown>,
-	TParams extends PathParams = PathParams,
+	TParams = PathParams,
+	TQuery = URLSearchParams,
+	TBody = BodyReader,
 > {
 	/**
 	 * The underlying Web `Request`.
@@ -45,8 +52,13 @@ export interface RequestContext<
 	request: Request;
 	/** Path parameters extracted from the route pattern */
 	params: TParams;
-	/** Query parameters from the URL search string */
-	query: URLSearchParams;
+	/**
+	 * Query parameters from the URL search string.
+	 *
+	 * A `URLSearchParams` unless the route declares a `query` schema, in which
+	 * case it is that schema's validated output (#78).
+	 */
+	query: TQuery;
 	/**
 	 * Per-request storage for middleware and handlers.
 	 *
@@ -89,8 +101,29 @@ export interface RequestContext<
 	 *   return ctx.json({ id: 1, name: user.name }, { status: 201 });
 	 * });
 	 * ```
+	 *
+	 * A route with a `body` schema replaces this reader with the validated body
+	 * value instead of wrapping it (#78).
 	 */
-	body: BodyReader;
+	body: TBody;
+
+	/**
+	 * Cookie jar for the request: read incoming cookies and queue
+	 * `Set-Cookie` headers for the response.
+	 *
+	 * Queued `set()`/`delete()` calls are appended onto whatever `Response`
+	 * the router ultimately returns — helper-built responses, plain-object
+	 * returns, 404/405, and error responses alike.
+	 *
+	 * @example
+	 * ```ts
+	 * router.get("/login", (ctx) => {
+	 *   ctx.cookies.set("session", "abc123", { httpOnly: true, path: "/" });
+	 *   return ctx.json({ ok: true });
+	 * });
+	 * ```
+	 */
+	cookies: CookieJar;
 
 	/**
 	 * Build a JSON `Response`.

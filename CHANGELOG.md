@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ctx.cookies` cookie jar backed by the `cookie` package (the package's first runtime dependency): `get(name)` and `getAll()` read the incoming `Cookie` header lazily, `set(name, value, options?)` and `delete(name, options?)` queue `Set-Cookie` header values (`delete()` forces `Max-Age=0` and an epoch `Expires`) (#79)
+  - Queued cookies are appended onto whatever `Response` the router ultimately returns — matched routes, plain-object returns via `toResponse()`, 404/405, and error responses alike — from one point in `createRouter.ts`, after global middleware has produced the final response; an immutable `Response` (e.g. `Response.redirect()`) is cloned with the extra headers
+  - `CookieJar` and `createCookieJar` are exported from the barrel, along with `CookieSerializeOptions` (a re-export of `cookie`'s `SerializeOptions`)
+  - No signing or encryption — that belongs to a future security package
 - `httpProvider(router)`, `serve(app, overrides?)`, `RouterToken` and the `HttpConfig` type, mounting a router on a `@bunary/core` Application (#80)
   - Published on the new `@bunary/http/provider` subpath export. `@bunary/core` is an optional peer, so the integration is deliberately **not** re-exported from the main barrel: a runtime re-export would make every standalone `import "@bunary/http"` resolve the peer. Only the `HttpConfig` type is re-exported from the barrel (types are erased)
   - `register()` binds the router under `RouterToken`, validates the `http` config namespace (`port` an integer in `0..65535`, `hostname` a string, `cors` an object) with a core `BunaryError`, and exposes the Application to handlers. It never listens
@@ -20,6 +24,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `status()` always returns an empty body and the `code` argument wins over a `status` in `init`, so bodyless codes (`204`, `205`, `304`) stay valid
 - `BodyReader` type, exported from the barrel, describing `ctx.body` (#76)
 - Plain `Response` / string / object / `null` handler returns keep working unchanged through `toResponse()` (#76)
+- `HttpError` and the status subclasses `BadRequestError` (400), `UnauthorizedError` (401), `ForbiddenError` (403), `NotFoundError` (404), `MethodNotAllowedError` (405), `ConflictError` (409), `UnprocessableError` (422), `TooManyRequestsError` (429) and `InternalServerError` (500), all exported from the barrel (#77)
+  - Each carries `status`, `message`, and optional `headers`, `details` and `cause`; the message defaults to the status' standard reason phrase
+- `abort(status, message?, options?)`, which throws the matching subclass for a known status and a generic `HttpError` for any other, and returns `never` so the code after it narrows as unreachable (#77)
+- `isHttpError(error)` type guard (#77)
+- `problemResponse(error, { debug?, instance? })`, the router's default error mapper, exported for reuse inside a custom `onError` (#77)
+  - `HttpError` → its own status and headers, with `details` as `errors`; a `@bunary/core` `ValidationError` → 422 with its `issues` as `errors` (matched structurally, so core stays an optional peer); `BodyParseError` → 400; anything else → 500, whose `detail` appears only when `debug` is on
+- `problem(status, detail?, options?)` builder and the `ProblemDetails`, `ProblemOptions` and `ProblemResponseOptions` types (#77)
+- Route-level validation: every route method takes an optional `{ params?, query?, body? }` options object between the path and the handler, on both the router and group routers (#78)
+  - Each slot accepts a `SchemaLike` — a [Standard Schema](https://standardschema.dev) object (zod, valibot, arktype, ...) or a plain function that returns the parsed value and throws on bad input
+  - A validated slot **replaces** its context value with the schema's output: with a `body` schema `ctx.body` *is* the validated body rather than a `BodyReader` wrapping it; unvalidated slots keep `PathParams`, `URLSearchParams` and the `BodyReader` as before
+  - `ctx.params`, `ctx.query` and `ctx.body` are typed from the schemas' output types, inferred from `StandardSchemaV1.InferOutput` or a plain function's return type
+  - `params` receives the matched path parameters; `query` receives `Object.fromEntries(url.searchParams)`, so a repeated key collapses to its last value; `body` is parsed by `content-type` — `application/json` via `ctx.body.json()`, `application/x-www-form-urlencoded` and `multipart/form-data` via `ctx.body.formData()` flattened to a plain object, and anything else (including a bodyless request) validates `undefined`
+  - Validation runs inside the route pipeline after route and group middleware, so middleware still sees the raw context. A rejected schema throws `@bunary/core`'s `ValidationError`, which the default mapper turns into a 422 problem document with every issue in `errors`; a body that cannot be parsed at all stays a `BodyParseError` → 400
+  - `@bunary/core` remains an optional peer: `validateWith` is reached through a dynamic `import("@bunary/core")` that only runs for a route declaring schemas, and nothing in the bundled entry point imports core statically
+  - New exported types `RouteSchema`, `RouteSchemas`, `InferSchemaOutput`, `ParamsOf`, `QueryOf`, `BodyOf`, `ValidatedContext`, `ValidatedRouteHandler`, `StandardSchemaLike` and `QueryParams`
+  - The existing two-argument `(path, handler)` form and the per-route `TParams` generic are unchanged
 - `listen()` passes `development` and `error` through to `Bun.serve`, so Bun's development error page and a last-resort error handler are reachable without dropping to `Bun.serve` by hand (#68)
 
 ### Changed
@@ -32,6 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** the root route `/` no longer matches `//`, which previously slipped past prefix-based checks in a fronting proxy. Non-root routes keep their optional trailing slash (#68)
 - A CORS preflight for a path with no routes now falls through to the 404 handler (carrying CORS headers) rather than answering 204, so the caller sees the real status (#66)
 - `normalizeHeadMethod()` removed from `src/handlers/head.ts` — dead since `resolveRoute()` took over the HEAD→GET fallback, and it cost two extra route-table scans (#68)
+
+- **BREAKING:** every built-in error response is now an RFC 9457 problem document — `content-type: application/problem+json; charset=utf-8` with a body of `{ type, title, status, detail?, instance?, errors? }` — replacing the old `{ "error": "..." }` JSON for the default 404, 405 and 500 responses (#77)
+  - Migration: read `body.detail` (or `body.title`) instead of `body.error`, and match `application/problem+json` rather than `application/json` when asserting on error responses. An uncaught `BodyParseError` is now a 400 instead of a 500. A custom `onNotFound`, `onMethodNotAllowed` or `onError` still overrides the default entirely, and the 405 `Allow` header is unchanged
+  - Detail hiding is unchanged in spirit: outside `NODE_ENV=production` an unexpected error's message appears as `detail`; in production only `title` and `status` are sent
 
 - **BREAKING:** the request-body readers moved from the context root onto `ctx.body` so that `ctx.json(data)` can be the response helper, matching Hono and Elysia (#76)
   - Migration: `await ctx.json()` → `await ctx.body.json()`; `await ctx.text()` → `await ctx.body.text()`; `await ctx.formData()` → `await ctx.body.formData()`. Generics and `BodyParseError` behaviour are unchanged, and `ctx.request` still exposes the underlying Web `Request` for streaming, `arrayBuffer()` and `blob()`. TypeScript catches every un-migrated call site: the new `ctx.json(data)` and `ctx.text(body)` require an argument, and `ctx.formData` no longer exists on the context

@@ -1,6 +1,7 @@
 import { toResponse } from "../response.js";
 import type { RouteMatch } from "../routes/index.js";
 import type { HandlerResponse, Middleware, RequestContext } from "../types/index.js";
+import { applyRouteValidation } from "../validation.js";
 
 /**
  * Run a middleware chain, ending in `terminal`.
@@ -32,10 +33,16 @@ export function runMiddlewareChain(
 }
 
 /**
- * Execute a matched route: its group middleware, then its handler.
+ * Execute a matched route: its group middleware, then validation, then its
+ * handler.
  *
  * Global middleware is *not* included — the router runs that around the whole
  * dispatcher so it also wraps 404/405/OPTIONS and error responses (#65).
+ *
+ * Route validation (#78) sits between the middleware chain and the handler, so
+ * middleware still sees the raw `ctx.params`, `ctx.query` and `ctx.body`, while
+ * the handler sees whatever the schemas produced. A rejected schema throws
+ * core's `ValidationError` from here, and the error boundary maps it to 422.
  *
  * @param match - The resolved route and its params
  * @param ctx - The request context
@@ -47,6 +54,10 @@ export async function executeRoute(
 	ctx: RequestContext,
 	middleware: readonly Middleware[],
 ): Promise<Response> {
-	const result = await runMiddlewareChain(middleware, ctx, () => match.route.handler(ctx));
+	const { handler, schemas } = match.route;
+	const result = await runMiddlewareChain(middleware, ctx, async () => {
+		if (schemas) await applyRouteValidation(ctx, schemas);
+		return await handler(ctx);
+	});
 	return toResponse(result);
 }

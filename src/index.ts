@@ -19,6 +19,9 @@
  * @packageDocumentation
  */
 
+export type { CookieJar, CookieSerializeOptions } from "./cookies.js";
+// Export cookie jar
+export { createCookieJar } from "./cookies.js";
 export type { CorsOptions } from "./cors.js";
 // Export CORS middleware
 export { cors } from "./cors.js";
@@ -28,6 +31,25 @@ export { createRouter } from "./createRouter.js";
 export { BodyParseError } from "./errors.js";
 // Export standalone response helpers
 export { html, json, redirect, status, text } from "./helpers.js";
+export type { HttpErrorOptions } from "./httpError.js";
+// Export HTTP error hierarchy
+export {
+	abort,
+	BadRequestError,
+	ConflictError,
+	ForbiddenError,
+	HttpError,
+	InternalServerError,
+	isHttpError,
+	MethodNotAllowedError,
+	NotFoundError,
+	TooManyRequestsError,
+	UnauthorizedError,
+	UnprocessableError,
+} from "./httpError.js";
+export type { ProblemDetails, ProblemOptions, ProblemResponseOptions } from "./problem.js";
+// Export RFC 9457 problem details
+export { problem, problemResponse } from "./problem.js";
 // The @bunary/core integration (`httpProvider`, `RouterToken`, `serve`) is
 // published on the `@bunary/http/provider` subpath, NOT here. `@bunary/core` is
 // an optional peer: a runtime re-export from this barrel would make every
@@ -36,6 +58,7 @@ export { html, json, redirect, status, text } from "./helpers.js";
 export type { HttpConfig } from "./provider.js";
 // Export types
 export type {
+	BodyOf,
 	BodyReader,
 	BunaryServer,
 	GroupCallback,
@@ -43,13 +66,22 @@ export type {
 	GroupRouter,
 	HandlerResponse,
 	HttpMethod,
+	InferSchemaOutput,
 	ListenOptions,
 	Middleware,
+	ParamsOf,
 	PathParams,
+	QueryOf,
+	QueryParams,
 	RequestContext,
 	RouteBuilder,
 	RouteHandler,
 	RouteInfo,
 	Router,
 	RouterOptions,
+	RouteSchema,
+	RouteSchemas,
+	StandardSchemaLike,
+	ValidatedContext,
+	ValidatedRouteHandler,
 } from "./types/index.js";

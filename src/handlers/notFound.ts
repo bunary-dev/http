@@ -1,9 +1,11 @@
+import { problem } from "../problem.js";
 import { toResponse } from "../response.js";
 import type { RequestContext, RouterOptions } from "../types/index.js";
 
 /**
  * Handle 404 Not Found responses.
- * Uses custom onNotFound handler if provided, otherwise returns default JSON response.
+ * Uses custom onNotFound handler if provided, otherwise returns an RFC 9457
+ * `application/problem+json` response.
  *
  * Receives the request's own context, so anything global middleware put on
  * `ctx.locals` is visible to a custom `onNotFound` handler.
@@ -19,8 +21,8 @@ export async function handleNotFound(
 		const result = await options.onNotFound(ctx);
 		return toResponse(result);
 	}
-	return new Response(JSON.stringify({ error: "Not found" }), {
-		status: 404,
-		headers: { "Content-Type": "application/json" },
+	const pathname = new URL(ctx.request.url).pathname;
+	return problem(404, `No route matches ${ctx.request.method} ${pathname}`, {
+		instance: pathname,
 	});
 }
