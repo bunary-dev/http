@@ -224,6 +224,45 @@ describe("Configurable Error Handlers", () => {
 	});
 
 	describe("onError", () => {
+		test("falls back to a generic 500 problem when onError throws", async () => {
+			const app = createRouter({
+				onError: () => {
+					throw new Error("handler exploded");
+				},
+			});
+			app.get("/error", (ctx) => {
+				ctx.cookies.set("sid", "1");
+				throw new Error("Test error");
+			});
+
+			const response = await app.fetch(new Request("http://localhost/error"));
+
+			expect(response.status).toBe(500);
+			expect(response.headers.get("Content-Type")).toBe("application/problem+json; charset=utf-8");
+			expect(await response.json()).toEqual({
+				type: "about:blank",
+				title: "Internal Server Error",
+				status: 500,
+			});
+			expect(response.headers.get("set-cookie")).toContain("sid=1");
+		});
+
+		test("covers a throw during dispatch setup", async () => {
+			const app = createRouter();
+			app.get("/users/:id", () => ({ ok: true }));
+			const bad = new Request("http://localhost/users/x", { method: "OPTIONS" });
+			Object.defineProperty(bad, "headers", {
+				get() {
+					throw new Error("setup exploded");
+				},
+			});
+
+			const response = await app.fetch(bad);
+
+			expect(response.status).toBe(500);
+			expect(response.headers.get("Content-Type")).toBe("application/problem+json; charset=utf-8");
+		});
+
 		test("default behavior when onError not provided", async () => {
 			const app = createRouter();
 			app.get("/error", () => {
