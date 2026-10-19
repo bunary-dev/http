@@ -228,7 +228,7 @@ describe("listen() passthrough options (#68)", () => {
 		}
 	});
 
-	test("error is forwarded to Bun.serve and catches a throwing onError", async () => {
+	test("a throwing onError is absorbed by the router before Bun.serve error (#105)", async () => {
 		const app = createRouter({
 			onError: () => {
 				throw new Error("error handler exploded");
@@ -245,8 +245,8 @@ describe("listen() passthrough options (#68)", () => {
 
 		try {
 			const response = await fetch(`http://localhost:${server.port}/boom`);
-			expect(response.status).toBe(503);
-			expect(await response.text()).toBe("caught by Bun.serve");
+			expect(response.status).toBe(500);
+			expect(response.headers.get("content-type")).toContain("application/problem+json");
 		} finally {
 			server.stop();
 		}

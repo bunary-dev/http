@@ -12,6 +12,7 @@ import {
 	toHeadResponse,
 } from "./handlers/index.js";
 import { joinPaths, normalizePrefix } from "./pathUtils.js";
+import { problem } from "./problem.js";
 import { toResponse } from "./response.js";
 import { compilePath } from "./router.js";
 import {
@@ -262,28 +263,54 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 	async function handleRequest(request: Request): Promise<Response> {
 		const url = new URL(request.url);
 		const method = request.method as HttpMethod;
-		const { ctx, run } = prepareDispatch(request, url, method);
+		let ctx: RequestContext | undefined;
+		let run: Dispatch["run"] | undefined;
+		let setupError: unknown;
+		try {
+			({ ctx, run } = prepareDispatch(request, url, method));
+		} catch (error) {
+			setupError = error;
+		}
+
+		// Never let the error handler's own failure escape the router: fall
+		// back to a bare 500 problem document (#105).
+		const safeHandleError = async (c: RequestContext | undefined, error: unknown) => {
+			try {
+				if (c) {
+					return await handleError(c, error, internalOpts);
+				}
+			} catch {
+				// fall through to the generic response
+			}
+			return problem(500);
+		};
 
 		const guarded = async (): Promise<HandlerResponse> => {
 			try {
-				return await run();
+				return await (run as Dispatch["run"])();
 			} catch (error) {
-				return await handleError(ctx, error, internalOpts);
+				return await handleError(ctx as RequestContext, error, internalOpts);
 			}
 		};
 
 		let response: Response;
-		try {
-			response = toResponse(await runMiddlewareChain(middlewares, ctx, guarded));
-		} catch (error) {
-			response = await handleError(ctx, error, internalOpts);
+		if (!ctx || !run) {
+			response = await safeHandleError(ctx, setupError);
+		} else {
+			try {
+				response = toResponse(await runMiddlewareChain(middlewares, ctx, guarded));
+			} catch (error) {
+				response = await safeHandleError(ctx, error);
+			}
 		}
 
 		// `ctx.cookies.set()`/`delete()` only queue Set-Cookie values; applying
 		// them here, after global middleware has produced the final Response,
 		// covers every outcome — matched routes, 404/405, OPTIONS, and error
 		// responses alike (#79).
-		response = withQueuedCookies(response, ctx.cookies.headers());
+		if (ctx) {
+			response = withQueuedCookies(response, ctx.cookies.headers());
+		}
 
 		// HEAD is answered from the GET route, so the body is stripped last —
 		// after global middleware has seen the full response.
