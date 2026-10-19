@@ -621,6 +621,22 @@ router.use(cors({
 }));
 ```
 
+#### Credentials and wildcard origins
+
+`credentials: true` combined with a wildcard origin (`"*"`, `["*"]` or the default) would reflect
+*any* request `Origin` with `Access-Control-Allow-Credentials: true`, letting any site make
+credentialed requests and read the responses. `cors()` therefore **throws** at creation time for
+that combination. List explicit origins instead, or pass `allowWildcardCredentials: true` to opt in
+knowingly:
+
+```typescript
+cors({ credentials: true });                                   // throws
+cors({ origin: 'https://myapp.com', credentials: true });      // ok
+cors({ credentials: true, allowWildcardCredentials: true });   // ok, reflects any Origin
+```
+
+`["*"]` is treated exactly like `"*"`.
+
 #### Multiple Origins
 
 ```typescript

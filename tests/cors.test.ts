@@ -441,9 +441,55 @@ describe("CORS Middleware", () => {
 	});
 
 	describe("Credentials with wildcard origin", () => {
+		test("throws when credentials: true with the default origin", () => {
+			expect(() => cors({ credentials: true })).toThrow(/allowWildcardCredentials/);
+		});
+
+		test('throws when credentials: true with origin "*"', () => {
+			expect(() => cors({ origin: "*", credentials: true })).toThrow(/allowWildcardCredentials/);
+		});
+
+		test('treats origin ["*"] like "*" for the credentials guard', () => {
+			expect(() => cors({ origin: ["*"], credentials: true })).toThrow(/allowWildcardCredentials/);
+		});
+
+		test('origin ["*"] behaves as a wildcard without credentials', async () => {
+			const app = createRouter();
+			app.use(cors({ origin: ["*"] }));
+			app.get("/api/data", () => ({ ok: true }));
+
+			const response = await app.fetch(
+				new Request("http://localhost/api/data", {
+					headers: { Origin: "https://example.com" },
+				}),
+			);
+
+			expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+		});
+
+		test('origin ["*"] reflects the origin with the explicit opt-in', async () => {
+			const app = createRouter();
+			app.use(cors({ origin: ["*"], credentials: true, allowWildcardCredentials: true }));
+			app.get("/api/data", () => ({ ok: true }));
+
+			const response = await app.fetch(
+				new Request("http://localhost/api/data", {
+					headers: { Origin: "https://example.com" },
+				}),
+			);
+
+			expect(response.headers.get("Access-Control-Allow-Origin")).toBe("https://example.com");
+			expect(response.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+		});
+
+		test("explicit origins with credentials do not need the opt-in", () => {
+			expect(() => cors({ origin: "https://myapp.com", credentials: true })).not.toThrow();
+			expect(() => cors({ origin: ["https://a.com"], credentials: true })).not.toThrow();
+		});
+
 		test("reflects request origin instead of * when credentials: true", async () => {
 			const app = createRouter();
-			app.use(cors({ credentials: true }));
+			app.use(cors({ credentials: true, allowWildcardCredentials: true }));
 			app.get("/api/data", () => ({ ok: true }));
 
 			const response = await app.fetch(
@@ -460,7 +506,7 @@ describe("CORS Middleware", () => {
 
 		test("reflects request origin on preflight when credentials: true", async () => {
 			const app = createRouter();
-			app.use(cors({ credentials: true }));
+			app.use(cors({ credentials: true, allowWildcardCredentials: true }));
 			app.get("/api/data", () => ({ ok: true }));
 
 			const response = await app.fetch(
@@ -481,7 +527,7 @@ describe("CORS Middleware", () => {
 
 		test("different origins get different reflected values", async () => {
 			const app = createRouter();
-			app.use(cors({ credentials: true }));
+			app.use(cors({ credentials: true, allowWildcardCredentials: true }));
 			app.get("/api/data", () => ({ ok: true }));
 
 			const res1 = await app.fetch(
