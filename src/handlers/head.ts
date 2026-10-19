@@ -1,6 +1,30 @@
+const MAX_MEASURE_BYTES = 64 * 1024;
+
+/** Byte length of a body, or null (body cancelled) once it exceeds the cap. */
+async function measureBody(body: ReadableStream<Uint8Array>): Promise<number | null> {
+	const reader = body.getReader();
+	let total = 0;
+	try {
+		for (;;) {
+			const { done, value } = await reader.read();
+			if (done) return total;
+			total += value.byteLength;
+			if (total > MAX_MEASURE_BYTES) {
+				await reader.cancel();
+				return null;
+			}
+		}
+	} finally {
+		reader.releaseLock();
+	}
+}
+
 /**
  * Convert a response to HEAD format: the body is discarded while status,
  * statusText and headers are preserved.
+ *
+ * Only bodies up to 64 KiB are measured; larger or endless streams are
+ * cancelled and sent without `Content-Length` instead of being buffered.
  *
  * Per RFC 9110 §9.3.2 a HEAD response SHOULD carry the same `Content-Length`
  * the equivalent GET would have sent, so the discarded body is measured and
@@ -21,8 +45,8 @@ export async function toHeadResponse(response: Response): Promise<Response> {
 	const headers = new Headers(response.headers);
 
 	if (response.body !== null && !headers.has("Content-Length")) {
-		const body = await response.arrayBuffer();
-		headers.set("Content-Length", String(body.byteLength));
+		const length = await measureBody(response.body);
+		if (length !== null) headers.set("Content-Length", String(length));
 	}
 
 	return new Response(null, {
