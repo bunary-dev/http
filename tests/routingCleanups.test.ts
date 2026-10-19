@@ -70,6 +70,26 @@ describe("HEAD Content-Length (#68)", () => {
 		);
 	});
 
+	test("toHeadResponse does not drain an endless stream (#107)", async () => {
+		let pulls = 0;
+		let cancelled = false;
+		const stream = new ReadableStream<Uint8Array>({
+			pull(controller) {
+				pulls++;
+				controller.enqueue(new Uint8Array(1024));
+			},
+			cancel() {
+				cancelled = true;
+			},
+		});
+
+		const head = await toHeadResponse(new Response(stream));
+
+		expect(head.headers.get("Content-Length")).toBeNull();
+		expect(cancelled).toBe(true);
+		expect(pulls).toBeLessThan(1000);
+	});
+
 	test("toHeadResponse keeps an existing Content-Length header", async () => {
 		const original = new Response("hello", {
 			status: 200,
