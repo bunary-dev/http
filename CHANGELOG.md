@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Route `query` validation no longer drops repeated keys: `?tag=a&tag=b` reaches the schema as `{ tag: ["a", "b"] }`; a key seen once stays a string. `QueryParams` is now `Record<string, string | string[]>` (#106)
+
 ### Security
 
 - `cors()` now throws when `credentials: true` is combined with a wildcard origin (`"*"`, `["*"]` or the default), which reflected any `Origin` with credentials. Pass `allowWildcardCredentials: true` to opt in. `["*"]` is now handled like `"*"` (#104)

@@ -124,12 +124,30 @@ describe("Route validation — query", () => {
 		expect(await res.json()).toEqual({ limit: 5 });
 	});
 
-	test("repeated query keys collapse to the last value", async () => {
+	test("repeated query keys reach the schema as an array", async () => {
+		const app = createRouter();
+		app.get("/tags", { query: z.object({ tag: z.array(z.string()) }) }, (ctx) => ({
+			tag: ctx.query.tag,
+		}));
+
+		const res = await req(app, "/tags?tag=a&tag=b&tag=c");
+		expect(await res.json()).toEqual({ tag: ["a", "b", "c"] });
+	});
+
+	test("a single query value stays a string", async () => {
+		const app = createRouter();
+		app.get("/tags", { query: z.object({ tag: z.string() }) }, (ctx) => ({ tag: ctx.query.tag }));
+
+		const res = await req(app, "/tags?tag=a");
+		expect(await res.json()).toEqual({ tag: "a" });
+	});
+
+	test("a string schema rejects a repeated query key", async () => {
 		const app = createRouter();
 		app.get("/tags", { query: z.object({ tag: z.string() }) }, (ctx) => ({ tag: ctx.query.tag }));
 
 		const res = await req(app, "/tags?tag=a&tag=b");
-		expect(await res.json()).toEqual({ tag: "b" });
+		expect(res.status).toBe(422);
 	});
 
 	test("a failing query schema is a 422", async () => {
