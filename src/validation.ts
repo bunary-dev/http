@@ -89,6 +89,19 @@ interface MutableContext {
 }
 
 /**
+ * Flatten a query string to a plain object: a key seen once stays a string, a
+ * repeated key becomes an array of its values in order.
+ */
+function queryToObject(query: URLSearchParams): Record<string, string | string[]> {
+	const out: Record<string, string | string[]> = Object.create(null);
+	for (const key of new Set(query.keys())) {
+		const values = query.getAll(key);
+		out[key] = values.length === 1 ? (values[0] as string) : values;
+	}
+	return out;
+}
+
+/**
  * Validate a matched route's params, query and body, replacing each validated
  * slot on the context with the schema's output.
  *
@@ -119,7 +132,7 @@ export async function applyRouteValidation(
 	}
 
 	if (query) {
-		target.query = validateWith(query as never, Object.fromEntries(ctx.query), "Query");
+		target.query = validateWith(query as never, queryToObject(ctx.query), "Query");
 	}
 
 	if (body) {
