@@ -1,8 +1,8 @@
 /**
  * The query string flattened to a plain object, as handed to a route's `query`
- * schema (`Object.fromEntries(url.searchParams)`).
+ * schema.
  *
- * A repeated key collapses to its **last** value — validate `ctx.query` through
- * `URLSearchParams` yourself if you need every value of a repeated key.
+ * A key that appears once is a `string`; a repeated key (`?tag=a&tag=b`) is a
+ * `string[]` of its values in order.
  */
-export type QueryParams = Record<string, string>;
+export type QueryParams = Record<string, string | string[]>;
