@@ -621,6 +621,22 @@ router.use(cors({
 }));
 ```
 
+#### Credentials and wildcard origins
+
+`credentials: true` combined with a wildcard origin (`"*"`, `["*"]` or the default) would reflect
+*any* request `Origin` with `Access-Control-Allow-Credentials: true`, letting any site make
+credentialed requests and read the responses. `cors()` therefore **throws** at creation time for
+that combination. List explicit origins instead, or pass `allowWildcardCredentials: true` to opt in
+knowingly:
+
+```typescript
+cors({ credentials: true });                                   // throws
+cors({ origin: 'https://myapp.com', credentials: true });      // ok
+cors({ credentials: true, allowWildcardCredentials: true });   // ok, reflects any Origin
+```
+
+`["*"]` is treated exactly like `"*"`.
+
 #### Multiple Origins
 
 ```typescript
@@ -702,9 +718,12 @@ router.get<{ id: string }>('/typed/:id', (ctx) => ctx.params.id); // string
 ### What each schema receives
 
 - **`params`** — the matched path parameters, as strings.
-- **`query`** — `Object.fromEntries(url.searchParams)`, so a repeated key
-  collapses to its **last** value. Read `ctx.request.url` yourself if you need
-  every value of a repeated key.
+- **`query`** — the query string as a plain object. A key that appears once is
+  a `string`; a repeated key (`?tag=a&tag=b`) is a `string[]` of its values in
+  order. A single value is never wrapped, so a `z.array(z.string())` schema
+  rejects `?tag=a` and a `z.string()` schema rejects `?tag=a&tag=b`; for a key
+  that may appear once or many times use
+  `z.union([z.string(), z.array(z.string())])`.
 - **`body`** — parsed by `content-type`: `application/json` through
   `ctx.body.json()`, and `application/x-www-form-urlencoded` or
   `multipart/form-data` through `ctx.body.formData()` flattened to a plain

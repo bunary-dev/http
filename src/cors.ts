@@ -50,6 +50,16 @@ export interface CorsOptions {
 	credentials?: boolean;
 
 	/**
+	 * Opt in to combining `credentials: true` with a wildcard origin (`"*"`,
+	 * `["*"]` or the default). That reflects *any* request `Origin` alongside
+	 * `Access-Control-Allow-Credentials: true`, so any site can make credentialed
+	 * requests and read the responses. Without this flag `cors()` throws.
+	 *
+	 * @default false
+	 */
+	allowWildcardCredentials?: boolean;
+
+	/**
 	 * How long (in seconds) the browser may cache preflight results.
 	 * Omitted from the response when `undefined`.
 	 */
@@ -97,12 +107,16 @@ function withHeaders(response: Response, headers: Headers): Response {
  * @returns The value to use for `Access-Control-Allow-Origin`, or `null` if
  *          the origin is not permitted.
  */
+function isWildcard(origin: string | string[]): boolean {
+	return origin === "*" || (Array.isArray(origin) && origin.includes("*"));
+}
+
 function resolveOrigin(
 	allowed: string | string[],
 	requestOrigin: string,
 	credentials: boolean,
 ): string | null {
-	if (allowed === "*") {
+	if (isWildcard(allowed)) {
 		// The CORS spec forbids Access-Control-Allow-Origin: * when
 		// credentials are in use. Reflect the actual request origin instead.
 		return credentials ? requestOrigin : "*";
@@ -151,8 +165,18 @@ export function cors(options: CorsOptions = {}): Middleware {
 		allowHeaders,
 		exposeHeaders,
 		credentials = false,
+		allowWildcardCredentials = false,
 		maxAge,
 	} = options;
+
+	const wildcard = isWildcard(origin);
+	if (credentials && wildcard && !allowWildcardCredentials) {
+		throw new Error(
+			'cors(): "credentials: true" with a wildcard origin would reflect any Origin and let any site ' +
+				"make credentialed requests. Set an explicit origin, or pass " +
+				'"allowWildcardCredentials: true" to opt in.',
+		);
+	}
 
 	// Preflight responses depend on what the client asked for, so caches must
 	// key on those request headers too.
@@ -173,7 +197,7 @@ export function cors(options: CorsOptions = {}): Middleware {
 		// A configured origin always varies — including when the origin is
 		// rejected, or a shared cache can hand the no-CORS variant to an allowed
 		// origin and the CORS variant to a rejected one (#66).
-		const needsVary = origin !== "*" || credentials;
+		const needsVary = !wildcard || credentials;
 		const varyNames = [...(needsVary ? ["Origin"] : []), ...(isPreflight ? PREFLIGHT_VARY : [])];
 
 		// Is this origin allowed?
