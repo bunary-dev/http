@@ -1,9 +1,17 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
 import { createApp } from "@bunary/core";
 import type { RequestContext } from "../src/index.js";
 import { createRouter } from "../src/index.js";
+import { restoreEnv } from "./support/env.js";
 
 describe("Configurable Error Handlers", () => {
+	const envBefore = { ...Bun.env };
+
+	afterAll(() => {
+		expect("NODE_ENV" in Bun.env).toBe("NODE_ENV" in envBefore);
+		expect(Bun.env.NODE_ENV).toBe(envBefore.NODE_ENV);
+	});
+
 	describe("onNotFound", () => {
 		test("default behavior when onNotFound not provided", async () => {
 			const app = createRouter();
@@ -254,7 +262,7 @@ describe("Configurable Error Handlers", () => {
 					instance: "/error",
 				});
 			} finally {
-				Bun.env.NODE_ENV = original;
+				restoreEnv("NODE_ENV", original);
 			}
 		});
 
@@ -278,13 +286,13 @@ describe("Configurable Error Handlers", () => {
 					instance: "/error",
 				});
 			} finally {
-				Bun.env.NODE_ENV = original;
+				restoreEnv("NODE_ENV", original);
 			}
 		});
 
 		test("shows error message when NODE_ENV is not set", async () => {
 			const original = Bun.env.NODE_ENV;
-			Bun.env.NODE_ENV = undefined;
+			delete Bun.env.NODE_ENV;
 			try {
 				const app = createRouter();
 				app.get("/error", () => {
@@ -302,7 +310,7 @@ describe("Configurable Error Handlers", () => {
 					instance: "/error",
 				});
 			} finally {
-				Bun.env.NODE_ENV = original;
+				restoreEnv("NODE_ENV", original);
 			}
 		});
 
@@ -325,7 +333,7 @@ describe("Configurable Error Handlers", () => {
 					instance: "/error",
 				});
 			} finally {
-				Bun.env.NODE_ENV = original;
+				restoreEnv("NODE_ENV", original);
 			}
 		});
 
@@ -350,8 +358,8 @@ describe("Configurable Error Handlers", () => {
 					instance: "/error",
 				});
 			} finally {
-				Bun.env.APP_ENV = originalApp;
-				Bun.env.NODE_ENV = originalNode;
+				restoreEnv("APP_ENV", originalApp);
+				restoreEnv("NODE_ENV", originalNode);
 			}
 		});
 
@@ -377,7 +385,7 @@ describe("Configurable Error Handlers", () => {
 					instance: "/error",
 				});
 			} finally {
-				Bun.env.NODE_ENV = originalNode;
+				restoreEnv("NODE_ENV", originalNode);
 			}
 		});
 
