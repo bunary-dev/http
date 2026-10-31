@@ -20,6 +20,7 @@ import {
 	createRouteBuilder,
 	findRouteByPath,
 	getAllowedMethods,
+	RouteIndex,
 	resolveRoute,
 } from "./routes/index.js";
 import type {
@@ -136,7 +137,8 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 	// type checking at the public API boundary, not runtime behaviour.
 	const internalOpts = options as RouterOptions | undefined;
 
-	const routes: Route[] = [];
+	// Indexed by first static path segment at registration time (#12)
+	const routes = new RouteIndex();
 	const middlewares: Middleware[] = [];
 	const namedRoutes: Map<string, Route> = new Map();
 	// Normalize basePath: "/" is treated as empty (no prefix)
@@ -171,7 +173,7 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 			isWildcard: isWildcard || undefined,
 			schemas,
 		};
-		routes.push(route);
+		routes.add(route);
 		return createRouteBuilder(route, namedRoutes, router);
 	}
 
@@ -447,7 +449,7 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 		},
 
 		getRoutes: (): RouteInfo[] => {
-			return routes.map((route) => ({
+			return routes.routes.map((route) => ({
 				name: route.name ?? null,
 				method: route.method,
 				path: route.path,

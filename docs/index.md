@@ -151,6 +151,23 @@ router
   });
 ```
 
+### Route Matching
+
+Routes match in registration order: the first route whose path (and
+constraints) matches wins, including for `HEAD`→`GET` fallback, `405` `Allow`
+headers and `OPTIONS` responses.
+
+Matching does not test every route on every request. At registration time each
+route is indexed by its first static path segment (`/api/users` → `api`), and
+routes whose first segment is a parameter, optional parameter or wildcard
+(`/:slug`, `/:id?`, `/*`) go in a fallback bucket. A request is only tested
+against the routes sharing its first segment plus the fallback routes, still
+in registration order, so an earlier `/:slug` still beats a later `/about`.
+Group prefixes and `basePath` are part of the indexed path. An app with
+hundreds of routes spread over several top-level prefixes tests only a
+fraction of them per request; routes behind a leading parameter
+(`/:tenant/...`) are still tested on every request. Run `bun bench/routes.ts` to compare.
+
 ### Path Parameters
 
 Path parameters are extracted automatically and decoded with `decodeURIComponent`:
