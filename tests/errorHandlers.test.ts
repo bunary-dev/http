@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createApp } from "@bunary/core";
 import type { RequestContext } from "../src/index.js";
 import { createRouter } from "../src/index.js";
@@ -556,6 +556,75 @@ describe("Configurable Error Handlers", () => {
 			} finally {
 				restoreEnv("NODE_ENV", originalNode);
 			}
+		});
+
+		describe("core-mounted router (#131)", () => {
+			const SECRET = "postgres://app:hunter2@db/app refused the connection";
+			const VARS = ["APP_ENV", "NODE_ENV", "APP_DEBUG", "DEBUG"] as const;
+			let saved: Record<string, string | undefined> = {};
+
+			beforeEach(() => {
+				saved = Object.fromEntries(VARS.map((name) => [name, Bun.env[name]]));
+				for (const name of VARS) delete Bun.env[name];
+			});
+
+			afterEach(() => {
+				for (const name of VARS) restoreEnv(name, saved[name]);
+			});
+
+			async function fetchError(
+				app: { env?: "development" | "production" | "test"; debug?: boolean },
+				routerOptions: { debug?: boolean } = {},
+			): Promise<Record<string, unknown>> {
+				const application = createApp({
+					config: { app: { name: "error-debug-test", ...app } },
+				});
+				const router = createRouter({ app: application, ...routerOptions });
+				router.get("/error", () => {
+					throw new Error(SECRET);
+				});
+				const response = await router.fetch(new Request("http://localhost/error"));
+				expect(response.status).toBe(500);
+				return (await response.json()) as Record<string, unknown>;
+			}
+
+			test("hides error message with no env and no debug configured", async () => {
+				const body = await fetchError({});
+				expect(body.detail).toBeUndefined();
+				expect(JSON.stringify(body)).not.toContain("hunter2");
+			});
+
+			test("includes error message when app.debug is true", async () => {
+				const body = await fetchError({ debug: true });
+				expect(body.detail).toBe(SECRET);
+			});
+
+			test("includes error message when APP_DEBUG resolves app.debug to true", async () => {
+				Bun.env.APP_DEBUG = "true";
+				const body = await fetchError({});
+				expect(body.detail).toBe(SECRET);
+			});
+
+			test("hides error message for app.env development with app.debug unset", async () => {
+				const body = await fetchError({ env: "development" });
+				expect(body.detail).toBeUndefined();
+			});
+
+			test("ignores NODE_ENV=development when mounted", async () => {
+				Bun.env.NODE_ENV = "development";
+				const body = await fetchError({});
+				expect(body.detail).toBeUndefined();
+			});
+
+			test("router debug: true overrides app.debug false", async () => {
+				const body = await fetchError({ debug: false }, { debug: true });
+				expect(body.detail).toBe(SECRET);
+			});
+
+			test("router debug: false overrides app.debug true", async () => {
+				const body = await fetchError({ debug: true }, { debug: false });
+				expect(body.detail).toBeUndefined();
+			});
 		});
 
 		test("custom onError handler overrides default 500", async () => {

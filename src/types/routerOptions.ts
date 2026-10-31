@@ -34,10 +34,11 @@ export interface RouterOptions<TLocals extends object = Record<string, unknown>>
 	 * Whether the default error handler includes `error.message` as the
 	 * problem document's `detail`.
 	 *
-	 * When unset, detail is only included if the environment is explicitly
-	 * `development` or `test` (the mounted Application's `env`, then
-	 * `APP_ENV`, then `NODE_ENV`). Everything else, including no environment
-	 * at all, gets a generic response. Has no effect when `onError` is set.
+	 * When unset, a router mounted on a `@bunary/core` Application follows
+	 * core's resolved `app.debug` (`config.app.debug`, `APP_DEBUG`, `DEBUG`,
+	 * default `false`); core's `env` is not consulted. A standalone router only
+	 * includes detail if `APP_ENV` (then `NODE_ENV`) is explicitly
+	 * `development` or `test`. Has no effect when `onError` is set.
 	 *
 	 * @example
 	 * ```ts
