@@ -59,6 +59,13 @@ export type { HttpConfig } from "./provider.js";
 export type { RateLimitHit, RateLimitOptions, RateLimitStore } from "./rateLimit.js";
 // Export rate limiting middleware
 export { rateLimit } from "./rateLimit.js";
+/**
+ * Convert a handler's return value (`Response`, plain object/array, string,
+ * number, `null`/`undefined`) into a `Response`. Useful in group and route
+ * middleware, whose `next()` resolves to the handler's raw return value:
+ * `const res = toResponse(await next())`.
+ */
+export { toResponse } from "./response.js";
 export type { ServeStaticOptions } from "./serveStatic.js";
 // Export static file handler
 export { serveStatic } from "./serveStatic.js";
