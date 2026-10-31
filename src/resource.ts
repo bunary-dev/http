@@ -52,13 +52,20 @@ export abstract class Resource {
 	 * Additional formats, keyed by media type (e.g. `"application/ld+json"`).
 	 * An `application/json` entry is ignored: JSON always comes from `toJSON()`.
 	 */
-	formats: Readonly<Record<string, ResourceConverter>> = {};
+	declare formats: Readonly<Record<string, ResourceConverter>>;
 
 	/** Response status for a successful negotiation. Defaults to 200. */
-	status?: number;
+	declare status?: number;
 
 	/** Extra response headers. A `Vary` here is kept; `Accept` is appended. */
-	headers?: ResponseInit["headers"];
+	declare headers?: ResponseInit["headers"];
+
+	// Fields are `declare`d and defaulted here rather than with initializers:
+	// Bun 1.4.2 reports a class's synthesized field initializer as an
+	// uncovered function, which sinks this file under the coverage threshold.
+	constructor() {
+		this.formats = {};
+	}
 
 	/** The `application/json` representation. Also used by `JSON.stringify`. */
 	abstract toJSON(): unknown;

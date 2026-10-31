@@ -55,6 +55,20 @@ const get = (path: string, accept?: string) =>
 		),
 	);
 
+describe("Resource defaults", () => {
+	test("a subclass without overrides has empty formats and no status or headers", () => {
+		const resource = new JsonOnlyResource();
+		expect(resource.formats).toEqual({});
+		expect(resource.status).toBeUndefined();
+		expect(resource.headers).toBeUndefined();
+	});
+
+	test("subclass field overrides win over the base defaults", () => {
+		const resource = new UserResource(ada);
+		expect(Object.keys(resource.formats)).toEqual(["application/ld+json"]);
+	});
+});
+
 describe("Resource content negotiation", () => {
 	test("missing Accept selects application/json via toJSON()", async () => {
 		const res = await get("/users/1");
