@@ -69,6 +69,8 @@ body; without a `body` schema it stays the `BodyReader`. A rejected schema
 becomes a `422` problem document listing every issue. Validation needs
 `@bunary/core` (`bun add @bunary/core`), which is an optional peer imported only
 when a route declares schemas.
+A helper shared between validated and unvalidated handlers takes
+`AnyContext<TLocals>`, which both context types are assignable to.
 
 ## Using with @bunary/core
 

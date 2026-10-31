@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `AnyContext<TLocals>` type export: a request context with any `params` / `query` / `body` shapes, so one helper can take the context of both a validated and an unvalidated route (`ValidatedContext` is not assignable to `RequestContext`). Types only, no runtime change (#97)
 - `listen()` passes `maxRequestBodySize`, `idleTimeout` and `tls` through to `Bun.serve`, only when supplied (#121)
 - `maxBodySize` router option: `ctx.body.json()`, `.text()` and `.formData()` throw an `HttpError` with status 413 for bodies larger than the limit, checked against `Content-Length` and while streaming (#121)
 - `debug` router option to decide explicitly whether the default 500 handler includes `error.message` as `detail` (#121)
