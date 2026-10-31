@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `sse(ctx, handler, { keepAlive?, headers? })` Server-Sent Events helper: returns a `ReadableStream`-backed `Response` with `Content-Type: text/event-stream; charset=utf-8`, `Cache-Control: no-cache` and `Connection: keep-alive`. The handler gets `send({ data, event?, id?, retry? })` (non-string data JSON-encoded, multi-line data split into several `data:` lines), `comment(text)`, `close()`, `closed` and a `signal` that fires on client disconnect. `keepAlive` sends `: ping` comments, and the timer is cleared on close or abort (#127)
+
 - `rateLimit({ limit, windowMs, key?, trustProxy?, store? })` middleware: fixed-window, in-memory request limiting keyed by client IP by default (first `X-Forwarded-For` hop only with `trustProxy: true`, else the socket address). Over the limit it answers a 429 problem response with `Retry-After`; every response gets `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset`. A `RateLimitStore` interface lets a shared store replace the in-memory one. `router.fetch()` accepts the server as an optional second argument, as `Bun.serve` passes it, to expose the socket address (#125)
 
 - `AnyContext<TLocals>` type export: a request context with any `params` / `query` / `body` shapes, so one helper can take the context of both a validated and an unvalidated route (`ValidatedContext` is not assignable to `RequestContext`). Types only, no runtime change (#97)

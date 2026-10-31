@@ -19,6 +19,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 - 🔀 **CORS** - Built-in CORS middleware with configurable origins, methods, headers, and credentials
 - 🚦 **Rate Limiting** - In-memory fixed-window `rateLimit()` middleware with `RateLimit-*` headers and a pluggable store
 - 📨 **Response Helpers** - `json`, `text`, `html`, `redirect`, `status` on `ctx` and as standalone functions
+- 📡 **Server-Sent Events** - `sse()` streams `text/event-stream` responses with event framing, keep-alive pings and disconnect signals
 - 🍪 **Cookies** - `ctx.cookies` reads the request and queues `Set-Cookie` headers for the response
 - 🔌 **Core integration** - Optional `httpProvider()` / `serve()` mount the router on a `@bunary/core` Application
 
@@ -511,6 +512,44 @@ text('a,b\n1,2', { headers: { 'content-type': 'text/csv' } });
 `status()` always returns an empty body and the `code` argument always wins over
 a `status` in `init`, which keeps bodyless codes such as `204`, `205` and `304`
 valid.
+
+#### Server-Sent Events
+
+`sse(ctx, handler, options?)` returns a streaming `Response` with
+`Content-Type: text/event-stream; charset=utf-8`, `Cache-Control: no-cache` and
+`Connection: keep-alive`. The handler (sync or async) receives a stream writer;
+the response stays open until it calls `close()` or the client disconnects.
+
+```typescript
+import { sse } from '@bunary/http';
+
+router.get('/clock', (ctx) =>
+  sse(ctx, (stream) => {
+    const timer = setInterval(() => {
+      stream.send({ event: 'tick', id: String(Date.now()), data: { now: Date.now() } });
+    }, 1000);
+    stream.signal.addEventListener('abort', () => clearInterval(timer));
+  }, { keepAlive: 15_000 }),
+);
+```
+
+| Member | Description |
+|---|---|
+| `send({ data, event?, id?, retry? })` | Writes one event. String `data` is sent as-is, anything else is JSON-encoded; multi-line data becomes one `data:` line per line. Line breaks are stripped from `event` and `id`. |
+| `comment(text)` | Writes a `: text` comment line, which clients ignore. |
+| `close()` | Ends the stream and stops the keep-alive timer. Writes after closing are ignored. |
+| `signal` | `AbortSignal` that fires when the client disconnects (`ctx.request.signal`) or the response body is cancelled. |
+| `closed` | `true` once the stream has ended for any reason. |
+
+Options:
+
+- `keepAlive` — interval in milliseconds for `: ping` comments that keep idle
+  proxies from dropping the connection. The timer is cleared on close or abort.
+- `headers` — extra response headers, merged over the defaults.
+
+If the handler throws (or its promise rejects), the stream is closed; catch
+inside the handler if you need to log the error. `HEAD` on an SSE route returns
+the headers promptly and cancels the stream (see [HEAD Requests](#head-requests)).
 
 ### Starting the Server
 
