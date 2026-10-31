@@ -613,6 +613,27 @@ consequences worth knowing:
 Group and route middleware run *inside* the error boundary, so they still see raw
 handler return values and can `try`/`catch` a throwing handler.
 
+Unlike global middleware, a group (or route) middleware's `next()` resolves to the
+handler's **raw return value** — a plain object, array, string, number, `null`/`undefined`
+or a `Response`. To add a header, normalise it with the exported `toResponse()` first:
+
+```typescript
+import { createRouter, toResponse } from '@bunary/http';
+
+router.group({ prefix: '/api', middleware: [
+  async (ctx, next) => {
+    const response = toResponse(await next());
+    response.headers.set('X-Api-Version', '1');
+    return response;
+  },
+] }, (api) => {
+  api.get('/users', () => ({ users: [] }));  // plain object → JSON Response
+});
+```
+
+`toResponse()` passes a `Response` through unchanged, turns `null`/`undefined` into
+`204 No Content`, strings and numbers into `text/plain`, and objects/arrays into JSON.
+
 ### Basic Middleware
 
 ```typescript

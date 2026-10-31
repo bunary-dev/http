@@ -2,7 +2,7 @@
  * Route Groups Tests
  */
 import { describe, expect, it } from "bun:test";
-import { createRouter } from "../src/index.js";
+import { createRouter, toResponse } from "../src/index.js";
 
 describe("Route Groups", () => {
 	describe("prefix", () => {
@@ -269,5 +269,56 @@ describe("Route Groups", () => {
 			);
 			expect(await del.json()).toEqual({ method: "DELETE" });
 		});
+	});
+});
+
+describe("group middleware with exported toResponse (#98)", () => {
+	it("adds a header to a handler returning a plain object", async () => {
+		const app = createRouter();
+
+		app.group(
+			{
+				prefix: "/api",
+				middleware: [
+					async (_ctx, next) => {
+						const response = toResponse(await next());
+						response.headers.set("X-Group", "yes");
+						return response;
+					},
+				],
+			},
+			(router) => {
+				router.get("/users", () => ({ route: "users" }));
+			},
+		);
+
+		const res = await app.fetch(new Request("http://localhost/api/users"));
+		expect(res.status).toBe(200);
+		expect(res.headers.get("X-Group")).toBe("yes");
+		expect(await res.json()).toEqual({ route: "users" });
+	});
+
+	it("still resolves next() to the handler's raw return value", async () => {
+		const app = createRouter();
+		let seen: unknown;
+
+		app.group(
+			{
+				prefix: "/api",
+				middleware: [
+					async (_ctx, next) => {
+						seen = await next();
+						return seen as never;
+					},
+				],
+			},
+			(router) => {
+				router.get("/users", () => ({ route: "users" }));
+			},
+		);
+
+		await app.fetch(new Request("http://localhost/api/users"));
+		expect(seen).toEqual({ route: "users" });
+		expect(seen).not.toBeInstanceOf(Response);
 	});
 });
