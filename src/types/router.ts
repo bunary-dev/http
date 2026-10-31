@@ -188,7 +188,12 @@ export interface Router<TLocals extends object = Record<string, unknown>> {
 	/**
 	 * Handle an incoming request (used internally and for testing).
 	 * @param request - The incoming Request object
+	 * @param server - Optional server that received the request (`Bun.serve`
+	 *   passes its own); used to look up the client's socket address
 	 * @returns Response object
 	 */
-	fetch: (request: Request) => Promise<Response>;
+	fetch: (
+		request: Request,
+		server?: { requestIP(request: Request): { address: string } | null },
+	) => Promise<Response>;
 }

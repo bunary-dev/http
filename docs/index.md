@@ -17,6 +17,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 - ❓ **Optional Parameters** - Flexible routes with optional path segments
 - 🌐 **Wildcard Routes** - Catch-all `/*` and `/**` patterns for SPA fallbacks and proxies
 - 🔀 **CORS** - Built-in CORS middleware with configurable origins, methods, headers, and credentials
+- 🚦 **Rate Limiting** - In-memory fixed-window `rateLimit()` middleware with `RateLimit-*` headers and a pluggable store
 - 📨 **Response Helpers** - `json`, `text`, `html`, `redirect`, `status` on `ctx` and as standalone functions
 - 🍪 **Cookies** - `ctx.cookies` reads the request and queues `Set-Cookie` headers for the response
 - 🔌 **Core integration** - Optional `httpProvider()` / `serve()` mount the router on a `@bunary/core` Application
@@ -709,6 +710,64 @@ router.group({ prefix: '/api', middleware: [cors()] }, (api) => {
 });
 ```
 
+### Rate Limiting
+
+`rateLimit()` counts requests per key in fixed windows. Once a key goes over `limit` requests in
+the current window, the middleware answers with a `429` problem response and a `Retry-After`
+header (seconds) without calling the handler. Every response, allowed or not, gets these headers:
+
+| Header | Value |
+| --- | --- |
+| `RateLimit-Limit` | the configured `limit` |
+| `RateLimit-Remaining` | requests left in the current window |
+| `RateLimit-Reset` | seconds until the window ends |
+
+```typescript
+import { createRouter, rateLimit } from '@bunary/http';
+
+const router = createRouter();
+
+// 100 requests per minute per client IP
+router.use(rateLimit({ limit: 100, windowMs: 60_000 }));
+
+// Stricter limit on login, keyed by API key instead of IP
+router.group(
+  {
+    prefix: '/auth',
+    middleware: [
+      rateLimit({
+        limit: 5,
+        windowMs: 15 * 60_000,
+        key: (ctx) => ctx.request.headers.get('x-api-key') ?? 'anonymous',
+      }),
+    ],
+  },
+  (auth) => auth.post('/login', () => ({ ok: true })),
+);
+```
+
+| Option | Default | |
+| --- | --- | --- |
+| `limit` | required | requests allowed per key per window |
+| `windowMs` | required | window length in milliseconds |
+| `key(ctx)` | client IP | the key requests are counted against |
+| `trustProxy` | `false` | use the first `X-Forwarded-For` hop as the client IP |
+| `store` | in-memory | a `RateLimitStore` holding the counters |
+
+The default key is the client IP. With `trustProxy: true` it is the first `X-Forwarded-For` hop;
+only enable that behind a proxy that sets the header, otherwise any client can choose its own key.
+Without it the header is ignored and the socket address is used, which the router reads from the
+server passed to `router.fetch(request, server)` (`router.listen()` and `Bun.serve({ fetch:
+router.fetch })` both pass it). When no address is available, as with `router.fetch(request)` in
+tests, every request shares one key.
+
+> **In-memory, single process.** The default store keeps counters in a `Map` inside the process.
+> Each process (or cluster worker, or server instance) has its own counters, so the effective limit
+> is multiplied by the number of processes, and counters reset on restart. Expired entries are
+> pruned as requests arrive. For a shared limit, pass a `store` that implements
+> `increment(key, windowMs) => { count, resetAt }` (`resetAt` in epoch milliseconds, may return a
+> promise), for example on top of Redis.
+
 ## Validation
 
 Pass an options object between the path and the handler to validate a route's
@@ -1216,6 +1275,9 @@ import type {
   GroupCallback,
   RouteInfo,
   CorsOptions,
+  RateLimitOptions,
+  RateLimitStore,
+  RateLimitHit,
   BodyReader,
   CookieJar,
   CookieSerializeOptions,

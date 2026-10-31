@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `rateLimit({ limit, windowMs, key?, trustProxy?, store? })` middleware: fixed-window, in-memory request limiting keyed by client IP by default (first `X-Forwarded-For` hop only with `trustProxy: true`, else the socket address). Over the limit it answers a 429 problem response with `Retry-After`; every response gets `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset`. A `RateLimitStore` interface lets a shared store replace the in-memory one. `router.fetch()` accepts the server as an optional second argument, as `Bun.serve` passes it, to expose the socket address (#125)
+
 - `AnyContext<TLocals>` type export: a request context with any `params` / `query` / `body` shapes, so one helper can take the context of both a validated and an unvalidated route (`ValidatedContext` is not assignable to `RequestContext`). Types only, no runtime change (#97)
 - `listen()` passes `maxRequestBodySize`, `idleTimeout` and `tls` through to `Bun.serve`, only when supplied (#121)
 - `maxBodySize` router option: `ctx.body.json()`, `.text()` and `.formData()` throw an `HttpError` with status 413 for bodies larger than the limit, checked against `Content-Length` and while streaming (#121)
