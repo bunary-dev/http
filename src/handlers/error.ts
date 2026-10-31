@@ -32,7 +32,7 @@ export async function handleError(
 ): Promise<Response> {
 	if (options?.onError) {
 		const result = await options.onError(ctx, error);
-		return toResponse(result);
+		return toResponse(result, ctx.request);
 	}
 	const debug = options?.debug ?? defaultDebug(ctx.app);
 	return problemResponse(error, {
