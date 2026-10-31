@@ -81,6 +81,82 @@ describe("HEAD requests", () => {
 		expect(response.status).toBe(201);
 		expect(await response.text()).toBe("");
 	});
+
+	test("HEAD on a never-ending stream returns promptly without Content-Length", async () => {
+		let cancelled = false;
+		const app = createRouter();
+		app.get("/events", () => {
+			const stream = new ReadableStream<Uint8Array>({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode("hi"));
+				},
+				cancel() {
+					cancelled = true;
+				},
+			});
+			return new Response(stream, { headers: { "Content-Type": "text/event-stream" } });
+		});
+
+		const started = performance.now();
+		const response = await Promise.race([
+			app.fetch(new Request("http://localhost/events", { method: "HEAD" })),
+			new Promise<never>((_, reject) => setTimeout(() => reject(new Error("HEAD hung")), 1000)),
+		]);
+
+		expect(performance.now() - started).toBeLessThan(1000);
+		expect(response.status).toBe(200);
+		expect(response.headers.get("Content-Length")).toBeNull();
+		expect(response.headers.get("Content-Type")).toBe("text/event-stream");
+		expect(await response.text()).toBe("");
+		expect(cancelled).toBe(true);
+	});
+
+	test("HEAD on a stream that never yields returns promptly", async () => {
+		const app = createRouter();
+		app.get(
+			"/poll",
+			() => new Response(new ReadableStream<Uint8Array>({ pull: () => new Promise(() => {}) })),
+		);
+
+		const response = await Promise.race([
+			app.fetch(new Request("http://localhost/poll", { method: "HEAD" })),
+			new Promise<never>((_, reject) => setTimeout(() => reject(new Error("HEAD hung")), 1000)),
+		]);
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("Content-Length")).toBeNull();
+	});
+
+	test("HEAD on a small finite stream still sets Content-Length", async () => {
+		const app = createRouter();
+		app.get("/chunks", () => {
+			const encoder = new TextEncoder();
+			const stream = new ReadableStream<Uint8Array>({
+				start(controller) {
+					controller.enqueue(encoder.encode("hello "));
+					controller.enqueue(encoder.encode("world"));
+					controller.close();
+				},
+			});
+			return new Response(stream);
+		});
+
+		const response = await app.fetch(new Request("http://localhost/chunks", { method: "HEAD" }));
+
+		expect(response.headers.get("Content-Length")).toBe("11");
+		expect(await response.text()).toBe("");
+	});
+
+	test("HEAD on a small JSON body sets Content-Length", async () => {
+		const app = createRouter();
+		app.get("/users", () => ({ users: [] }));
+
+		const response = await app.fetch(new Request("http://localhost/users", { method: "HEAD" }));
+
+		expect(response.headers.get("Content-Length")).toBe(
+			String(JSON.stringify({ users: [] }).length),
+		);
+	});
 });
 
 describe("OPTIONS requests", () => {

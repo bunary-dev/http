@@ -1,12 +1,28 @@
 const MAX_MEASURE_BYTES = 64 * 1024;
+const MAX_MEASURE_MS = 50;
 
-/** Byte length of a body, or null (body cancelled) once it exceeds the cap. */
+const TIMED_OUT = Symbol("timed out");
+
+/**
+ * Byte length of a body, or null (body cancelled) once it exceeds the size
+ * cap or does not finish within the time budget.
+ */
 async function measureBody(body: ReadableStream<Uint8Array>): Promise<number | null> {
 	const reader = body.getReader();
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const deadline = new Promise<typeof TIMED_OUT>((resolve) => {
+		timer = setTimeout(() => resolve(TIMED_OUT), MAX_MEASURE_MS);
+	});
 	let total = 0;
 	try {
 		for (;;) {
-			const { done, value } = await reader.read();
+			const result = await Promise.race([reader.read(), deadline]);
+			if (result === TIMED_OUT) {
+				// Cancelling settles the pending read, so the lock can be released.
+				await reader.cancel();
+				return null;
+			}
+			const { done, value } = result;
 			if (done) return total;
 			total += value.byteLength;
 			if (total > MAX_MEASURE_BYTES) {
@@ -15,6 +31,7 @@ async function measureBody(body: ReadableStream<Uint8Array>): Promise<number | n
 			}
 		}
 	} finally {
+		clearTimeout(timer);
 		reader.releaseLock();
 	}
 }
@@ -23,8 +40,9 @@ async function measureBody(body: ReadableStream<Uint8Array>): Promise<number | n
  * Convert a response to HEAD format: the body is discarded while status,
  * statusText and headers are preserved.
  *
- * Only bodies up to 64 KiB are measured; larger or endless streams are
- * cancelled and sent without `Content-Length` instead of being buffered.
+ * Only bodies up to 64 KiB that finish within 50 ms are measured; larger,
+ * slow or endless streams (SSE, long-poll) are cancelled and sent without
+ * `Content-Length` instead of being buffered or awaited.
  *
  * Per RFC 9110 §9.3.2 a HEAD response SHOULD carry the same `Content-Length`
  * the equivalent GET would have sent, so the discarded body is measured and
