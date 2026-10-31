@@ -56,12 +56,12 @@ export { problem, problemResponse } from "./problem.js";
 // standalone `import "@bunary/http"` resolve it, which fails outright when the
 // peer is not installed. Only the config type crosses over — types are erased.
 export type { HttpConfig } from "./provider.js";
-export type { ServeStaticOptions } from "./serveStatic.js";
-// Export static file handler
-export { serveStatic } from "./serveStatic.js";
 export type { RateLimitHit, RateLimitOptions, RateLimitStore } from "./rateLimit.js";
 // Export rate limiting middleware
 export { rateLimit } from "./rateLimit.js";
+export type { ServeStaticOptions } from "./serveStatic.js";
+// Export static file handler
+export { serveStatic } from "./serveStatic.js";
 // Export types
 export type {
 	AnyContext,
