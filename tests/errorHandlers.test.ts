@@ -329,13 +329,15 @@ describe("Configurable Error Handlers", () => {
 			}
 		});
 
-		test("shows error message when NODE_ENV is not set", async () => {
-			const original = Bun.env.NODE_ENV;
+		test("hides error message when no environment is set", async () => {
+			const originalNode = Bun.env.NODE_ENV;
+			const originalApp = Bun.env.APP_ENV;
 			delete Bun.env.NODE_ENV;
+			delete Bun.env.APP_ENV;
 			try {
 				const app = createRouter();
 				app.get("/error", () => {
-					throw new Error("Visible without NODE_ENV");
+					throw new Error("SQLITE_CANTOPEN: /var/app/data/prod.sqlite");
 				});
 
 				const response = await app.fetch(new Request("http://localhost/error"));
@@ -345,9 +347,85 @@ describe("Configurable Error Handlers", () => {
 					type: "about:blank",
 					title: "Internal Server Error",
 					status: 500,
-					detail: "Visible without NODE_ENV",
 					instance: "/error",
 				});
+			} finally {
+				restoreEnv("NODE_ENV", originalNode);
+				restoreEnv("APP_ENV", originalApp);
+			}
+		});
+
+		test("hides error message for an unrecognised environment", async () => {
+			const original = Bun.env.NODE_ENV;
+			Bun.env.NODE_ENV = "staging";
+			try {
+				const app = createRouter();
+				app.get("/error", () => {
+					throw new Error("secret staging detail");
+				});
+
+				const response = await app.fetch(new Request("http://localhost/error"));
+				const body = (await response.json()) as Record<string, unknown>;
+
+				expect(response.status).toBe(500);
+				expect(body.detail).toBeUndefined();
+			} finally {
+				restoreEnv("NODE_ENV", original);
+			}
+		});
+
+		test("shows error message in test mode", async () => {
+			const original = Bun.env.NODE_ENV;
+			Bun.env.NODE_ENV = "test";
+			try {
+				const app = createRouter();
+				app.get("/error", () => {
+					throw new Error("Visible in test");
+				});
+
+				const response = await app.fetch(new Request("http://localhost/error"));
+				const body = (await response.json()) as Record<string, unknown>;
+
+				expect(body.detail).toBe("Visible in test");
+			} finally {
+				restoreEnv("NODE_ENV", original);
+			}
+		});
+
+		test("debug: true shows error message even with no environment set", async () => {
+			const originalNode = Bun.env.NODE_ENV;
+			const originalApp = Bun.env.APP_ENV;
+			delete Bun.env.NODE_ENV;
+			delete Bun.env.APP_ENV;
+			try {
+				const app = createRouter({ debug: true });
+				app.get("/error", () => {
+					throw new Error("Visible with debug");
+				});
+
+				const response = await app.fetch(new Request("http://localhost/error"));
+				const body = (await response.json()) as Record<string, unknown>;
+
+				expect(body.detail).toBe("Visible with debug");
+			} finally {
+				restoreEnv("NODE_ENV", originalNode);
+				restoreEnv("APP_ENV", originalApp);
+			}
+		});
+
+		test("debug: false hides error message even in development", async () => {
+			const original = Bun.env.NODE_ENV;
+			Bun.env.NODE_ENV = "development";
+			try {
+				const app = createRouter({ debug: false });
+				app.get("/error", () => {
+					throw new Error("Hidden by debug: false");
+				});
+
+				const response = await app.fetch(new Request("http://localhost/error"));
+				const body = (await response.json()) as Record<string, unknown>;
+
+				expect(body.detail).toBeUndefined();
 			} finally {
 				restoreEnv("NODE_ENV", original);
 			}
