@@ -28,6 +28,11 @@ Response helpers (`json`, `text`, `html`, `redirect`, `status`) are on `ctx` and
 exported standalone; the request body is read through `ctx.body.json()`,
 `ctx.body.text()` and `ctx.body.formData()`.
 
+A handler can also return a `Resource` (subclass with `toJSON()` plus opt-in
+`formats` such as `application/ld+json`): the `Accept` header picks the format,
+unsupported ones get a 406, and the response carries `Vary: Accept`. See
+[Resources and content negotiation](./docs/index.md#resources-and-content-negotiation).
+
 ## Cookies
 
 `ctx.cookies` reads the incoming `Cookie` header and queues `Set-Cookie`

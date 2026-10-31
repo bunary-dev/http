@@ -320,7 +320,7 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 			response = await safeHandleError(ctx, setupError);
 		} else {
 			try {
-				response = toResponse(await runMiddlewareChain(middlewares, ctx, guarded));
+				response = toResponse(await runMiddlewareChain(middlewares, ctx, guarded), ctx.request);
 			} catch (error) {
 				response = await safeHandleError(ctx, error);
 			}

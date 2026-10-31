@@ -59,11 +59,15 @@ export type { HttpConfig } from "./provider.js";
 export type { RateLimitHit, RateLimitOptions, RateLimitStore } from "./rateLimit.js";
 // Export rate limiting middleware
 export { rateLimit } from "./rateLimit.js";
+export type { ResourceConverter } from "./resource.js";
+// Export API Resource base class for Accept-header content negotiation
+export { Resource } from "./resource.js";
 /**
  * Convert a handler's return value (`Response`, plain object/array, string,
- * number, `null`/`undefined`) into a `Response`. Useful in group and route
+ * number, `null`/`undefined`, `Resource`) into a `Response`. Useful in group and route
  * middleware, whose `next()` resolves to the handler's raw return value:
- * `const res = toResponse(await next())`.
+ * `const res = toResponse(await next(), ctx.request)` — pass the request so a
+ * returned `Resource` is negotiated against its `Accept` header.
  */
 export { toResponse } from "./response.js";
 export type { ServeStaticOptions } from "./serveStatic.js";

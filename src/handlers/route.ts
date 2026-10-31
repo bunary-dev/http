@@ -59,5 +59,5 @@ export async function executeRoute(
 		if (schemas) await applyRouteValidation(ctx, schemas);
 		return await handler(ctx);
 	});
-	return toResponse(result);
+	return toResponse(result, ctx.request);
 }

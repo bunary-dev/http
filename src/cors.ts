@@ -1,6 +1,7 @@
 import { getPreflightAllowMethods } from "./handlers/preflight.js";
 import { toResponse } from "./response.js";
 import type { Middleware } from "./types/index.js";
+import { appendVary } from "./vary.js";
 
 /**
  * CORS configuration options.
@@ -67,27 +68,6 @@ export interface CorsOptions {
 }
 
 const DEFAULT_METHODS = ["GET", "HEAD", "PUT", "POST", "DELETE", "PATCH"];
-
-/**
- * Append cache-key header names to `Vary` without dropping what is already
- * there, and without repeating a name the response already lists.
- *
- * Overwriting `Vary` is how a CORS layer silently breaks an upstream
- * `Vary: Accept-Encoding`; repeating a name bloats the header for no gain.
- */
-function appendVary(headers: Headers, names: string[]): void {
-	const present = new Set(
-		(headers.get("Vary") ?? "")
-			.split(",")
-			.map((token) => token.trim().toLowerCase())
-			.filter(Boolean),
-	);
-	for (const name of names) {
-		if (present.has(name.toLowerCase())) continue;
-		present.add(name.toLowerCase());
-		headers.append("Vary", name);
-	}
-}
 
 /**
  * Copy a response, adding headers. `Response` headers are immutable once

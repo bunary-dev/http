@@ -19,7 +19,7 @@ export async function handleNotFound(
 ): Promise<Response> {
 	if (options?.onNotFound) {
 		const result = await options.onNotFound(ctx);
-		return toResponse(result);
+		return toResponse(result, ctx.request);
 	}
 	const pathname = new URL(ctx.request.url).pathname;
 	return problem(404, `No route matches ${ctx.request.method} ${pathname}`, {
