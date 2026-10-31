@@ -646,7 +646,8 @@ Built-in CORS middleware handles preflight `OPTIONS` requests and adds the appro
 Registered globally with `router.use(cors())`, it covers error and not-found responses too.
 `Access-Control-Allow-Methods` advertises the methods the path actually serves (an explicit
 `methods` option still wins), `Vary` is appended rather than overwritten, and `Vary: Origin`
-is sent even when an origin is rejected so shared caches cannot mix the two variants.
+is sent even when an origin is rejected, or the request has no `Origin` header at all, so shared
+caches cannot mix the CORS and no-CORS variants.
 
 ```typescript
 import { createRouter, cors } from '@bunary/http';
@@ -695,7 +696,7 @@ router.use(cors({
 }));
 ```
 
-When `origin` is a string or array (not `"*"`), a `Vary: Origin` header is included automatically so caches distinguish responses per origin.
+When `origin` is a string or array (not `"*"`), or `credentials` is on, a `Vary: Origin` header is included automatically so caches distinguish responses per origin — including on same-origin or non-browser requests that send no `Origin`. With the wildcard default and no credentials, responses are identical for every origin and no `Vary` is added.
 
 #### Per-Group CORS
 

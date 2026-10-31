@@ -192,19 +192,25 @@ export function cors<TLocals extends object = Record<string, unknown>>(
 	return async (ctx, next) => {
 		const requestOrigin = ctx.request.headers.get("Origin");
 
-		// No Origin header — not a CORS request, pass through.
-		if (!requestOrigin) {
-			return await next();
-		}
-
-		const isPreflight = ctx.request.method === "OPTIONS";
-
 		// When credentials are used with a wildcard origin the resolved value is
 		// the reflected request origin, so Vary must include Origin either way.
 		// A configured origin always varies — including when the origin is
 		// rejected, or a shared cache can hand the no-CORS variant to an allowed
 		// origin and the CORS variant to a rejected one (#66).
 		const needsVary = !wildcard || credentials;
+
+		// No Origin header — not a CORS request, pass through. The response
+		// still varies by Origin, or a shared cache could store this no-CORS
+		// variant and serve it to later cross-origin requests (#120).
+		if (!requestOrigin) {
+			if (!needsVary) return await next();
+			const passed = toResponse(await next());
+			const passedHeaders = new Headers(passed.headers);
+			appendVary(passedHeaders, ["Origin"]);
+			return withHeaders(passed, passedHeaders);
+		}
+
+		const isPreflight = ctx.request.method === "OPTIONS";
 		const varyNames = [...(needsVary ? ["Origin"] : []), ...(isPreflight ? PREFLIGHT_VARY : [])];
 
 		// Is this origin allowed?
