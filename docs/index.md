@@ -77,10 +77,10 @@ apiRouter.get('/users', () => ({})); // Matches /api/users
   - Called when a route handler or middleware throws an error
   - Receives `RequestContext` and the error object
   - Can return `Response` or `HandlerResponse`
-  - If not provided, the default handler hides error details unless `debug` or a development/test environment says otherwise
+  - If not provided, the default handler hides error details unless `debug`, core's `app.debug` or a development/test environment says otherwise
   - Called at most once per failure: if `onError` itself throws, it is not called again with its own error; the router answers with a generic `500` problem response, which global middleware still sees
 - `debug` - Whether the default 500 handler includes `error.message` as `detail`
-  - When unset, detail is only shown if the environment is explicitly `development` or `test`; see [Error Handling](#error-handling)
+  - When unset, a router mounted on a `@bunary/core` Application follows core's `app.debug`; a standalone router only shows detail if the environment is explicitly `development` or `test`. See [Error Handling](#error-handling)
 - `maxBodySize` - Maximum body size, in bytes, that `ctx.body.json()` / `.text()` / `.formData()` will read
   - A larger body throws an `HttpError` with status 413, answered as a `413 Content Too Large` problem response
   - Checked against `Content-Length` up front, and while streaming for bodies without one
@@ -1215,16 +1215,20 @@ router.route('assets');                            // → "/assets"
 
 ## Error Handling
 
-Uncaught errors in handlers return a 500 response. The default error handler is environment-aware:
+Uncaught errors in handlers return a 500 response. In debug mode the default error handler returns the full `error.message` as `detail`; otherwise it returns a generic `"Internal Server Error"` with no `detail`, so database errors, file paths and stack traces never leak.
 
-- **Development/Test** (environment explicitly `development` or `test`): Returns the full `error.message` as `detail` for easier debugging.
-- **Everything else** (`production`, any other value, or no environment set at all, as is common in containers): Returns a generic `"Internal Server Error"` with no `detail`, so database errors, file paths and stack traces never leak.
+Debug mode is decided in this order; the first that applies wins:
 
-The environment is the mounted `@bunary/core` Application's `env` if there is one, then `APP_ENV`, then `NODE_ENV`. Set the `debug` router option to decide explicitly; it wins over the environment:
+1. **The `debug` router option**, when set (`true` or `false`).
+2. **Mounted on a `@bunary/core` Application** (`httpProvider()` or `createRouter({ app })`): core's resolved `app.debug`, i.e. `config.app.debug`, then `APP_DEBUG`, then `DEBUG`, defaulting to `false`. Detail is only shown when it is exactly `true`. Core's `app.env` is **not** consulted: core falls back to `development` when no environment is configured, so a container with nothing set would otherwise leak error messages.
+3. **Standalone router**: detail is shown only when the environment is explicitly `development` or `test` (`APP_ENV`, then `NODE_ENV`). `production`, any other value, or no environment at all (common in containers) gets the generic response.
 
 ```typescript
 createRouter({ debug: true });  // always include detail
-createRouter({ debug: false }); // never include detail, even in development
+createRouter({ debug: false }); // never include detail, even in development or with app.debug: true
+
+// Mounted on core: detail follows app.debug, not app.env
+createApp({ config: { app: { name: "api", env: "development", debug: true } } });
 ```
 
 For full control, use a custom `onError` handler:
