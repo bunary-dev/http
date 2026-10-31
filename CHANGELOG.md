@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `AnyContext<TLocals>` type export: a request context with any `params` / `query` / `body` shapes, so one helper can take the context of both a validated and an unvalidated route (`ValidatedContext` is not assignable to `RequestContext`). Types only, no runtime change (#97)
+- `listen()` passes `maxRequestBodySize`, `idleTimeout` and `tls` through to `Bun.serve`, only when supplied (#121)
+- `maxBodySize` router option: `ctx.body.json()`, `.text()` and `.formData()` throw an `HttpError` with status 413 for bodies larger than the limit, checked against `Content-Length` and while streaming (#121)
+- `debug` router option to decide explicitly whether the default 500 handler includes `error.message` as `detail` (#121)
 
 ### Fixed
 
@@ -19,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - `cors()` now throws when `credentials: true` is combined with a wildcard origin (`"*"`, `["*"]` or the default), which reflected any `Origin` with credentials. Pass `allowWildcardCredentials: true` to opt in. `["*"]` is now handled like `"*"` (#104)
+- The default error handler no longer includes `error.message` in 500 responses unless the environment is explicitly `development` or `test` (or `debug: true` is set). Previously anything other than `production`, including no `APP_ENV`/`NODE_ENV` at all, exposed raw error messages (#121)
 
 ## [1.0.0-rc.1] - 2026-09-22
 

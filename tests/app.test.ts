@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { createRouter } from "../src/index.js";
 
 describe("createRouter()", () => {
@@ -190,5 +190,53 @@ describe("listen()", () => {
 		expect(server.hostname).toBe("localhost");
 
 		server.stop();
+	});
+
+	describe("Bun.serve pass-through", () => {
+		function serveOptionsFor(options: Parameters<ReturnType<typeof createRouter>["listen"]>[0]) {
+			const spy = spyOn(Bun, "serve");
+			try {
+				const app = createRouter();
+				app.get("/", () => ({}));
+				app.listen(options).stop();
+				return spy.mock.calls[0]?.[0] as unknown as Record<string, unknown>;
+			} finally {
+				spy.mockRestore();
+			}
+		}
+
+		test("passes maxRequestBodySize and idleTimeout when supplied", () => {
+			const serveOptions = serveOptionsFor({
+				port: 0,
+				maxRequestBodySize: 1024,
+				idleTimeout: 30,
+			});
+
+			expect(serveOptions.maxRequestBodySize).toBe(1024);
+			expect(serveOptions.idleTimeout).toBe(30);
+		});
+
+		test("passes tls when supplied", () => {
+			const spy = spyOn(Bun, "serve").mockImplementation(
+				() => ({ port: 0, hostname: "localhost", stop: () => {} }) as never,
+			);
+			try {
+				const tls = { cert: "CERT", key: "KEY" };
+				const app = createRouter();
+				app.listen({ port: 0, tls });
+				const serveOptions = spy.mock.calls[0]?.[0] as unknown as Record<string, unknown>;
+				expect(serveOptions.tls).toBe(tls);
+			} finally {
+				spy.mockRestore();
+			}
+		});
+
+		test("omits the options entirely when not supplied", () => {
+			const serveOptions = serveOptionsFor({ port: 0 });
+
+			expect("maxRequestBodySize" in serveOptions).toBe(false);
+			expect("idleTimeout" in serveOptions).toBe(false);
+			expect("tls" in serveOptions).toBe(false);
+		});
 	});
 });

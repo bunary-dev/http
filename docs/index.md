@@ -74,7 +74,13 @@ apiRouter.get('/users', () => ({})); // Matches /api/users
   - Called when a route handler or middleware throws an error
   - Receives `RequestContext` and the error object
   - Can return `Response` or `HandlerResponse`
-  - If not provided, the default handler hides error details in production
+  - If not provided, the default handler hides error details unless `debug` or a development/test environment says otherwise
+- `debug` - Whether the default 500 handler includes `error.message` as `detail`
+  - When unset, detail is only shown if the environment is explicitly `development` or `test`; see [Error Handling](#error-handling)
+- `maxBodySize` - Maximum body size, in bytes, that `ctx.body.json()` / `.text()` / `.formData()` will read
+  - A larger body throws an `HttpError` with status 413, answered as a `413 Content Too Large` problem response
+  - Checked against `Content-Length` up front, and while streaming for bodies without one
+  - Unset means no router-level limit (Bun's `maxRequestBodySize`, 128 MiB by default, still applies)
 
 **Example with custom error handlers:**
 
@@ -307,6 +313,17 @@ router.post('/upload', async (ctx) => {
 > so that `ctx.json(data)` can be the response helper, matching Hono and Elysia.
 > See [Response Handling](#response-handling).
 
+With the router's `maxBodySize` option set, every reader refuses a body larger than that many bytes by throwing an `HttpError` with status 413, which the default error handler answers as `413 Content Too Large`:
+
+```typescript
+const router = createRouter({ maxBodySize: 1024 * 1024 }); // 1 MiB
+
+router.post('/upload', async (ctx) => {
+  const form = await ctx.body.formData(); // 413 for a body over 1 MiB
+  return { name: form.get('name') };
+});
+```
+
 Malformed bodies throw `BodyParseError`, which you can catch for custom error responses:
 
 ```typescript
@@ -490,6 +507,19 @@ console.log(`Server running on ${server.hostname}:${server.port}`);
 // Stop the server when done
 server.stop();
 ```
+
+The object form also passes these through to `Bun.serve`, only when supplied (Bun's defaults apply otherwise): `development`, `error`, `maxRequestBodySize` (bytes; Bun's default is 128 MiB), `idleTimeout` (seconds) and `tls`.
+
+```typescript
+router.listen({
+  port: 443,
+  maxRequestBodySize: 10 * 1024 * 1024, // 10 MiB
+  idleTimeout: 30,
+  tls: { cert: Bun.file('cert.pem'), key: Bun.file('key.pem') },
+});
+```
+
+For a limit on what handlers read, rather than what Bun accepts, set the router's `maxBodySize`: `ctx.body.*` then throws a 413 `HttpError` for larger bodies.
 
 ### Testing Without Server
 
@@ -1035,8 +1065,15 @@ router.route('assets');                            // → "/assets"
 
 Uncaught errors in handlers return a 500 response. The default error handler is environment-aware:
 
-- **Production** (`NODE_ENV=production`): Returns a generic `"Internal Server Error"` message to avoid leaking sensitive details like database errors, file paths, or stack traces.
-- **Development/Test** (any other `NODE_ENV`): Returns the full `error.message` for easier debugging.
+- **Development/Test** (environment explicitly `development` or `test`): Returns the full `error.message` as `detail` for easier debugging.
+- **Everything else** (`production`, any other value, or no environment set at all, as is common in containers): Returns a generic `"Internal Server Error"` with no `detail`, so database errors, file paths and stack traces never leak.
+
+The environment is the mounted `@bunary/core` Application's `env` if there is one, then `APP_ENV`, then `NODE_ENV`. Set the `debug` router option to decide explicitly; it wins over the environment:
+
+```typescript
+createRouter({ debug: true });  // always include detail
+createRouter({ debug: false }); // never include detail, even in development
+```
 
 For full control, use a custom `onError` handler:
 
