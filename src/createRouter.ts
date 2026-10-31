@@ -7,8 +7,10 @@ import {
 	handleMethodNotAllowed,
 	handleNotFound,
 	handleOptions,
+	type RequestIPSource,
 	runMiddlewareChain,
 	setPreflightAllowMethods,
+	setRequestServer,
 	toHeadResponse,
 } from "./handlers/index.js";
 import { joinPaths, normalizePrefix } from "./pathUtils.js";
@@ -270,7 +272,12 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 	 * outside that boundary, so the outer `catch` hands it to the same error
 	 * handler (#65).
 	 */
-	async function handleRequest(request: Request): Promise<Response> {
+	async function handleRequest(request: Request, server?: RequestIPSource): Promise<Response> {
+		// Bun.serve passes its server as the second argument; keep it so
+		// middleware such as rateLimit() can read the socket address (#125).
+		if (server && typeof server.requestIP === "function") {
+			setRequestServer(request, server);
+		}
 		const url = new URL(request.url);
 		const method = request.method as HttpMethod;
 		let ctx: RequestContext | undefined;
