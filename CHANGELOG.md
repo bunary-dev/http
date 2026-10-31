@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Route `query` validation no longer drops repeated keys: `?tag=a&tag=b` reaches the schema as `{ tag: ["a", "b"] }`; a key seen once stays a string. `QueryParams` is now `Record<string, string | string[]>` (#106)
+- Typed locals declared as an `interface` now compose with `router.use(cors())` and `httpProvider(router)`: `cors()` and `httpProvider()` are generic over the router's locals type. Types only, no runtime change (#96)
 
 ### Security
 
