@@ -708,6 +708,31 @@ stays the reader with `json()`, `text()` and `formData()`.
 | `ctx.query` | `URLSearchParams` | the schema's output |
 | `ctx.body` | `BodyReader` | the schema's output |
 
+Because the validated slots change type, a `ValidatedContext` is **not** a
+`RequestContext`. To share a helper between validated and unvalidated handlers,
+type its parameter as `AnyContext<TLocals>`: every `RequestContext<TLocals>` and
+`ValidatedContext<TLocals, S>` is assignable to it. `locals`, `app`, `request`,
+`cookies` and the response helpers keep their types; `params`, `query` and
+`body` are `unknown`, so narrow them before use.
+
+```typescript
+import { z } from 'zod';
+import { createRouter, type AnyContext } from '@bunary/http';
+
+type Locals = { requestId: string };
+const router = createRouter<Locals>();
+
+function tag(ctx: AnyContext<Locals>): string {
+  return `${ctx.request.method} ${ctx.locals.requestId}`; // locals stay typed
+}
+
+router.get('/health', (ctx) => ({ tag: tag(ctx) }));
+router.get('/users/:id', { params: z.object({ id: z.coerce.number() }) }, (ctx) => ({
+  tag: tag(ctx), // a ValidatedContext is accepted too
+  id: ctx.params.id,
+}));
+```
+
 The two-argument form and the per-route `TParams` generic are unchanged:
 
 ```typescript
@@ -1140,6 +1165,7 @@ import type {
   InferSchemaOutput,
   ValidatedContext,
   ValidatedRouteHandler,
+  AnyContext,
   HttpConfig,
 } from '@bunary/http';
 ```

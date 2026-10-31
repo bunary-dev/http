@@ -6,7 +6,7 @@
  * `../../../src/index.js` so the consumer test exercises the working tree.
  */
 import { z } from "zod";
-import type { Middleware, RequestContext, Router } from "../../../src/index.js";
+import type { AnyContext, Middleware, Router } from "../../../src/index.js";
 // A consumer writes: import { ... } from "@bunary/http";
 import {
 	abort,
@@ -51,12 +51,11 @@ export type ApiLocals = {
  * `ctx.app` is `undefined` for a standalone router, which is exactly the shape
  * a consumer has to handle: here that becomes a 503 rather than a crash.
  *
- * The parameter is `Pick<..., "app">` rather than `RequestContext`, because a
+ * The parameter is `AnyContext` rather than `RequestContext`, because a
  * validated route's `ValidatedContext` replaces `params`/`query`/`body` and is
- * therefore *not* assignable to `RequestContext`: a shared helper has to ask
- * for the slots it actually uses.
+ * therefore *not* assignable to `RequestContext` (#97).
  */
-function connection(ctx: Pick<RequestContext<ApiLocals>, "app">): FakeConnection {
+function connection(ctx: AnyContext<ApiLocals>): FakeConnection {
 	const conn = ctx.app?.get(DatabaseToken);
 	if (conn === undefined) {
 		abort(503, "No database: this router is not mounted on an Application");
