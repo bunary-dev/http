@@ -283,7 +283,9 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 		}
 
 		// Never let the error handler's own failure escape the router: fall
-		// back to a bare 500 problem document (#105).
+		// back to a bare 500 problem document (#105). A throwing `onError` is
+		// absorbed here rather than rethrown, so it runs at most once per
+		// failure and global middleware still sees the fallback 500 (#119).
 		const safeHandleError = async (c: RequestContext | undefined, error: unknown) => {
 			try {
 				if (c) {
@@ -299,7 +301,7 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 			try {
 				return await (run as Dispatch["run"])();
 			} catch (error) {
-				return await handleError(ctx as RequestContext, error, internalOpts);
+				return await safeHandleError(ctx, error);
 			}
 		};
 

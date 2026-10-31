@@ -10,7 +10,7 @@
  * router.listen({ port: 8080 });
  *
  * // Bun's development error page, plus a last-resort handler for failures
- * // that escape the router (for example a throwing `onError`).
+ * // that happen outside the router.
  * router.listen({
  *   port: 3000,
  *   development: true,
@@ -49,8 +49,9 @@ export interface ListenOptions {
 	 * Passed through to `Bun.serve` as a last-resort error handler.
 	 *
 	 * The router already converts handler and middleware failures into a 500
-	 * (or whatever `onError` returns), so this only fires when the failure
-	 * escapes the router itself — most often a `onError` handler that throws.
+	 * (or whatever `onError` returns), and a throwing `onError` falls back to
+	 * a generic 500 problem response, so failures never escape the router.
+	 * This only fires for errors raised outside it, inside `Bun.serve` itself.
 	 */
 	error?: (error: Error) => Response | Promise<Response> | undefined | Promise<undefined>;
 }
