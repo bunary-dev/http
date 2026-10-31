@@ -411,6 +411,8 @@ router.get('/users', () => ({ users: [] }));
 // to the size the GET body would have had (RFC 9110)
 ```
 
+`Content-Length` is only filled in when the GET body is at most 64 KiB and finishes within 50 ms (and the handler did not set the header itself). Larger, slow or never-ending bodies, such as Server-Sent Events or long-poll streams, are cancelled and the HEAD response is sent straight away without `Content-Length`.
+
 #### OPTIONS Requests
 
 OPTIONS requests return `204 No Content` with an `Allow` header listing all permitted methods for the path. `OPTIONS` is always included, and `HEAD` whenever a `GET` route exists, since the router serves both without them being registered:
