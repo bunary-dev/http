@@ -59,6 +59,9 @@ export type { HttpConfig } from "./provider.js";
 export type { RateLimitHit, RateLimitOptions, RateLimitStore } from "./rateLimit.js";
 // Export rate limiting middleware
 export { rateLimit } from "./rateLimit.js";
+export type { ServeStaticOptions } from "./serveStatic.js";
+// Export static file handler
+export { serveStatic } from "./serveStatic.js";
 export type { SseEvent, SseOptions, SseStream } from "./sse.js";
 // Export Server-Sent Events helper
 export { sse } from "./sse.js";
