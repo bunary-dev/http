@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A throwing `onError` is called exactly once per request instead of twice (the second time with its own error); the router falls back to the generic 500 problem response, which global middleware still sees. The `listen()` `error` option docs no longer claim a throwing `onError` escapes the router (#119)
 - `HEAD` on a `GET` route that returns a slow or never-ending stream (SSE, long-poll) no longer hangs until 64 KiB is produced: the body is measured for at most 50 ms, then cancelled and the response sent without `Content-Length`. Small finite bodies still get `Content-Length` (#117)
 - Route `query` validation no longer drops repeated keys: `?tag=a&tag=b` reaches the schema as `{ tag: ["a", "b"] }`; a key seen once stays a string. `QueryParams` is now `Record<string, string | string[]>` (#106)
 - Route `body` validation no longer drops repeated form fields: an `application/x-www-form-urlencoded` or `multipart/form-data` body with `tag=a&tag=b` reaches the schema as `{ tag: ["a", "b"] }`, matching `query`; a field seen once stays a single value (#118)

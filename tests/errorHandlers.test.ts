@@ -247,6 +247,58 @@ describe("Configurable Error Handlers", () => {
 			expect(response.headers.get("set-cookie")).toContain("sid=1");
 		});
 
+		test("calls a throwing onError exactly once per request (#119)", async () => {
+			const seen: unknown[] = [];
+			const app = createRouter({
+				onError: (_ctx, error) => {
+					seen.push(error);
+					throw new Error("handler exploded");
+				},
+			});
+			app.get("/error", () => {
+				throw new Error("route error");
+			});
+
+			const response = await app.fetch(new Request("http://localhost/error"));
+
+			expect(response.status).toBe(500);
+			expect(seen).toHaveLength(1);
+			expect((seen[0] as Error).message).toBe("route error");
+		});
+
+		test("global middleware sees the fallback 500 when onError throws (#119)", async () => {
+			let calls = 0;
+			let seenStatus: number | undefined;
+			const app = createRouter({
+				onError: () => {
+					calls++;
+					throw new Error("handler exploded");
+				},
+			});
+			app.use(async (_ctx, next) => {
+				const res = (await next()) as Response;
+				seenStatus = res.status;
+				const headers = new Headers(res.headers);
+				headers.set("X-Seen", "1");
+				return new Response(res.body, { status: res.status, headers });
+			});
+			app.get("/error", () => {
+				throw new Error("route error");
+			});
+
+			const response = await app.fetch(new Request("http://localhost/error"));
+
+			expect(calls).toBe(1);
+			expect(seenStatus).toBe(500);
+			expect(response.status).toBe(500);
+			expect(response.headers.get("X-Seen")).toBe("1");
+			expect(await response.json()).toEqual({
+				type: "about:blank",
+				title: "Internal Server Error",
+				status: 500,
+			});
+		});
+
 		test("covers a throw during dispatch setup", async () => {
 			const app = createRouter();
 			app.get("/users/:id", () => ({ ok: true }));

@@ -75,6 +75,7 @@ apiRouter.get('/users', () => ({})); // Matches /api/users
   - Receives `RequestContext` and the error object
   - Can return `Response` or `HandlerResponse`
   - If not provided, the default handler hides error details unless `debug` or a development/test environment says otherwise
+  - Called at most once per failure: if `onError` itself throws, it is not called again with its own error; the router answers with a generic `500` problem response, which global middleware still sees
 - `debug` - Whether the default 500 handler includes `error.message` as `detail`
   - When unset, detail is only shown if the environment is explicitly `development` or `test`; see [Error Handling](#error-handling)
 - `maxBodySize` - Maximum body size, in bytes, that `ctx.body.json()` / `.text()` / `.formData()` will read
@@ -527,7 +528,7 @@ console.log(`Server running on ${server.hostname}:${server.port}`);
 server.stop();
 ```
 
-The object form also passes these through to `Bun.serve`, only when supplied (Bun's defaults apply otherwise): `development`, `error`, `maxRequestBodySize` (bytes; Bun's default is 128 MiB), `idleTimeout` (seconds) and `tls`.
+The object form also passes these through to `Bun.serve`, only when supplied (Bun's defaults apply otherwise): `development`, `error`, `maxRequestBodySize` (bytes; Bun's default is 128 MiB), `idleTimeout` (seconds) and `tls`. The router never lets a failure escape — a throwing `onError` falls back to a generic `500` problem response — so `error` only fires for failures inside Bun itself.
 
 ```typescript
 router.listen({
