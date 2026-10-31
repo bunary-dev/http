@@ -3,6 +3,7 @@ import type { PathParams } from "./pathParams.js";
 import type { RouteBuilder } from "./routeBuilder.js";
 import type { RouteHandler } from "./routeHandler.js";
 import type { RouteSchemas, ValidatedRouteHandler } from "./validation.js";
+import type { WebSocketData, WebSocketHandlers, WebSocketRouteOptions } from "./websocket.js";
 
 /**
  * Router interface for route groups.
@@ -71,6 +72,12 @@ export interface GroupRouter<TLocals extends object = Record<string, unknown>> {
 			handler: ValidatedRouteHandler<TLocals, S>,
 		): RouteBuilder<TLocals>;
 	};
+	/** Register a WebSocket route; group middleware runs before the upgrade (#128) */
+	ws: <P extends PathParams = PathParams, TExtra extends object = Record<never, never>>(
+		path: string,
+		handlers: WebSocketHandlers<WebSocketData<TLocals, P, TExtra>>,
+		options?: WebSocketRouteOptions<TLocals, P, TExtra>,
+	) => RouteBuilder<TLocals>;
 	/** Create a nested route group */
 	group: ((prefix: string, callback: GroupCallback<TLocals>) => GroupRouter<TLocals>) &
 		((options: GroupOptions<TLocals>, callback: GroupCallback<TLocals>) => GroupRouter<TLocals>);

@@ -8,8 +8,11 @@ import type {
 	RouteBuilder,
 	RouteHandler,
 	RouteSchemas,
+	WebSocketHandlers,
+	WebSocketRouteOptions,
 } from "../types/index.js";
 import { normalizeRouteArgs } from "../validation.js";
+import { createWebSocketRoute } from "../websocket.js";
 import { wrapBuilderWithNamePrefix } from "./builder.js";
 
 export type AddRouteFn = (
@@ -54,6 +57,15 @@ export function createGroupRouter(
 		put: register("PUT"),
 		delete: register("DELETE"),
 		patch: register("PATCH"),
+		ws: (
+			path: string,
+			handlers: WebSocketHandlers<unknown>,
+			options?: WebSocketRouteOptions<object, unknown, object>,
+		) => {
+			const handler = createWebSocketRoute(handlers, options);
+			const builder = addRoute("GET", joinPaths(prefix, path), handler, groupMiddleware);
+			return wrapBuilderWithNamePrefix(builder, namePrefix);
+		},
 		group: ((prefixOrOptions: string | GroupOptions, callback: GroupCallback) => {
 			const opts =
 				typeof prefixOrOptions === "string" ? { prefix: prefixOrOptions } : prefixOrOptions;

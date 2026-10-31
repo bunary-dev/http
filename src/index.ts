@@ -96,9 +96,13 @@ export type {
 	RouteInfo,
 	Router,
 	RouterOptions,
+	RouterWebSocketHandler,
 	RouteSchema,
 	RouteSchemas,
 	StandardSchemaLike,
 	ValidatedContext,
 	ValidatedRouteHandler,
+	WebSocketData,
+	WebSocketHandlers,
+	WebSocketRouteOptions,
 } from "./types/index.js";

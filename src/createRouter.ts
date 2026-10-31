@@ -41,8 +41,11 @@ import type {
 	Router,
 	RouterOptions,
 	RouteSchemas,
+	WebSocketHandlers,
+	WebSocketRouteOptions,
 } from "./types/index.js";
 import { normalizeRouteArgs } from "./validation.js";
+import { createWebSocketRoute, websocketHandler } from "./websocket.js";
 
 /**
  * Append queued `Set-Cookie` header values onto a `Response`.
@@ -361,6 +364,14 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 		delete: register("DELETE"),
 		patch: register("PATCH"),
 
+		ws: (
+			path: string,
+			handlers: WebSocketHandlers<unknown>,
+			options?: WebSocketRouteOptions<object, unknown, object>,
+		) => addRoute("GET", path, createWebSocketRoute(handlers, options)),
+
+		websocket: websocketHandler,
+
 		use: (middleware: Middleware) => {
 			middlewares.push(middleware);
 			return router;
@@ -486,6 +497,8 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 				port,
 				hostname,
 				fetch: handleRequest,
+				// One handler for every router.ws() route; it dispatches on ws.data (#128).
+				websocket: websocketHandler,
 				...(listenOpts.development !== undefined && { development: listenOpts.development }),
 				...(listenOpts.error !== undefined && { error: listenOpts.error }),
 				...(listenOpts.maxRequestBodySize !== undefined && {
