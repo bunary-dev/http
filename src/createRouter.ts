@@ -143,6 +143,8 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 	const normalizedBasePath = internalOpts?.basePath ? normalizePrefix(internalOpts.basePath) : "";
 	const basePath = normalizedBasePath === "/" ? "" : normalizedBasePath;
 
+	const maxBodySize = internalOpts?.maxBodySize;
+
 	const NO_MIDDLEWARE: readonly Middleware[] = [];
 
 	/**
@@ -216,7 +218,13 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 					? resolveRoute(routes, requestedMethod.trim().toUpperCase(), path).match
 					: null) ?? findRouteByPath(routes, path);
 
-			const ctx = createRequestContext(request, target?.params ?? {}, url.searchParams, app);
+			const ctx = createRequestContext(
+				request,
+				target?.params ?? {},
+				url.searchParams,
+				app,
+				maxBodySize,
+			);
 			return {
 				ctx,
 				run: () =>
@@ -231,7 +239,7 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 		const { match, allowedMethods } = resolveRoute(routes, method, path);
 
 		if (!match) {
-			const ctx = createRequestContext(request, {}, url.searchParams, app);
+			const ctx = createRequestContext(request, {}, url.searchParams, app, maxBodySize);
 			return {
 				ctx,
 				run: () =>
@@ -243,7 +251,7 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 			};
 		}
 
-		const ctx = createRequestContext(request, match.params, url.searchParams, app);
+		const ctx = createRequestContext(request, match.params, url.searchParams, app, maxBodySize);
 		return {
 			ctx,
 			run: () => executeRoute(match, ctx, match.route.middleware ?? NO_MIDDLEWARE),
@@ -461,7 +469,7 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 				hostname = hostnameArg ?? "localhost";
 			}
 
-			// `development` and `error` are passed straight through to Bun.serve,
+			// Serve options are passed straight through to Bun.serve,
 			// and only when supplied, so Bun's own defaults still apply (#68).
 			const server = Bun.serve({
 				port,
@@ -469,6 +477,11 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 				fetch: handleRequest,
 				...(listenOpts.development !== undefined && { development: listenOpts.development }),
 				...(listenOpts.error !== undefined && { error: listenOpts.error }),
+				...(listenOpts.maxRequestBodySize !== undefined && {
+					maxRequestBodySize: listenOpts.maxRequestBodySize,
+				}),
+				...(listenOpts.idleTimeout !== undefined && { idleTimeout: listenOpts.idleTimeout }),
+				...(listenOpts.tls !== undefined && { tls: listenOpts.tls }),
 			});
 
 			return {

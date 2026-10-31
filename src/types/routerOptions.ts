@@ -31,6 +31,38 @@ export interface RouterOptions<TLocals extends object = Record<string, unknown>>
 	 */
 	app?: Application;
 	/**
+	 * Whether the default error handler includes `error.message` as the
+	 * problem document's `detail`.
+	 *
+	 * When unset, detail is only included if the environment is explicitly
+	 * `development` or `test` (the mounted Application's `env`, then
+	 * `APP_ENV`, then `NODE_ENV`). Everything else, including no environment
+	 * at all, gets a generic response. Has no effect when `onError` is set.
+	 *
+	 * @example
+	 * ```ts
+	 * const router = createRouter({ debug: Bun.env.APP_DEBUG === "true" });
+	 * ```
+	 */
+	debug?: boolean;
+	/**
+	 * Maximum request body size, in bytes, that `ctx.body.json()`,
+	 * `ctx.body.text()` and `ctx.body.formData()` will read.
+	 *
+	 * A larger body makes the reader throw an `HttpError` with status 413
+	 * (Content Too Large), which the default error handler turns into a 413
+	 * problem response. A `Content-Length` over the limit is rejected before
+	 * anything is read; streamed bodies are cut off as soon as they exceed it.
+	 * Unset means no router-level limit (Bun's own `maxRequestBodySize`
+	 * still applies; see `listen()`).
+	 *
+	 * @example
+	 * ```ts
+	 * const router = createRouter({ maxBodySize: 1024 * 1024 }); // 1 MiB
+	 * ```
+	 */
+	maxBodySize?: number;
+	/**
 	 * Custom handler for 404 Not Found responses.
 	 * Called when no route matches the request path.
 	 *

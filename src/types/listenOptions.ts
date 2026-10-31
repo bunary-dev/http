@@ -1,7 +1,8 @@
 /**
  * Options for router.listen() when using the object form.
  *
- * `development` and `error` are passed straight through to `Bun.serve`.
+ * `development`, `error`, `maxRequestBodySize`, `idleTimeout` and `tls` are
+ * passed straight through to `Bun.serve`, and only when supplied.
  *
  * @example
  * ```ts
@@ -28,6 +29,22 @@ export interface ListenOptions {
 	 * Bun's own default applies (`NODE_ENV !== "production"`).
 	 */
 	development?: boolean;
+	/**
+	 * Passed through to `Bun.serve`: the largest request body, in bytes, Bun
+	 * accepts before rejecting the request. When omitted, Bun's default
+	 * (128 MiB) applies. See also the router-level `maxBodySize` option.
+	 */
+	maxRequestBodySize?: number;
+	/**
+	 * Passed through to `Bun.serve`: seconds a connection may stay idle
+	 * before Bun closes it. When omitted, Bun's default applies.
+	 */
+	idleTimeout?: number;
+	/**
+	 * Passed through to `Bun.serve` to serve HTTPS, e.g.
+	 * `{ cert: Bun.file("cert.pem"), key: Bun.file("key.pem") }`.
+	 */
+	tls?: Bun.TLSOptions | Bun.TLSOptions[];
 	/**
 	 * Passed through to `Bun.serve` as a last-resort error handler.
 	 *
