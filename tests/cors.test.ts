@@ -546,6 +546,84 @@ describe("CORS Middleware", () => {
 		});
 	});
 
+	describe("Requests without an Origin header (#120)", () => {
+		async function fetchWithoutOrigin(
+			options: Parameters<typeof cors>[0],
+			handler: () => unknown = () => ({ ok: true }),
+		): Promise<Response> {
+			const app = createRouter();
+			app.use(cors(options));
+			app.get("/api/data", handler as () => Response);
+			return app.fetch(new Request("http://localhost/api/data"));
+		}
+
+		test("single origin adds Vary: Origin", async () => {
+			const response = await fetchWithoutOrigin({ origin: "https://a.com" });
+
+			expect(response.status).toBe(200);
+			expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
+			expect(response.headers.get("Vary")).toBe("Origin");
+		});
+
+		test("origin array adds Vary: Origin", async () => {
+			const response = await fetchWithoutOrigin({ origin: ["https://a.com", "https://b.com"] });
+
+			expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
+			expect(response.headers.get("Vary")).toBe("Origin");
+		});
+
+		test("credentials adds Vary: Origin", async () => {
+			const explicit = await fetchWithoutOrigin({ origin: "https://a.com", credentials: true });
+			expect(explicit.headers.get("Vary")).toBe("Origin");
+			expect(explicit.headers.get("Access-Control-Allow-Credentials")).toBeNull();
+
+			const reflected = await fetchWithoutOrigin({
+				credentials: true,
+				allowWildcardCredentials: true,
+			});
+			expect(reflected.headers.get("Vary")).toBe("Origin");
+		});
+
+		test("appends to an existing Vary without clobbering or repeating", async () => {
+			const response = await fetchWithoutOrigin(
+				{ origin: "https://a.com" },
+				() => new Response("ok", { headers: { Vary: "Accept-Encoding" } }),
+			);
+			expect(response.headers.get("Vary")).toBe("Accept-Encoding, Origin");
+
+			const already = await fetchWithoutOrigin(
+				{ origin: "https://a.com" },
+				() => new Response("ok", { headers: { Vary: "origin" } }),
+			);
+			expect(already.headers.get("Vary")).toBe("origin");
+		});
+
+		test("wildcard without credentials leaves the response untouched", async () => {
+			const response = await fetchWithoutOrigin(
+				{},
+				() => new Response("ok", { headers: { Vary: "Accept-Encoding" } }),
+			);
+			expect(response.headers.get("Vary")).toBe("Accept-Encoding");
+
+			const plain = await fetchWithoutOrigin({ origin: "*" });
+			expect(plain.headers.get("Vary")).toBeNull();
+		});
+
+		test("OPTIONS without Origin on a configured origin varies on Origin only", async () => {
+			const app = createRouter();
+			app.use(cors({ origin: "https://a.com" }));
+			app.get("/api/data", () => ({ ok: true }));
+
+			const response = await app.fetch(
+				new Request("http://localhost/api/data", { method: "OPTIONS" }),
+			);
+
+			expect(response.status).toBe(204);
+			expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
+			expect(response.headers.get("Vary")).toBe("Origin");
+		});
+	});
+
 	describe("Non-CORS OPTIONS requests", () => {
 		test("OPTIONS without Origin still returns normal 204", async () => {
 			const app = createRouter();
