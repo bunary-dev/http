@@ -17,6 +17,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 - ❓ **Optional Parameters** - Flexible routes with optional path segments
 - 🌐 **Wildcard Routes** - Catch-all `/*` and `/**` patterns for SPA fallbacks and proxies
 - 🔀 **CORS** - Built-in CORS middleware with configurable origins, methods, headers, and credentials
+- 🗂️ **Static Files** - `serveStatic()` serves a directory with ETag / `Last-Modified` caching and path-traversal protection
 - 🚦 **Rate Limiting** - In-memory fixed-window `rateLimit()` middleware with `RateLimit-*` headers and a pluggable store
 - 📨 **Response Helpers** - `json`, `text`, `html`, `redirect`, `status` on `ctx` and as standalone functions
 - 🍪 **Cookies** - `ctx.cookies` reads the request and queues `Set-Cookie` headers for the response
@@ -768,6 +769,44 @@ tests, every request shares one key.
 > `increment(key, windowMs) => { count, resetAt }` (`resetAt` in epoch milliseconds, may return a
 > promise), for example on top of Redis.
 
+## Static Files
+
+`serveStatic(root, options?)` returns a route handler that serves files from a directory. Mount it on a wildcard route: the captured path (`ctx.params["*"]`) names the file relative to `root`.
+
+```typescript
+import { createRouter, serveStatic } from '@bunary/http';
+
+const router = createRouter();
+
+router.get('/assets/*', serveStatic('./public', { maxAge: 3600 }));
+// GET /assets/css/site.css → ./public/css/site.css
+```
+
+Files are read with `Bun.file`. Each response carries:
+
+- `Content-Type` from the file extension (`application/octet-stream` when unknown)
+- `Content-Length`
+- `Last-Modified`
+- a weak `ETag` (`W/"<size>-<mtime>"`)
+- `Cache-Control: public, max-age=N` when `maxAge` is set
+
+`If-None-Match` (including `*` and comma-separated lists) and `If-Modified-Since` are honoured with a bodyless `304 Not Modified`; `If-None-Match` takes precedence when both are sent. `HEAD` requests get the same headers without the file being read.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `index` | — | File to serve for directory requests, e.g. `"index.html"`. Without it, directories are 404 (there is never a listing). |
+| `dotfiles` | `"deny"` | `"allow"` serves paths with a segment starting with `.` (`.env`, `.well-known/…`); `"deny"` answers them with 404. |
+| `maxAge` | — | Seconds for `Cache-Control: public, max-age=N`. No `Cache-Control` when omitted. |
+
+Everything that is not a servable file is a `404` problem response, the same as an unmatched route:
+
+- missing files, and directories without an `index` file
+- dotfiles, unless `dotfiles: "allow"`
+- `..` or `.` segments, including percent-encoded ones (`%2e%2e`, `..%2f`), absolute paths (`%2Fetc%2Fpasswd`, `//etc`), backslashes and NUL bytes
+- any path whose real location, with symlinks resolved, is outside `root` — a symlink inside `root` pointing elsewhere is not followed out
+
+Symlinks whose target stays inside `root` are served.
+
 ## Validation
 
 Pass an options object between the path and the handler to validate a route's
@@ -1069,18 +1108,8 @@ router.get('/*', (ctx) => {
   return new Response(Bun.file('public/index.html'));
 });
 
-// Static file serving (with path traversal protection)
-router.get('/assets/*', (ctx) => {
-  const filePath = ctx.params['*'];
-  if (!filePath) return new Response('Not Found', { status: 404 });
-
-  const resolved = Bun.resolveSync(`public/${filePath}`, process.cwd());
-  const root = Bun.resolveSync('public', process.cwd());
-  if (!resolved.startsWith(root)) {
-    return new Response('Forbidden', { status: 403 });
-  }
-  return new Response(Bun.file(resolved));
-});
+// Static file serving — see "Static Files" for traversal protection and caching
+router.get('/assets/*', serveStatic('./public'));
 
 // GET /assets/css/style.css → ctx.params["*"] = "css/style.css"
 // GET /assets/js/router.js     → ctx.params["*"] = "js/router.js"
@@ -1275,6 +1304,7 @@ import type {
   GroupCallback,
   RouteInfo,
   CorsOptions,
+  ServeStaticOptions,
   RateLimitOptions,
   RateLimitStore,
   RateLimitHit,
