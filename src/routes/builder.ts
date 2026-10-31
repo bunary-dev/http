@@ -46,6 +46,12 @@ export function createRouteBuilder(
 		get patch() {
 			return router.patch;
 		},
+		get ws() {
+			return router.ws;
+		},
+		get websocket() {
+			return router.websocket;
+		},
 		get use() {
 			return router.use;
 		},

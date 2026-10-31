@@ -43,6 +43,8 @@ function makeStubApp(): Router {
 		getRoutes: (() => []) as unknown as Router["getRoutes"],
 		listen: (() => ({}) as never) as unknown as Router["listen"],
 		fetch: (async () => new Response()) as unknown as Router["fetch"],
+		ws: (() => {}) as unknown as Router["ws"],
+		websocket: {} as Router["websocket"],
 	};
 }
 

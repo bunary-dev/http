@@ -8,6 +8,12 @@ import type { RouteBuilder } from "./routeBuilder.js";
 import type { RouteHandler } from "./routeHandler.js";
 import type { RouteInfo } from "./routeInfo.js";
 import type { RouteSchemas, ValidatedRouteHandler } from "./validation.js";
+import type {
+	RouterWebSocketHandler,
+	WebSocketData,
+	WebSocketHandlers,
+	WebSocketRouteOptions,
+} from "./websocket.js";
 
 /**
  * The Bunary router instance for HTTP routing and middleware.
@@ -133,6 +139,44 @@ export interface Router<TLocals extends object = Record<string, unknown>> {
 			handler: ValidatedRouteHandler<TLocals, S>,
 		): RouteBuilder<TLocals>;
 	};
+
+	/**
+	 * Register a WebSocket route (#128).
+	 *
+	 * The route answers GET. Params, constraints, and global and group
+	 * middleware run first, so middleware can reject the request (e.g. 401)
+	 * before anything is upgraded; then the request is upgraded and `ws.data`
+	 * holds `{ params, locals }` plus whatever `options.upgrade` returned. A
+	 * request without `Upgrade: websocket` gets 426 Upgrade Required.
+	 *
+	 * `listen()` wires the events up for you; with your own `Bun.serve`, pass
+	 * `websocket: router.websocket`.
+	 *
+	 * @param path - URL path pattern (supports :param and :param? syntax)
+	 * @param handlers - `{ open?, message?, close?, drain? }`
+	 * @param options - Optional `upgrade(ctx)` for extra `ws.data`, and `headers`
+	 *
+	 * @example
+	 * ```ts
+	 * router.ws<{ room: string }>("/rooms/:room", {
+	 *   message(ws, message) {
+	 *     ws.send(`${ws.data.params.room}: ${message}`);
+	 *   },
+	 * });
+	 * ```
+	 */
+	ws: <P extends PathParams = PathParams, TExtra extends object = Record<never, never>>(
+		path: string,
+		handlers: WebSocketHandlers<WebSocketData<TLocals, P, TExtra>>,
+		options?: WebSocketRouteOptions<TLocals, P, TExtra>,
+	) => RouteBuilder<TLocals>;
+
+	/**
+	 * The `websocket` handler for `Bun.serve`, dispatching to the matching
+	 * `router.ws()` route. Only needed when you call `Bun.serve` yourself:
+	 * `Bun.serve({ fetch: router.fetch, websocket: router.websocket })`.
+	 */
+	websocket: RouterWebSocketHandler;
 
 	/**
 	 * Add middleware to the request pipeline.

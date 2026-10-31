@@ -22,6 +22,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 - 📨 **Response Helpers** - `json`, `text`, `html`, `redirect`, `status` on `ctx` and as standalone functions
 - 🔁 **Content negotiation** - Return a `Resource`; the `Accept` header picks among its opt-in formats (JSON, JSON-LD, …), with 406 for anything else
 - 📡 **Server-Sent Events** - `sse()` streams `text/event-stream` responses with event framing, keep-alive pings and disconnect signals
+- 🔁 **WebSockets** - `router.ws()` routes on `Bun.serve`, behind the same params, constraints, groups and middleware as HTTP routes
 - 🍪 **Cookies** - `ctx.cookies` reads the request and queues `Set-Cookie` headers for the response
 - 🔌 **Core integration** - Optional `httpProvider()` / `serve()` mount the router on a `@bunary/core` Application
 
@@ -663,6 +664,8 @@ router.listen({
 });
 ```
 
+`listen()` also wires the router's `websocket` handler into `Bun.serve`, so [WebSocket routes](#websockets) work without extra setup.
+
 For a limit on what handlers read, rather than what Bun accepts, set the router's `maxBodySize`: `ctx.body.*` then throws a 413 `HttpError` for larger bodies.
 
 ### Testing Without Server
@@ -951,6 +954,91 @@ Everything that is not a servable file is a `404` problem response, the same as 
 - any path whose real location, with symlinks resolved, is outside `root` — a symlink inside `root` pointing elsewhere is not followed out
 
 Symlinks whose target stays inside `root` are served.
+
+## WebSockets
+
+`router.ws(path, handlers, options?)` registers a WebSocket route. `handlers` is `{ open?, message?, close?, drain? }`; each receives Bun's [`ServerWebSocket`](https://bun.sh/docs/api/websockets), whose `ws.data` holds the route's `params` and the request's `locals`.
+
+```typescript
+import { createRouter } from '@bunary/http';
+
+const router = createRouter();
+
+router.ws('/rooms/:room', {
+  open(ws) {
+    ws.subscribe(ws.data.params.room);
+  },
+  message(ws, message) {
+    ws.publish(ws.data.params.room, message);
+  },
+  close(ws, code, reason) {
+    ws.unsubscribe(ws.data.params.room);
+  },
+});
+
+router.listen(3000);
+// new WebSocket('ws://localhost:3000/rooms/lobby')
+```
+
+A WebSocket route is a `GET` route: path params, constraints (`.where*()`), names, groups (prefix, name prefix and middleware) and global middleware all apply, and they run **before** the upgrade. A middleware that returns a response instead of calling `next()` rejects the connection with that response, so authentication works as it does for HTTP routes:
+
+```typescript
+import { createRouter, type Middleware } from '@bunary/http';
+
+interface Locals { user: { id: string } }
+
+const router = createRouter<Locals>();
+
+const auth: Middleware<Locals> = async (ctx, next) => {
+  const user = await findUser(ctx.query.get('token'));
+  if (!user) return new Response('Unauthorized', { status: 401 }); // never upgraded
+  ctx.locals.user = user;
+  return await next();
+};
+
+router.group({ prefix: '/live', middleware: [auth] }, (live) => {
+  live.ws('/feed', {
+    open(ws) {
+      ws.send(`hello ${ws.data.locals.user.id}`);
+    },
+  });
+});
+```
+
+Once middleware has passed, the router calls `server.upgrade(request, { data })` inside `router.fetch`. A request to a WebSocket route without `Upgrade: websocket` (a plain `GET`) gets a `426 Upgrade Required` problem response with `Upgrade: websocket`; an `Upgrade` request Bun rejects (e.g. no `Sec-WebSocket-Key`) gets `400`. Global middleware sees a `101` response for a successful upgrade. Cookies queued with `ctx.cookies` before the upgrade are sent on the `101` response.
+
+| Option | Description |
+|--------|-------------|
+| `upgrade(ctx)` | Runs after middleware, just before the upgrade; the object it returns (or resolves to) is merged into `ws.data`. `params` and `locals` always win. |
+| `headers` | Extra headers for the `101 Switching Protocols` response. |
+
+```typescript
+router.ws(
+  '/chat/:room',
+  {
+    open(ws) {
+      ws.data.joinedAt; // number — inferred from upgrade()
+    },
+  },
+  { upgrade: (ctx) => ({ joinedAt: Date.now() }) },
+);
+```
+
+Type the params with `router.ws<{ room: string }>(...)` as with `router.get`; `ws.data.locals` takes the router's `TLocals`.
+
+### Using your own `Bun.serve`
+
+`router.listen()` passes a single `websocket` handler to `Bun.serve` that dispatches each connection's events to the route it was upgraded on. When you call `Bun.serve` yourself with `router.fetch`, pass `router.websocket` too, spreading it to add Bun's WebSocket settings:
+
+```typescript
+Bun.serve({
+  port: 3000,
+  fetch: router.fetch,
+  websocket: { ...router.websocket, maxPayloadLength: 1024 * 1024, idleTimeout: 60 },
+});
+```
+
+`router.fetch(request)` called without Bun's server (as in tests) cannot upgrade: a plain `GET` still gets `426`, but an upgrade request fails with a `500`. Test WebSocket routes against `router.listen({ port: 0 })`.
 
 ## Validation
 
@@ -1469,6 +1557,10 @@ import type {
   ValidatedContext,
   ValidatedRouteHandler,
   AnyContext,
+  WebSocketHandlers,
+  WebSocketData,
+  WebSocketRouteOptions,
+  RouterWebSocketHandler,
   ResourceConverter,
   HttpConfig,
 } from '@bunary/http';

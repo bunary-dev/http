@@ -39,3 +39,23 @@ export function setRequestServer(request: Request, server: RequestIPSource): voi
 export function getClientAddress(request: Request): string | undefined {
 	return servers.get(request)?.requestIP(request)?.address || undefined;
 }
+
+/**
+ * The part of Bun's `Server` that can upgrade a request to a WebSocket.
+ *
+ * @internal
+ */
+export interface UpgradeSource {
+	upgrade(request: Request, options?: { data?: unknown; headers?: Headers }): boolean;
+}
+
+/**
+ * The server that received this request, when it can upgrade to a WebSocket
+ * (#128).
+ *
+ * @internal
+ */
+export function getUpgradeSource(request: Request): UpgradeSource | undefined {
+	const server = servers.get(request) as Partial<UpgradeSource> | undefined;
+	return typeof server?.upgrade === "function" ? (server as UpgradeSource) : undefined;
+}

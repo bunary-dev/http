@@ -31,3 +31,9 @@ export type {
 	ValidatedContext,
 	ValidatedRouteHandler,
 } from "./validation.js";
+export type {
+	RouterWebSocketHandler,
+	WebSocketData,
+	WebSocketHandlers,
+	WebSocketRouteOptions,
+} from "./websocket.js";
