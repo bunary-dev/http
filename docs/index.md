@@ -798,10 +798,14 @@ router.get<{ id: string }>('/typed/:id', (ctx) => ctx.params.id); // string
   rejects `?tag=a` and a `z.string()` schema rejects `?tag=a&tag=b`; for a key
   that may appear once or many times use
   `z.union([z.string(), z.array(z.string())])`.
-- **`body`** — parsed by `content-type`: `application/json` through
-  `ctx.body.json()`, and `application/x-www-form-urlencoded` or
-  `multipart/form-data` through `ctx.body.formData()` flattened to a plain
-  object. Any other content type — including a request with no body — validates
+- **`body`** — parsed by `content-type`: `application/json` and any
+  `application/*+json` type (`application/vnd.api+json`,
+  `application/merge-patch+json`, …) through `ctx.body.json()`, and
+  `application/x-www-form-urlencoded` or `multipart/form-data` through
+  `ctx.body.formData()` flattened to a plain object the same way as `query`: a
+  field that appears once is a single value (a `string`, or a `File` for an
+  upload), and a repeated field (`tag=a&tag=b`) is an array of its values in
+  order. Any other content type — including a request with no body — validates
   `undefined`, so `z.string().optional()` passes and `z.object({...})` does not.
 
 ### Plain functions

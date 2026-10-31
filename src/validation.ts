@@ -47,18 +47,20 @@ async function loadValidateWith(): Promise<ValidateWith> {
 	return cachedValidateWith;
 }
 
-/** Content types read as JSON. */
-const JSON_TYPE = "application/json";
+/** Media types read as JSON: `application/json` and any `application/*+json`. */
+const JSON_TYPE = /^application\/(?:[^\s/]+\+)?json$/;
 
-/** Content types read as form data. */
+/** Media types read as form data. */
 const FORM_TYPES = ["application/x-www-form-urlencoded", "multipart/form-data"];
 
 /**
  * Read the request body for validation, choosing the parser by `content-type`.
  *
- * JSON bodies go through `ctx.body.json()`; `application/x-www-form-urlencoded`
- * and `multipart/form-data` go through `ctx.body.formData()` and are flattened
- * to a plain object. Anything else — including a request with no body and so no
+ * `application/json` and `application/*+json` bodies (e.g.
+ * `application/vnd.api+json`) go through `ctx.body.json()`;
+ * `application/x-www-form-urlencoded` and `multipart/form-data` go through
+ * `ctx.body.formData()` and are flattened like the query string, so a repeated
+ * field becomes an array. Anything else — including a request with no body and so no
  * `content-type` — yields `undefined`, which the schema then rejects or allows
  * as it sees fit.
  *
@@ -68,14 +70,15 @@ const FORM_TYPES = ["application/x-www-form-urlencoded", "multipart/form-data"];
  * @internal
  */
 async function readBodyForValidation(ctx: RequestContext): Promise<unknown> {
-	const contentType = ctx.request.headers.get("content-type")?.toLowerCase() ?? "";
+	const header = ctx.request.headers.get("content-type") ?? "";
+	const mediaType = (header.split(";")[0] ?? "").trim().toLowerCase();
 
-	if (contentType.includes(JSON_TYPE)) {
+	if (JSON_TYPE.test(mediaType)) {
 		return await ctx.body.json();
 	}
 
-	if (FORM_TYPES.some((type) => contentType.includes(type))) {
-		return Object.fromEntries(await ctx.body.formData());
+	if (FORM_TYPES.includes(mediaType)) {
+		return entriesToObject(await ctx.body.formData());
 	}
 
 	return undefined;
@@ -88,15 +91,21 @@ interface MutableContext {
 	body: unknown;
 }
 
+/** A multi-valued key/value source: `URLSearchParams` or `FormData`. */
+interface MultiMap<TValue> {
+	keys(): IterableIterator<string>;
+	getAll(key: string): TValue[];
+}
+
 /**
- * Flatten a query string to a plain object: a key seen once stays a string, a
- * repeated key becomes an array of its values in order.
+ * Flatten a query string or form body to a plain object: a key seen once stays
+ * a single value, a repeated key becomes an array of its values in order.
  */
-function queryToObject(query: URLSearchParams): Record<string, string | string[]> {
-	const out: Record<string, string | string[]> = Object.create(null);
-	for (const key of new Set(query.keys())) {
-		const values = query.getAll(key);
-		out[key] = values.length === 1 ? (values[0] as string) : values;
+function entriesToObject<TValue>(entries: MultiMap<TValue>): Record<string, TValue | TValue[]> {
+	const out: Record<string, TValue | TValue[]> = Object.create(null);
+	for (const key of new Set(entries.keys())) {
+		const values = entries.getAll(key);
+		out[key] = values.length === 1 ? (values[0] as TValue) : values;
 	}
 	return out;
 }
@@ -132,7 +141,7 @@ export async function applyRouteValidation(
 	}
 
 	if (query) {
-		target.query = validateWith(query as never, queryToObject(ctx.query), "Query");
+		target.query = validateWith(query as never, entriesToObject(ctx.query), "Query");
 	}
 
 	if (body) {

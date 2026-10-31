@@ -226,6 +226,68 @@ describe("Route validation — body", () => {
 		expect(await res.json()).toEqual({ title: "notes" });
 	});
 
+	test("a repeated urlencoded key reaches the schema as an array; a single key stays scalar", async () => {
+		const app = createRouter();
+		app.post(
+			"/form",
+			{ body: z.object({ tag: z.array(z.string()), name: z.string() }) },
+			(ctx) => ({ tag: ctx.body.tag, name: ctx.body.name }),
+		);
+
+		const res = await req(app, "/form", {
+			method: "POST",
+			headers: { "content-type": "application/x-www-form-urlencoded" },
+			body: "tag=a&name=Ada&tag=b",
+		});
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ tag: ["a", "b"], name: "Ada" });
+	});
+
+	test("a repeated multipart key reaches the schema as an array; a single key stays scalar", async () => {
+		const app = createRouter();
+		app.post(
+			"/upload",
+			{ body: z.object({ tag: z.array(z.string()), title: z.string() }) },
+			(ctx) => ({ tag: ctx.body.tag, title: ctx.body.title }),
+		);
+
+		const form = new FormData();
+		form.append("tag", "x");
+		form.append("title", "notes");
+		form.append("tag", "y");
+		form.append("tag", "z");
+		const res = await req(app, "/upload", { method: "POST", body: form });
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ tag: ["x", "y", "z"], title: "notes" });
+	});
+
+	test("parses an application/*+json body as JSON", async () => {
+		const app = createRouter();
+		app.post("/api", { body: z.object({ data: z.object({ type: z.string() }) }) }, (ctx) => ({
+			type: ctx.body.data.type,
+		}));
+
+		const res = await req(app, "/api", {
+			method: "POST",
+			headers: { "content-type": "application/vnd.api+json; charset=utf-8" },
+			body: JSON.stringify({ data: { type: "articles" } }),
+		});
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ type: "articles" });
+	});
+
+	test("a +json suffix outside application/* is not parsed as JSON", async () => {
+		const app = createRouter();
+		app.post("/raw", { body: z.undefined() }, () => ({ ok: true }));
+
+		const res = await req(app, "/raw", {
+			method: "POST",
+			headers: { "content-type": "text/x+json" },
+			body: "{}",
+		});
+		expect(res.status).toBe(200);
+	});
+
 	test("a missing body is validated as undefined and fails with 422", async () => {
 		const app = createRouter();
 		app.post("/users", { body: z.object({ name: z.string() }) }, (ctx) => ({
