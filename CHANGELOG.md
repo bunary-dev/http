@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `maxBodySize` router option: `ctx.body.json()`, `.text()` and `.formData()` throw an `HttpError` with status 413 for bodies larger than the limit, checked against `Content-Length` and while streaming (#121)
 - `debug` router option to decide explicitly whether the default 500 handler includes `error.message` as `detail` (#121)
 
+### Changed
+
+- Route matching consults an index keyed by each route's first static path segment instead of testing every route, so apps with many routes under different prefixes resolve faster (about 4.8x at 100 routes, 24x at 500 in `bench/routes.ts`). Matching results, first-match-wins order, 405 `Allow` and `HEAD`/`OPTIONS` behaviour are unchanged (#12)
+
 ### Fixed
 
 - Route `query` validation no longer drops repeated keys: `?tag=a&tag=b` reaches the schema as `{ tag: ["a", "b"] }`; a key seen once stays a string. `QueryParams` is now `Record<string, string | string[]>` (#106)
