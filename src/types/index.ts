@@ -20,6 +20,7 @@ export type { RouteInfo } from "./routeInfo.js";
 export type { Router } from "./router.js";
 export type { RouterOptions } from "./routerOptions.js";
 export type {
+	AnyContext,
 	BodyOf,
 	InferSchemaOutput,
 	ParamsOf,

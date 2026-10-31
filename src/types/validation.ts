@@ -119,6 +119,45 @@ export type ValidatedContext<TLocals extends object, TSchemas> = RequestContext<
 >;
 
 /**
+ * A request context with any `params`, `query` and `body` shapes: the type to
+ * give a helper shared between validated and unvalidated handlers.
+ *
+ * A {@link ValidatedContext} replaces its validated slots with the schemas'
+ * output, so it is not assignable to `RequestContext<TLocals>`. Both
+ * `RequestContext<TLocals>` and every `ValidatedContext<TLocals, S>` are
+ * assignable to `AnyContext<TLocals>`; `locals`, `app`, `cookies`, `request`
+ * and the response helpers stay typed, while `params`, `query` and `body` are
+ * `unknown`.
+ *
+ * @typeParam TLocals — Shape of `ctx.locals`
+ *
+ * @example
+ * ```ts
+ * import { z } from "zod";
+ * import { createRouter, type AnyContext } from "@bunary/http";
+ *
+ * type Locals = { requestId: string };
+ * const router = createRouter<Locals>();
+ *
+ * function tag(ctx: AnyContext<Locals>) {
+ *   return `${ctx.request.method} ${ctx.locals.requestId}`;
+ * }
+ *
+ * router.get("/health", (ctx) => ({ tag: tag(ctx) }));
+ * router.get("/users/:id", { params: z.object({ id: z.coerce.number() }) }, (ctx) => ({
+ *   tag: tag(ctx),
+ *   id: ctx.params.id,
+ * }));
+ * ```
+ */
+export type AnyContext<TLocals extends object = Record<string, unknown>> = RequestContext<
+	TLocals,
+	unknown,
+	unknown,
+	unknown
+>;
+
+/**
  * Handler for a route that declares {@link RouteSchemas}.
  *
  * @typeParam TLocals — Shape of `ctx.locals`

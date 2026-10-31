@@ -58,6 +58,7 @@ export { problem, problemResponse } from "./problem.js";
 export type { HttpConfig } from "./provider.js";
 // Export types
 export type {
+	AnyContext,
 	BodyOf,
 	BodyReader,
 	BunaryServer,

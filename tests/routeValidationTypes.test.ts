@@ -8,8 +8,16 @@
  * @see {@link ../src/types/validation.ts}
  */
 import { describe, expect, test } from "bun:test";
+import type { Application } from "@bunary/core";
 import { z } from "zod";
-import type { BodyReader, InferSchemaOutput, PathParams } from "../src/index.js";
+import type {
+	AnyContext,
+	BodyReader,
+	InferSchemaOutput,
+	PathParams,
+	RequestContext,
+	ValidatedContext,
+} from "../src/index.js";
 import { createRouter } from "../src/index.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -186,5 +194,60 @@ describe("Typed context from route schemas", () => {
 
 		const res = await app.fetch(new Request("http://localhost/whoami?q=x"));
 		expect(await res.json()).toEqual({ requestId: "abc", q: "x" });
+	});
+});
+
+// ─── AnyContext ───────────────────────────────────────────────────────
+
+describe("AnyContext for shared helpers (#97)", () => {
+	interface Locals {
+		requestId: string;
+	}
+
+	/** One helper, called from a validated and an unvalidated handler. */
+	function describeRequest(ctx: AnyContext<Locals>): string {
+		expectType<string>(ctx.locals.requestId);
+		expectType<Application | undefined>(ctx.app);
+		expectType<unknown>(ctx.params);
+		return `${ctx.request.method} ${ctx.locals.requestId}`;
+	}
+
+	test("RequestContext and every ValidatedContext are assignable to AnyContext", () => {
+		type Schemas = { params: z.ZodObject<{ id: z.ZodCoercedNumber }> };
+		expectExact<AnyContext<Locals>, RequestContext<Locals, unknown, unknown, unknown>>(true);
+		expectType<AnyContext<Locals>>({} as RequestContext<Locals>);
+		expectType<AnyContext<Locals>>({} as ValidatedContext<Locals, Schemas>);
+		expectType<AnyContext<Locals>>(
+			{} as ValidatedContext<
+				Locals,
+				{ query: z.ZodObject<{ q: z.ZodString }>; body: () => number }
+			>,
+		);
+		// @ts-expect-error — a ValidatedContext is not a RequestContext (the reason AnyContext exists)
+		expectType<RequestContext<Locals>>({} as ValidatedContext<Locals, Schemas>);
+		// @ts-expect-error — locals stay typed: other locals do not fit
+		expectType<AnyContext<Locals>>({} as RequestContext<{ other: number }>);
+		expect(true).toBe(true);
+	});
+
+	test("one helper serves a validated and an unvalidated route", async () => {
+		const app = createRouter<Locals>();
+		app.use(async (ctx, next) => {
+			ctx.locals.requestId = "abc";
+			return await next();
+		});
+		app.get("/plain", (ctx) => ({ seen: describeRequest(ctx) }));
+		app.get("/users/:id", { params: z.object({ id: z.coerce.number() }) }, (ctx) => ({
+			seen: describeRequest(ctx),
+			id: ctx.params.id,
+		}));
+
+		expect(await (await app.fetch(new Request("http://localhost/plain"))).json()).toEqual({
+			seen: "GET abc",
+		});
+		expect(await (await app.fetch(new Request("http://localhost/users/7"))).json()).toEqual({
+			seen: "GET abc",
+			id: 7,
+		});
 	});
 });
