@@ -133,6 +133,11 @@ function resolveOrigin(
  * Handles preflight `OPTIONS` requests (returns 204) and
  * adds CORS headers to actual responses.
  *
+ * Generic over the router's locals type so it composes with any
+ * `createRouter<TLocals>()`, including an `interface` locals type (#96). It
+ * never reads or writes `ctx.locals`.
+ *
+ * @typeParam TLocals - Locals type of the router this middleware is used on
  * @param options - CORS configuration (defaults allow all origins)
  * @returns Middleware function
  *
@@ -158,7 +163,9 @@ function resolveOrigin(
  * }));
  * ```
  */
-export function cors(options: CorsOptions = {}): Middleware {
+export function cors<TLocals extends object = Record<string, unknown>>(
+	options: CorsOptions = {},
+): Middleware<TLocals> {
 	const {
 		origin = "*",
 		methods = DEFAULT_METHODS,

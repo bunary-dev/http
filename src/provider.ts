@@ -91,6 +91,9 @@ function assertHttpConfig(value: unknown): asserts value is HttpConfig | undefin
  * `ctx.app`. Nothing listens: starting the server is {@link serve}'s job, so a
  * booted application is still safe to use from a test or a CLI command.
  *
+ * Accepts a router with any locals type, including an `interface` (#96).
+ *
+ * @typeParam TLocals - Locals type of the router
  * @param router - The router to mount
  * @returns A core `Provider`
  *
@@ -111,12 +114,16 @@ function assertHttpConfig(value: unknown): asserts value is HttpConfig | undefin
  * serve(app);
  * ```
  */
-export function httpProvider(router: Router): Provider {
+export function httpProvider<TLocals extends object = Record<string, unknown>>(
+	router: Router<TLocals>,
+): Provider {
 	return {
 		name: "@bunary/http",
 		register(app: Application): void {
 			assertHttpConfig(app.config.get("http"));
-			app.set(RouterToken, router);
+			// RouterToken is typed for default locals; it is the same object at
+			// runtime whatever the router's locals type.
+			app.set(RouterToken, router as unknown as Router);
 			bindApp(router, app);
 		},
 	};

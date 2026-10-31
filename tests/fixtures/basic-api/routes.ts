@@ -37,11 +37,8 @@ import { DatabaseToken, type FakeConnection } from "./database.js";
 /**
  * Per-request store this API's middleware fills in.
  *
- * A `type` alias, not an `interface`: only an alias gets TypeScript's implicit
- * index signature, and without one a `Router<ApiLocals>` is not assignable to
- * the `Router<Record<string, unknown>>` that `router.use(cors())` and
- * `httpProvider()` expect. (docs/index.md's "Typed Locals" example uses an
- * `interface`, which does not compose with either.)
+ * A `type` alias; an `interface` works too since #96 made `cors()` and
+ * `httpProvider()` generic over locals (see tests/typedLocalsCompat.test.ts).
  */
 export type ApiLocals = {
 	/** Correlation id minted by the global logging middleware. */
