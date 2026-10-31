@@ -25,7 +25,7 @@ export async function handleMethodNotAllowed(
 	const advertisedMethods = expandAllowedMethods(allowedMethods);
 	if (options?.onMethodNotAllowed) {
 		const result = await options.onMethodNotAllowed(ctx, allowedMethods);
-		const response = toResponse(result);
+		const response = toResponse(result, ctx.request);
 		// Ensure Allow header is present even with custom handler
 		if (!response.headers.get("Allow")) {
 			const headers = new Headers(response.headers);

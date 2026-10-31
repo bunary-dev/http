@@ -20,6 +20,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 - 🗂️ **Static Files** - `serveStatic()` serves a directory with ETag / `Last-Modified` caching and path-traversal protection
 - 🚦 **Rate Limiting** - In-memory fixed-window `rateLimit()` middleware with `RateLimit-*` headers and a pluggable store
 - 📨 **Response Helpers** - `json`, `text`, `html`, `redirect`, `status` on `ctx` and as standalone functions
+- 🔁 **Content negotiation** - Return a `Resource`; the `Accept` header picks among its opt-in formats (JSON, JSON-LD, …), with 406 for anything else
 - 📡 **Server-Sent Events** - `sse()` streams `text/event-stream` responses with event framing, keep-alive pings and disconnect signals
 - 🍪 **Cookies** - `ctx.cookies` reads the request and queues `Set-Cookie` headers for the response
 - 🔌 **Core integration** - Optional `httpProvider()` / `serve()` mount the router on a `@bunary/core` Application
@@ -552,6 +553,88 @@ If the handler throws (or its promise rejects), the stream is closed; catch
 inside the handler if you need to log the error. `HEAD` on an SSE route returns
 the headers promptly and cancels the stream (see [HEAD Requests](#head-requests)).
 
+### Resources and content negotiation
+
+A handler can return a `Resource` instead of raw data. The router then picks the
+response format from the request's `Accept` header, among the formats the
+resource explicitly supports, and sets the matching `Content-Type`. One URL, one
+handler; the conversions live in the resource.
+
+```typescript
+import { createRouter, Resource } from '@bunary/http';
+
+class UserResource extends Resource {
+  constructor(private readonly user: { id: number; name: string }) {
+    super();
+  }
+
+  // Opt-in formats, keyed by media type
+  override formats = {
+    'application/ld+json': () => this.toJsonLd(),
+  };
+
+  // application/json — always supported
+  toJSON() {
+    return { id: this.user.id, name: this.user.name };
+  }
+
+  toJsonLd() {
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'Person',
+      '@id': `/users/${this.user.id}`,
+      name: this.user.name,
+    };
+  }
+}
+
+router.get('/users/:id', (ctx) => new UserResource(findUser(ctx.params.id)));
+```
+
+```http
+GET /users/1                         → 200 Content-Type: application/json
+Accept: application/ld+json          → 200 Content-Type: application/ld+json
+Accept: application/json;q=0.5, application/ld+json
+                                     → 200 Content-Type: application/ld+json
+Accept: text/csv                     → 406 Not Acceptable (problem+json)
+```
+
+How the format is chosen (RFC 9110 §12.5.1):
+
+- `toJSON()` is always served as `application/json`. Other media types are
+  served only if listed in `formats`; an `application/json` entry there is
+  ignored.
+- Each supported type takes the q-value of the most specific matching range
+  (`type/subtype` over `type/*` over `*/*`). The highest q wins; ties go to the
+  range listed first in `Accept`, then to `application/json`, then to the
+  `formats` order. `q=0` excludes a type. Media-type parameters other than `q`
+  are ignored.
+- A missing `Accept`, `*/*` and `application/*` select `application/json`.
+- If nothing supported is acceptable, the response is a `406` problem document
+  whose `detail` lists the available media types, e.g.
+  `Available media types: application/json, application/ld+json`.
+- Every response from a `Resource`, including the 406, carries `Vary: Accept`,
+  appended to any `Vary` already set.
+
+A converter's return value is JSON-encoded, unless it is a string, `Blob`,
+`ArrayBuffer`, typed array or `ReadableStream`, which is sent as-is — so a
+`'text/csv': () => toCsv(rows)` converter works too.
+
+Optional `status` and `headers` fields on the resource set the response status
+(default `200`) and extra headers:
+
+```typescript
+class CreatedUser extends UserResource {
+  override status = 201;
+  override headers = { Location: '/users/1' };
+}
+```
+
+Handlers that return plain objects, strings, numbers or `Response`s are not
+negotiated and get no `Vary: Accept`. In group middleware, pass the request to
+`toResponse(await next(), ctx.request)` so a `Resource` is negotiated; without
+the request it is served as `application/json`.
+
 ### Starting the Server
 
 Both object and positional forms are supported:
@@ -622,7 +705,7 @@ import { createRouter, toResponse } from '@bunary/http';
 
 router.group({ prefix: '/api', middleware: [
   async (ctx, next) => {
-    const response = toResponse(await next());
+    const response = toResponse(await next(), ctx.request);
     response.headers.set('X-Api-Version', '1');
     return response;
   },
@@ -633,6 +716,8 @@ router.group({ prefix: '/api', middleware: [
 
 `toResponse()` passes a `Response` through unchanged, turns `null`/`undefined` into
 `204 No Content`, strings and numbers into `text/plain`, and objects/arrays into JSON.
+Pass `ctx.request` as the second argument so a returned [`Resource`](#resources-and-content-negotiation)
+is negotiated against the request's `Accept` header.
 
 ### Basic Middleware
 
@@ -1384,6 +1469,7 @@ import type {
   ValidatedContext,
   ValidatedRouteHandler,
   AnyContext,
+  ResourceConverter,
   HttpConfig,
 } from '@bunary/http';
 ```
