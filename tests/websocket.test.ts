@@ -210,6 +210,65 @@ describe("router.ws()", () => {
 		ws.close();
 	});
 
+	test("sends cookies queued before the upgrade and the headers option on the 101", async () => {
+		const router = createRouter();
+		router.use(async (ctx, next) => {
+			ctx.cookies.set("session", "abc");
+			return await next();
+		});
+		router.ws("/ws", {}, { headers: { "X-Room": "lobby" } });
+		running = router.listen({ port: 0 });
+
+		// fetch() cannot complete a 101, so read the handshake off a raw socket.
+		const head = await new Promise<string>((resolve, reject) => {
+			let buf = "";
+			Bun.connect({
+				hostname: "localhost",
+				port: (running as BunaryServer).port,
+				socket: {
+					open(socket) {
+						socket.write(
+							"GET /ws HTTP/1.1\r\nHost: localhost\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n" +
+								"Sec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n",
+						);
+					},
+					data(socket, chunk) {
+						buf += chunk.toString();
+						if (buf.includes("\r\n\r\n")) {
+							socket.end();
+							resolve(buf);
+						}
+					},
+					error: (_socket, error) => reject(error),
+				},
+			});
+		});
+		expect(head).toStartWith("HTTP/1.1 101");
+		expect(head.toLowerCase()).toContain("set-cookie: session=abc");
+		expect(head.toLowerCase()).toContain("x-room: lobby");
+	});
+
+	test("router.websocket dispatches drain and ignores foreign sockets", () => {
+		const router = createRouter();
+		const drained: unknown[] = [];
+		router.ws("/ws", { drain: (ws) => drained.push(ws) });
+		const fake = { data: { not: "ours" } } as never;
+		// A socket this router did not upgrade is ignored for every event.
+		router.websocket.open(fake);
+		router.websocket.message(fake, "x");
+		router.websocket.close(fake, 1000, "");
+		router.websocket.drain(fake);
+		router.websocket.drain({ data: undefined } as never);
+		expect(drained).toEqual([]);
+	});
+
+	test("route builders and group builders expose ws and websocket", () => {
+		const router = createRouter();
+		const builder = router.get("/", () => "ok");
+		expect(builder.ws).toBe(router.ws);
+		expect(builder.websocket).toBe(router.websocket);
+	});
+
 	test("ws routes appear as GET in getRoutes() and can be named", () => {
 		const router = createRouter();
 		router.ws("/chat/:room", {}).name("chat");
