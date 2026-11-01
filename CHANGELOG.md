@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-01
+
+Baseline release: every `@bunary/*` package moves to 0.4.0 together. This is the first npm release since 0.3.0, so it carries everything below that was previously tagged as `1.0.0-rc.1` and as an earlier, unpublished `0.4.0`. Works standalone or mounted on a `@bunary/core` 0.4.0 Application: `@bunary/core` is an optional peer at `^0.4.0`, and the dev dependency now comes from npm instead of a vendored tarball (#151)
+
+### Breaking
+
+- Global middleware registered with `router.use()` now wraps **every** response the router produces — matched routes, 404, 405, the OPTIONS auto-response and error responses alike — so `cors()`, logging and tracing always run (#65)
+  - The pipeline is now `global middleware → error boundary → dispatcher`. Global middleware therefore receives a `Response` from `next()` rather than the handler's raw return value, and a handler that throws reaches it as a 500 response instead of a thrown error. Group and route middleware are unchanged: they run inside the boundary and still see raw handler return values and thrown errors
+  - Migration: a global middleware that spreads `await next()` (`{ ...result }`) or wraps it in `try`/`catch` should read the `Response` instead, or move to group middleware. An error thrown by a global middleware itself still reaches `onError`
+- `Access-Control-Allow-Methods` on a preflight now advertises the methods the matched path actually serves instead of a fixed list; an explicit `cors({ methods })` still wins, and `cors()` composed outside a router keeps the previous default list (#66)
+- `Allow` on OPTIONS and 405 responses now also names `OPTIONS`, and `HEAD` wherever a `GET` route exists, since the router serves both without them being registered. The `onMethodNotAllowed` callback still receives the registered methods only (#68)
+- The root route `/` no longer matches `//`, which previously slipped past prefix-based checks in a fronting proxy. Non-root routes keep their optional trailing slash (#68)
+- Every built-in error response is now an RFC 9457 problem document — `content-type: application/problem+json; charset=utf-8` with a body of `{ type, title, status, detail?, instance?, errors? }` — replacing the old `{ "error": "..." }` JSON for the default 404, 405 and 500 responses (#77)
+  - Migration: read `body.detail` (or `body.title`) instead of `body.error`, and match `application/problem+json` rather than `application/json` when asserting on error responses. An uncaught `BodyParseError` is now a 400 instead of a 500. A custom `onNotFound`, `onMethodNotAllowed` or `onError` still overrides the default entirely, and the 405 `Allow` header is unchanged
+  - An unexpected error's message appears as `detail` only when the environment is explicitly `development` or `test`, or the router's `debug` option is on; otherwise only `title` and `status` are sent (see Security)
+- The request-body readers moved from the context root onto `ctx.body` so that `ctx.json(data)` can be the response helper, matching Hono and Elysia (#76)
+  - Migration: `await ctx.json()` → `await ctx.body.json()`; `await ctx.text()` → `await ctx.body.text()`; `await ctx.formData()` → `await ctx.body.formData()`. Generics and `BodyParseError` behaviour are unchanged, and `ctx.request` still exposes the underlying Web `Request` for streaming, `arrayBuffer()` and `blob()`. TypeScript catches every un-migrated call site: the new `ctx.json(data)` and `ctx.text(body)` require an argument, and `ctx.formData` no longer exists on the context
+- `createApp()` is now `createRouter()`, the `BunaryApp` type is now `Router`, and `AppOptions` is now `RouterOptions` — no aliases are kept, since `@bunary/core` owns `createApp()` (#74)
+  - Migration: `import { createApp } from "@bunary/http"` → `import { createRouter } from "@bunary/http"`; every other member (`get`/`post`/`put`/`patch`/`delete`, `use`, `group`, `route`, `hasRoute`, `getRoutes`, `listen`, `fetch`) is unchanged
+- **Requires Bun ≥ 1.4.0** (`engines.bun`); `.bun-version` pins 1.4.2 for CI and contributors (#71)
+- `cors()` throws when `credentials: true` is combined with a wildcard origin, and the default 500 response hides `error.message` unless the environment is explicitly `development` or `test`; see Security (#104, #121)
+
 ### Added
 
 - `router.ws(path, handlers, options?)` WebSocket routes, also on groups: `{ open?, message?, close?, drain? }` receive Bun's `ServerWebSocket` with `ws.data` typed as `{ params, locals }` plus whatever the `upgrade(ctx)` option returns; a `headers` option sets headers on the `101`. Params, constraints, groups and global/group middleware run before the upgrade, so middleware can reject with e.g. 401; a request without `Upgrade: websocket` gets 426 Upgrade Required. `listen()` now passes a `websocket` handler to `Bun.serve`, and `router.websocket` is exposed for your own `Bun.serve({ fetch: router.fetch, websocket: router.websocket })`. New types `WebSocketHandlers`, `WebSocketData`, `WebSocketRouteOptions` and `RouterWebSocketHandler` (#128)
@@ -19,33 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `listen()` passes `maxRequestBodySize`, `idleTimeout` and `tls` through to `Bun.serve`, only when supplied (#121)
 - `maxBodySize` router option: `ctx.body.json()`, `.text()` and `.formData()` throw an `HttpError` with status 413 for bodies larger than the limit, checked against `Content-Length` and while streaming (#121)
 - `debug` router option to decide explicitly whether the default 500 handler includes `error.message` as `detail` (#121)
-
-### Changed
-
-- Route matching consults an index keyed by each route's first static path segment instead of testing every route, so apps with many routes under different prefixes resolve faster (about 4.8x at 100 routes, 24x at 500 in `bench/routes.ts`). Matching results, first-match-wins order, 405 `Allow` and `HEAD`/`OPTIONS` behaviour are unchanged (#12)
-
-### Fixed
-
-- A router mounted on a `@bunary/core` Application no longer exposes `error.message` in default 500 responses just because core's environment fell back to `development` (no `config.app.env`, `APP_ENV` or `NODE_ENV` set). With the router's `debug` option unset, a core-mounted router now follows core's resolved `app.debug` (`config.app.debug`, `APP_DEBUG`, `DEBUG`, default `false`) instead of `app.env`; an explicit `app.env: "development"` without `app.debug: true` no longer shows detail. The router's `debug` option still wins, and standalone routers are unchanged (#131)
-- `cors()` with a configured origin (string or array) or `credentials: true` now adds `Vary: Origin` to responses for requests that send no `Origin` header, appended to any existing `Vary`. Previously a shared cache could store that no-CORS response and serve it to later cross-origin requests, which then failed CORS. The wildcard default without credentials is unchanged (#120)
-- A throwing `onError` is called exactly once per request instead of twice (the second time with its own error); the router falls back to the generic 500 problem response, which global middleware still sees. The `listen()` `error` option docs no longer claim a throwing `onError` escapes the router (#119)
-- `HEAD` on a `GET` route that returns a slow or never-ending stream (SSE, long-poll) no longer hangs until 64 KiB is produced: the body is measured for at most 50 ms, then cancelled and the response sent without `Content-Length`. Small finite bodies still get `Content-Length` (#117)
-- Route `query` validation no longer drops repeated keys: `?tag=a&tag=b` reaches the schema as `{ tag: ["a", "b"] }`; a key seen once stays a string. `QueryParams` is now `Record<string, string | string[]>` (#106)
-- Route `body` validation no longer drops repeated form fields: an `application/x-www-form-urlencoded` or `multipart/form-data` body with `tag=a&tag=b` reaches the schema as `{ tag: ["a", "b"] }`, matching `query`; a field seen once stays a single value (#118)
-- Route `body` validation parses any `application/*+json` content type (e.g. `application/vnd.api+json`) as JSON instead of validating `undefined` (#118)
-- Typed locals declared as an `interface` now compose with `router.use(cors())` and `httpProvider(router)`: `cors()` and `httpProvider()` are generic over the router's locals type. Types only, no runtime change (#96)
-
-### Security
-
-- `cors()` now throws when `credentials: true` is combined with a wildcard origin (`"*"`, `["*"]` or the default), which reflected any `Origin` with credentials. Pass `allowWildcardCredentials: true` to opt in. `["*"]` is now handled like `"*"` (#104)
-- The default error handler no longer includes `error.message` in 500 responses unless the environment is explicitly `development` or `test` (or `debug: true` is set). Previously anything other than `production`, including no `APP_ENV`/`NODE_ENV` at all, exposed raw error messages (#121)
-
-## [1.0.0-rc.1] - 2026-09-22
-
-API freeze for the 1.0 line. Nothing is published to npm yet; the tag marks the contract. Epic: #84. Works standalone or mounted on a `@bunary/core` 1.0.0-rc.1 Application (optional peer).
-
-### Added
-
 - `ctx.cookies` cookie jar backed by the `cookie` package (the package's first runtime dependency): `get(name)` and `getAll()` read the incoming `Cookie` header lazily, `set(name, value, options?)` and `delete(name, options?)` queue `Set-Cookie` header values (`delete()` forces `Max-Age=0` and an epoch `Expires`) (#79)
   - Queued cookies are appended onto whatever `Response` the router ultimately returns — matched routes, plain-object returns via `toResponse()`, 404/405, and error responses alike — from one point in `createRouter.ts`, after global middleware has produced the final response; an immutable `Response` (e.g. `Response.redirect()`) is cloned with the extra headers
   - `CookieJar` and `createCookieJar` are exported from the barrel, along with `CookieSerializeOptions` (a re-export of `cookie`'s `SerializeOptions`)
@@ -72,7 +67,7 @@ API freeze for the 1.0 line. Nothing is published to npm yet; the tag marks the 
   - Each slot accepts a `SchemaLike` — a [Standard Schema](https://standardschema.dev) object (zod, valibot, arktype, ...) or a plain function that returns the parsed value and throws on bad input
   - A validated slot **replaces** its context value with the schema's output: with a `body` schema `ctx.body` *is* the validated body rather than a `BodyReader` wrapping it; unvalidated slots keep `PathParams`, `URLSearchParams` and the `BodyReader` as before
   - `ctx.params`, `ctx.query` and `ctx.body` are typed from the schemas' output types, inferred from `StandardSchemaV1.InferOutput` or a plain function's return type
-  - `params` receives the matched path parameters; `query` receives `Object.fromEntries(url.searchParams)`, so a repeated key collapses to its last value; `body` is parsed by `content-type` — `application/json` via `ctx.body.json()`, `application/x-www-form-urlencoded` and `multipart/form-data` via `ctx.body.formData()` flattened to a plain object, and anything else (including a bodyless request) validates `undefined`
+  - `params` receives the matched path parameters; `query` receives the search params as an object, with a repeated key as an array (see Fixed, #106); `body` is parsed by `content-type` — `application/json` via `ctx.body.json()`, `application/x-www-form-urlencoded` and `multipart/form-data` via `ctx.body.formData()` flattened to a plain object, and anything else (including a bodyless request) validates `undefined`
   - Validation runs inside the route pipeline after route and group middleware, so middleware still sees the raw context. A rejected schema throws `@bunary/core`'s `ValidationError`, which the default mapper turns into a 422 problem document with every issue in `errors`; a body that cannot be parsed at all stays a `BodyParseError` → 400
   - `@bunary/core` remains an optional peer: `validateWith` is reached through a dynamic `import("@bunary/core")` that only runs for a route declaring schemas, and nothing in the bundled entry point imports core statically
   - New exported types `RouteSchema`, `RouteSchemas`, `InferSchemaOutput`, `ParamsOf`, `QueryOf`, `BodyOf`, `ValidatedContext`, `ValidatedRouteHandler`, `StandardSchemaLike` and `QueryParams`
@@ -81,39 +76,9 @@ API freeze for the 1.0 line. Nothing is published to npm yet; the tag marks the 
 
 ### Changed
 
-- **BREAKING:** global middleware registered with `router.use()` now wraps **every** response the router produces — matched routes, 404, 405, the OPTIONS auto-response and error responses alike — so `cors()`, logging and tracing always run (#65)
-  - The pipeline is now `global middleware → error boundary → dispatcher`. Global middleware therefore receives a `Response` from `next()` rather than the handler's raw return value, and a handler that throws reaches it as a 500 response instead of a thrown error. Group and route middleware are unchanged: they run inside the boundary and still see raw handler return values and thrown errors
-  - Migration: a global middleware that spreads `await next()` (`{ ...result }`) or wraps it in `try`/`catch` should read the `Response` instead, or move to group middleware. An error thrown by a global middleware itself still reaches `onError`
-- **BREAKING:** `Access-Control-Allow-Methods` on a preflight now advertises the methods the matched path actually serves instead of a fixed list; an explicit `cors({ methods })` still wins, and `cors()` composed outside a router keeps the previous default list (#66)
-- **BREAKING:** `Allow` on OPTIONS and 405 responses now also names `OPTIONS`, and `HEAD` wherever a `GET` route exists, since the router serves both without them being registered. The `onMethodNotAllowed` callback still receives the registered methods only (#68)
-- **BREAKING:** the root route `/` no longer matches `//`, which previously slipped past prefix-based checks in a fronting proxy. Non-root routes keep their optional trailing slash (#68)
+- Route matching consults an index keyed by each route's first static path segment instead of testing every route, so apps with many routes under different prefixes resolve faster (about 4.8x at 100 routes, 24x at 500 in `bench/routes.ts`). Matching results, first-match-wins order, 405 `Allow` and `HEAD`/`OPTIONS` behaviour are unchanged (#12)
 - A CORS preflight for a path with no routes now falls through to the 404 handler (carrying CORS headers) rather than answering 204, so the caller sees the real status (#66)
 - `normalizeHeadMethod()` removed from `src/handlers/head.ts` — dead since `resolveRoute()` took over the HEAD→GET fallback, and it cost two extra route-table scans (#68)
-
-- **BREAKING:** every built-in error response is now an RFC 9457 problem document — `content-type: application/problem+json; charset=utf-8` with a body of `{ type, title, status, detail?, instance?, errors? }` — replacing the old `{ "error": "..." }` JSON for the default 404, 405 and 500 responses (#77)
-  - Migration: read `body.detail` (or `body.title`) instead of `body.error`, and match `application/problem+json` rather than `application/json` when asserting on error responses. An uncaught `BodyParseError` is now a 400 instead of a 500. A custom `onNotFound`, `onMethodNotAllowed` or `onError` still overrides the default entirely, and the 405 `Allow` header is unchanged
-  - Detail hiding is unchanged in spirit: outside `NODE_ENV=production` an unexpected error's message appears as `detail`; in production only `title` and `status` are sent
-
-- **BREAKING:** the request-body readers moved from the context root onto `ctx.body` so that `ctx.json(data)` can be the response helper, matching Hono and Elysia (#76)
-  - Migration: `await ctx.json()` → `await ctx.body.json()`; `await ctx.text()` → `await ctx.body.text()`; `await ctx.formData()` → `await ctx.body.formData()`. Generics and `BodyParseError` behaviour are unchanged, and `ctx.request` still exposes the underlying Web `Request` for streaming, `arrayBuffer()` and `blob()`. TypeScript catches every un-migrated call site: the new `ctx.json(data)` and `ctx.text(body)` require an argument, and `ctx.formData` no longer exists on the context
-
-- **BREAKING:** `createApp()` is now `createRouter()`, the `BunaryApp` type is now `Router`, and `AppOptions` is now `RouterOptions` — no aliases are kept, since `@bunary/core` owns `createApp()` (#74)
-  - Migration: `import { createApp } from "@bunary/http"` → `import { createRouter } from "@bunary/http"`; every other member (`get`/`post`/`put`/`patch`/`delete`, `use`, `group`, `route`, `hasRoute`, `getRoutes`, `listen`, `fetch`) is unchanged
-
-### Fixed
-
-- 404, 405 and 500 responses carry CORS headers again; previously a browser reported a CORS failure instead of the real status because `cors()` never ran for them (#65)
-- `Vary: Origin` is now sent when an origin is **rejected**, not only when it is allowed — without it a shared cache could serve the no-CORS variant to an allowed origin, and vice versa (#66)
-- `Vary` is appended rather than overwritten, so an upstream `Vary: Accept-Encoding` survives; preflight responses also vary on `Access-Control-Request-Method` and `Access-Control-Request-Headers`, and a name already present is not repeated (#66)
-- A preflight now takes its group middleware from the route matching `Access-Control-Request-Method`; it previously used whichever route was registered first at that path, so a preflight for `POST /x` could pick up (or miss) middleware belonging to `GET /x` in another group (#66)
-- HEAD responses set `Content-Length` to the length of the discarded body (RFC 9110), and HEAD 404/405 responses no longer carry a body (#68)
-- `ctx.params` values are documented as being decoded after matching, so `%2F` yields a `/` inside a single-segment parameter — handlers doing file lookups must validate or constrain them (#68)
-
-## [0.4.0] - 2026-09-21
-
-### Changed
-
-- **Requires Bun ≥ 1.4.0** (`engines.bun`); `.bun-version` pins 1.4.2 for CI and contributors (#71)
 - Toolchain: `@types/bun` replaces `bun-types`, `typescript` ^7 and `@biomejs/biome` 2.5.1 pinned as devDependencies; `bun.lock` committed (#71)
 - `tsconfig.json` aligned with Bun 1.4 `bun init` defaults (`module: Preserve`, `verbatimModuleSyntax`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch`) (#71)
 - CI: Bun version read from `.bun-version`, plus a non-required `bun latest` canary job; build job verifies the publish tarball with `bun pm pack --dry-run`; `actions/checkout@v7` (#71)
@@ -121,9 +86,28 @@ API freeze for the 1.0 line. Nothing is published to npm yet; the tag marks the 
 
 ### Fixed
 
+- A router mounted on a `@bunary/core` Application no longer exposes `error.message` in default 500 responses just because core's environment fell back to `development` (no `config.app.env`, `APP_ENV` or `NODE_ENV` set). With the router's `debug` option unset, a core-mounted router now follows core's resolved `app.debug` (`config.app.debug`, `APP_DEBUG`, `DEBUG`, default `false`) instead of `app.env`; an explicit `app.env: "development"` without `app.debug: true` no longer shows detail. The router's `debug` option still wins, and standalone routers are unchanged (#131)
+- `cors()` with a configured origin (string or array) or `credentials: true` now adds `Vary: Origin` to responses for requests that send no `Origin` header, appended to any existing `Vary`. Previously a shared cache could store that no-CORS response and serve it to later cross-origin requests, which then failed CORS. The wildcard default without credentials is unchanged (#120)
+- A throwing `onError` is called exactly once per request instead of twice (the second time with its own error); the router falls back to the generic 500 problem response, which global middleware still sees. The `listen()` `error` option docs no longer claim a throwing `onError` escapes the router (#119)
+- `HEAD` on a `GET` route that returns a slow or never-ending stream (SSE, long-poll) no longer hangs until 64 KiB is produced: the body is measured for at most 50 ms, then cancelled and the response sent without `Content-Length`. Small finite bodies still get `Content-Length` (#117)
+- Route `query` validation no longer drops repeated keys: `?tag=a&tag=b` reaches the schema as `{ tag: ["a", "b"] }`; a key seen once stays a string. `QueryParams` is now `Record<string, string | string[]>` (#106)
+- Route `body` validation no longer drops repeated form fields: an `application/x-www-form-urlencoded` or `multipart/form-data` body with `tag=a&tag=b` reaches the schema as `{ tag: ["a", "b"] }`, matching `query`; a field seen once stays a single value (#118)
+- Route `body` validation parses any `application/*+json` content type (e.g. `application/vnd.api+json`) as JSON instead of validating `undefined` (#118)
+- Typed locals declared as an `interface` now compose with `router.use(cors())` and `httpProvider(router)`: `cors()` and `httpProvider()` are generic over the router's locals type. Types only, no runtime change (#96)
+- 404, 405 and 500 responses carry CORS headers again; previously a browser reported a CORS failure instead of the real status because `cors()` never ran for them (#65)
+- `Vary: Origin` is now sent when an origin is **rejected**, not only when it is allowed — without it a shared cache could serve the no-CORS variant to an allowed origin, and vice versa (#66)
+- `Vary` is appended rather than overwritten, so an upstream `Vary: Accept-Encoding` survives; preflight responses also vary on `Access-Control-Request-Method` and `Access-Control-Request-Headers`, and a name already present is not repeated (#66)
+- A preflight now takes its group middleware from the route matching `Access-Control-Request-Method`; it previously used whichever route was registered first at that path, so a preflight for `POST /x` could pick up (or miss) middleware belonging to `GET /x` in another group (#66)
+- HEAD responses set `Content-Length` to the length of the discarded body (RFC 9110), and HEAD 404/405 responses no longer carry a body (#68)
+- `ctx.params` values are documented as being decoded after matching, so `%2F` yields a `/` inside a single-segment parameter — handlers doing file lookups must validate or constrain them (#68)
 - `exports["."]` now lists `types` before `import` so TypeScript resolves the declarations; added `default` condition and `./package.json` subpath (#67)
 - Added `publishConfig.access: public` and `sideEffects: false` (#71)
 - Added missing `LICENSE` file (MIT) to the repo and the published tarball (#71)
+
+### Security
+
+- `cors()` now throws when `credentials: true` is combined with a wildcard origin (`"*"`, `["*"]` or the default), which reflected any `Origin` with credentials. Pass `allowWildcardCredentials: true` to opt in. `["*"]` is now handled like `"*"` (#104)
+- The default error handler no longer includes `error.message` in 500 responses unless the environment is explicitly `development` or `test` (or `debug: true` is set). Previously anything other than `production`, including no `APP_ENV`/`NODE_ENV` at all, exposed raw error messages (#121)
 
 ## [0.3.0] - 2026-02-17
 

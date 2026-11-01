@@ -1,5 +1,5 @@
 /**
- * End-to-end proof that a consumer can build a real API on the 1.0.0-rc.1
+ * End-to-end proof that a consumer can build a real API on the 0.4.0
  * surface: the `tests/fixtures/basic-api` app is booted, served over a real
  * socket on an ephemeral port, and driven with `fetch`.
  *
