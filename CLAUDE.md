@@ -16,6 +16,32 @@ behaviour) is not done until, in the same PR:
 Internal-only changes (tests, refactors with no observable effect, CI) need a
 CHANGELOG entry only if they fix a user-visible bug.
 
+### Version bump on every shipped change
+
+Every PR that changes `src/` or anything else shipped in the package's code
+(what ends up in `dist`, or `package.json` exports, dependencies and peer
+dependencies) must, in the same PR:
+
+- Bump `package.json` `version` by semver: patch for fixes, minor for
+  features, major for breaking changes. While the version is a pre-release,
+  bump the pre-release number instead, whatever the kind of change:
+  `1.0.0-rc.N` → `1.0.0-rc.N+1` (e.g. `1.0.0-rc.1` → `1.0.0-rc.2`).
+- Move its CHANGELOG entries from `## [Unreleased]` to a new heading for that
+  version, `## [x.y.z] - YYYY-MM-DD`, directly below `## [Unreleased]`
+  (which stays, empty).
+
+Why: on merge to `main`, tag-release tags `v<version>` from `package.json`.
+If the version was not bumped, that tag already exists, so no release is
+tagged and the change ships in no version (this repo's tag-release logs a
+notice and skips). In repos still on the older workflow, tag-release fails
+outright on the duplicate tag, even with CI and tests green.
+
+The first PR that bumps the version moves every entry under `[Unreleased]`
+to the new version heading, including ones left by earlier unbumped PRs.
+
+Docs-only (including `README.md`, `docs/` and `CHANGELOG.md`), test-only and
+CI-only changes do not bump the version.
+
 ## Out of scope
 
 No npm publishing and no CI/CD or release workflows: publishing for all
