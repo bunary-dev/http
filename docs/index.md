@@ -29,7 +29,14 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 ## Installation
 
 ```bash
-bun add @bunary/http
+bun add @bunary/http@^0.4.0
+```
+
+`@bunary/core` is an optional peer, needed only for route validation and the
+`@bunary/http/provider` integration:
+
+```bash
+bun add @bunary/core@^0.4.0
 ```
 
 ## Quick Start
@@ -331,7 +338,7 @@ router.post('/upload', async (ctx) => {
 });
 ```
 
-> **Moved in 1.0.0-rc.1** — the body readers used to live directly on the context
+> **Moved in 0.4.0** — the body readers used to live directly on the context
 > (`ctx.json()`, `ctx.text()`, `ctx.formData()`). They now live under `ctx.body.*`
 > so that `ctx.json(data)` can be the response helper, matching Hono and Elysia.
 > See [Response Handling](#response-handling).
@@ -1074,7 +1081,7 @@ peer**: it is imported dynamically and only when a route actually declares
 schemas, so a router that validates nothing never loads it.
 
 ```bash
-bun add @bunary/core
+bun add @bunary/core@^0.4.0
 ```
 
 ### Typed context

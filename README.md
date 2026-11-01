@@ -7,7 +7,14 @@ Requires Bun ≥ 1.4.0.
 ## Installation
 
 ```bash
-bun add @bunary/http
+bun add @bunary/http@^0.4.0
+```
+
+`@bunary/core` is an optional peer, needed only for route validation and the
+`@bunary/http/provider` integration:
+
+```bash
+bun add @bunary/core@^0.4.0
 ```
 
 ## Quick Start
@@ -72,7 +79,7 @@ router.post(
 A validated slot replaces its context value, so `ctx.body` *is* the validated
 body; without a `body` schema it stays the `BodyReader`. A rejected schema
 becomes a `422` problem document listing every issue. Validation needs
-`@bunary/core` (`bun add @bunary/core`), which is an optional peer imported only
+`@bunary/core` (`bun add @bunary/core@^0.4.0`), which is an optional peer imported only
 when a route declares schemas.
 A helper shared between validated and unvalidated handlers takes
 `AnyContext<TLocals>`, which both context types are assignable to.
