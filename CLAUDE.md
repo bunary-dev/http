@@ -30,9 +30,14 @@ dependencies) must, in the same PR:
   version, `## [x.y.z] - YYYY-MM-DD`, directly below `## [Unreleased]`
   (which stays, empty).
 
-Why: on merge to `main`, the tag-release job tags `v<version>` from
-`package.json`. If the version was not bumped, that tag already exists and
-tag-release fails on the duplicate tag, even with CI and tests green.
+Why: on merge to `main`, tag-release tags `v<version>` from `package.json`.
+If the version was not bumped, that tag already exists, so no release is
+tagged and the change ships in no version (this repo's tag-release logs a
+notice and skips). In repos still on the older workflow, tag-release fails
+outright on the duplicate tag, even with CI and tests green.
+
+The first PR that bumps the version moves every entry under `[Unreleased]`
+to the new version heading, including ones left by earlier unbumped PRs.
 
 Docs-only (including `README.md`, `docs/` and `CHANGELOG.md`), test-only and
 CI-only changes do not bump the version.
