@@ -1,6 +1,6 @@
 {
 	"name": "@bunary/http",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"description": "HTTP routing and middleware for Bunary - a Bun-first backend framework inspired by Laravel",
 	"type": "module",
 	"main": "./dist/index.js",
@@ -26,12 +26,14 @@
 	],
 	"sideEffects": false,
 	"scripts": {
-		"build": "bun build ./src/index.ts ./src/provider.ts --outdir ./dist --target bun --splitting --external @bunary/core && tsc -p tsconfig.build.json",
+		"clean": "rm -rf dist",
+		"build": "bun run clean && bun build ./src/index.ts ./src/provider.ts --outdir ./dist --target bun --splitting --external @bunary/core && tsc -p tsconfig.build.json",
 		"typecheck": "tsc --noEmit",
 		"test": "bun test",
 		"lint": "biome check ./src ./tests",
 		"format": "biome check --write ./src ./tests",
-		"pack:check": "bun pm pack --dry-run"
+		"pack:check": "bun pm pack --dry-run",
+		"prepublishOnly": "bun run clean && bun run build && bun test && bun run typecheck"
 	},
 	"keywords": [
 		"bunary",

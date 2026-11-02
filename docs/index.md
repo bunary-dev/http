@@ -30,7 +30,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 ## Installation
 
 ```bash
-bun add @bunary/http@^0.7.0
+bun add @bunary/http@^0.7.1
 ```
 
 `@bunary/core` is an optional peer, needed only for route validation and the
