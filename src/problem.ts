@@ -152,6 +152,19 @@ function isValidationError(error: unknown): error is ValidationErrorLike {
 }
 
 /**
+ * Detect a `@bunary/orm` `ModelNotFoundError` without importing orm.
+ *
+ * Bunary packages are standalone, so orm is not a dependency: the check is
+ * structural, an `Error` whose `name` is `"ModelNotFoundError"`, as thrown by
+ * `findOrFail()`.
+ *
+ * @internal
+ */
+function isModelNotFoundError(error: unknown): error is Error {
+	return error instanceof Error && error.name === "ModelNotFoundError";
+}
+
+/**
  * Describe an unknown thrown value for the `detail` member.
  *
  * @internal
@@ -167,6 +180,8 @@ function describe(error: unknown): string {
  * - {@link HttpError} → its own `status`, `headers`, and `details` as `errors`
  * - `ValidationError` (from `@bunary/core`, matched structurally) → `422` with
  *   its `issues` as `errors`
+ * - `ModelNotFoundError` (from `@bunary/orm`, matched structurally) → `404`,
+ *   with `detail` only when `debug` is on so table names never leak
  * - {@link BodyParseError} → `400`
  * - anything else → `500`, with `detail` only when `debug` is on
  *
@@ -204,6 +219,10 @@ export function problemResponse(error: unknown, options?: ProblemResponseOptions
 			instance,
 			errors: error.issues.map((issue) => ({ path: issue.path, message: issue.message })),
 		});
+	}
+
+	if (isModelNotFoundError(error)) {
+		return problem(404, options?.debug === true ? error.message : undefined, { instance });
 	}
 
 	if (error instanceof BodyParseError) {

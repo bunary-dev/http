@@ -6,9 +6,9 @@ const root = join(import.meta.dir, "..");
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const read = (file: string) => readFileSync(join(root, file), "utf8");
 
-describe("0.4.0 release baseline", () => {
-	test("package version is 0.4.0", () => {
-		expect(pkg.version).toBe("0.4.0");
+describe("release metadata", () => {
+	test("package version is 0.5.0", () => {
+		expect(pkg.version).toBe("0.5.0");
 	});
 
 	test("@bunary/core is an optional ^0.4.0 peer", () => {
@@ -26,18 +26,21 @@ describe("0.4.0 release baseline", () => {
 		expect(core.version).toMatch(/^0\.4\./);
 	});
 
-	test("docs install the 0.4 line and never call a 1.0.0-rc current", () => {
+	test("docs install the current line and never call a 1.0.0-rc current", () => {
 		for (const file of ["README.md", "docs/index.md"]) {
 			const text = read(file);
-			expect(text).toContain("bun add @bunary/http@^0.4.0");
+			expect(text).toContain(`bun add @bunary/http@^${pkg.version}`);
 			expect(text).not.toContain("1.0.0-rc");
 		}
 	});
 
-	test("CHANGELOG has a dated 0.4.0 heading directly below [Unreleased]", () => {
+	test("CHANGELOG has a dated heading for the package version directly below [Unreleased]", () => {
 		const headings = read("CHANGELOG.md").match(/^## .*$/gm) ?? [];
+		const current = `## [${pkg.version}]`;
 		expect(headings[0]).toBe("## [Unreleased]");
-		expect(headings[1]).toMatch(/^## \[0\.4\.0\] - \d{4}-\d{2}-\d{2}$/);
+		expect(headings[1]).toMatch(/^## \[\d+\.\d+\.\d+\] - \d{4}-\d{2}-\d{2}$/);
+		expect(headings[1]?.startsWith(current)).toBe(true);
+		expect(headings.filter((h) => h.startsWith(current))).toHaveLength(1);
 		expect(headings.filter((h) => h.startsWith("## [0.4.0]"))).toHaveLength(1);
 	});
 });
