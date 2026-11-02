@@ -1,8 +1,6 @@
 import type { GroupOptions } from "./groupOptions.js";
-import type { PathParams } from "./pathParams.js";
-import type { RouteBuilder } from "./routeBuilder.js";
 import type { RouteRegistration } from "./routeRegistration.js";
-import type { WebSocketData, WebSocketHandlers, WebSocketRouteOptions } from "./websocket.js";
+import type { WebSocketRegistration } from "./websocket.js";
 
 /**
  * Router interface for route groups.
@@ -21,12 +19,11 @@ export interface GroupRouter<TLocals extends object = Record<string, unknown>> {
 	delete: RouteRegistration<TLocals>;
 	/** Register a PATCH route, optionally with `{ params?, query?, body?, bind? }` (#78, #158) */
 	patch: RouteRegistration<TLocals>;
-	/** Register a WebSocket route; group middleware runs before the upgrade (#128) */
-	ws: <P extends PathParams = PathParams, TExtra extends object = Record<never, never>>(
-		path: string,
-		handlers: WebSocketHandlers<WebSocketData<TLocals, P, TExtra>>,
-		options?: WebSocketRouteOptions<TLocals, P, TExtra>,
-	) => RouteBuilder<TLocals>;
+	/**
+	 * Register a WebSocket route; group middleware runs before the upgrade
+	 * (#128), and `options.bind` resolves onto `ws.data.bound` after it (#159)
+	 */
+	ws: WebSocketRegistration<TLocals>;
 	/** Create a nested route group */
 	group: ((prefix: string, callback: GroupCallback<TLocals>) => GroupRouter<TLocals>) &
 		((options: GroupOptions<TLocals>, callback: GroupCallback<TLocals>) => GroupRouter<TLocals>);

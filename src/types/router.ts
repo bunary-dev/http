@@ -3,16 +3,9 @@ import type { GroupOptions } from "./groupOptions.js";
 import type { GroupCallback } from "./groupRouter.js";
 import type { ListenOptions } from "./listenOptions.js";
 import type { Middleware } from "./middleware.js";
-import type { PathParams } from "./pathParams.js";
-import type { RouteBuilder } from "./routeBuilder.js";
 import type { RouteInfo } from "./routeInfo.js";
 import type { RouteRegistration } from "./routeRegistration.js";
-import type {
-	RouterWebSocketHandler,
-	WebSocketData,
-	WebSocketHandlers,
-	WebSocketRouteOptions,
-} from "./websocket.js";
+import type { RouterWebSocketHandler, WebSocketRegistration } from "./websocket.js";
 
 /**
  * The Bunary router instance for HTTP routing and middleware.
@@ -104,7 +97,9 @@ export interface Router<TLocals extends object = Record<string, unknown>> {
 	 *
 	 * @param path - URL path pattern (supports :param and :param? syntax)
 	 * @param handlers - `{ open?, message?, close?, drain? }`
-	 * @param options - Optional `upgrade(ctx)` for extra `ws.data`, and `headers`
+	 * @param options - Optional `upgrade(ctx)` for extra `ws.data`, `headers`,
+	 *   and `bind` to resolve path params onto `ws.data.bound` before the
+	 *   upgrade, as for HTTP routes (#159)
 	 *
 	 * @example
 	 * ```ts
@@ -115,11 +110,7 @@ export interface Router<TLocals extends object = Record<string, unknown>> {
 	 * });
 	 * ```
 	 */
-	ws: <P extends PathParams = PathParams, TExtra extends object = Record<never, never>>(
-		path: string,
-		handlers: WebSocketHandlers<WebSocketData<TLocals, P, TExtra>>,
-		options?: WebSocketRouteOptions<TLocals, P, TExtra>,
-	) => RouteBuilder<TLocals>;
+	ws: WebSocketRegistration<TLocals>;
 
 	/**
 	 * The `websocket` handler for `Bun.serve`, dispatching to the matching

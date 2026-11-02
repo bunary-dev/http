@@ -9,10 +9,9 @@ import type {
 	RouteHandler,
 	RouteSchemas,
 	WebSocketHandlers,
-	WebSocketRouteOptions,
 } from "../types/index.js";
 import { normalizeRouteArgs } from "../validation.js";
-import { createWebSocketRoute } from "../websocket.js";
+import { type WebSocketRouteInit, webSocketRoute } from "../websocket.js";
 import { wrapBuilderWithNamePrefix } from "./builder.js";
 
 export type AddRouteFn = (
@@ -59,11 +58,11 @@ export function createGroupRouter(
 		patch: register("PATCH"),
 		ws: (
 			path: string,
-			handlers: WebSocketHandlers<unknown>,
-			options?: WebSocketRouteOptions<object, unknown, object>,
+			second: WebSocketHandlers<unknown> | WebSocketRouteInit,
+			third?: WebSocketHandlers<unknown> | WebSocketRouteInit,
 		) => {
-			const handler = createWebSocketRoute(handlers, options);
-			const builder = addRoute("GET", joinPaths(prefix, path), handler, groupMiddleware);
+			const { handler, schemas } = webSocketRoute(second, third);
+			const builder = addRoute("GET", joinPaths(prefix, path), handler, groupMiddleware, schemas);
 			return wrapBuilderWithNamePrefix(builder, namePrefix);
 		},
 		group: ((prefixOrOptions: string | GroupOptions, callback: GroupCallback) => {

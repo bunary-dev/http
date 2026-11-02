@@ -1,6 +1,8 @@
 import type { ServerWebSocket } from "bun";
+import type { BindResolver, BoundOf } from "./binding.js";
 import type { PathParams } from "./pathParams.js";
 import type { RequestContext } from "./requestContext.js";
+import type { RouteBuilder } from "./routeBuilder.js";
 
 /**
  * `ws.data` for a WebSocket route: the route's `params` and the request's
@@ -55,6 +57,84 @@ export interface WebSocketRouteOptions<
 	upgrade?: (ctx: RequestContext<TLocals, TParams>) => TExtra | Promise<TExtra>;
 	/** Extra headers for the `101 Switching Protocols` response */
 	headers?: ResponseInit["headers"];
+}
+
+/**
+ * Resolvers allowed in a WebSocket route's `bind` option: one per path param,
+ * each receiving that param's value (#159).
+ *
+ * @typeParam TParams — Shape of `params` (from `router.ws<TParams>()`)
+ */
+export type WebSocketBindings<TParams> = {
+	readonly [K in keyof TParams]?: BindResolver<TParams[K]>;
+};
+
+/**
+ * `ws.data` for a WebSocket route that declares `bind`: {@link WebSocketData}
+ * plus `bound`, the resolved bindings, typed as on `ctx.bound` (#159).
+ *
+ * @typeParam TLocals — Shape of `locals`
+ * @typeParam TParams — Shape of `params`
+ * @typeParam TExtra — Extra data returned by the `upgrade` option
+ * @typeParam TBindings — The route's `bind` object
+ */
+export type BoundWebSocketData<
+	TLocals extends object = Record<string, unknown>,
+	TParams = PathParams,
+	TExtra extends object = Record<never, never>,
+	TBindings = Record<never, never>,
+> = WebSocketData<TLocals, TParams, TExtra> & { bound: BoundOf<TBindings> };
+
+/**
+ * Options for a `router.ws()` route that declares `bind` (#159).
+ *
+ * Bindings resolve after middleware and before `upgrade` and the upgrade
+ * itself, so `upgrade(ctx)` can read `ctx.bound`.
+ */
+export interface BoundWebSocketRouteOptions<
+	TLocals extends object,
+	TParams,
+	TExtra extends object,
+	TBindings,
+> extends Omit<WebSocketRouteOptions<TLocals, TParams, TExtra>, "upgrade"> {
+	/**
+	 * Route model binding: resolvers keyed by path param name, with the same
+	 * signature and rules as an HTTP route's `bind`. Their results are on
+	 * `ws.data.bound`; a missing one rejects the upgrade with a 404 problem.
+	 */
+	readonly bind: TBindings;
+	/** As {@link WebSocketRouteOptions.upgrade}, with `ctx.bound` */
+	upgrade?: (
+		ctx: RequestContext<TLocals, TParams> & { bound: BoundOf<TBindings> },
+	) => TExtra | Promise<TExtra>;
+}
+
+/**
+ * A `ws()` method on a `Router` or `GroupRouter`.
+ *
+ * - `(path, handlers, options?)` — `ws.data` is `{ params, locals }` plus
+ *   whatever `options.upgrade` returned (#128)
+ * - `(path, { bind, ...options }, handlers)` — `ws.data.bound` also holds the
+ *   resolved bindings (#159). The options come first so each resolver's
+ *   result is inferred before the handlers are typed.
+ *
+ * @typeParam TLocals — Shape of `ws.data.locals`
+ */
+export interface WebSocketRegistration<TLocals extends object> {
+	<
+		P extends PathParams = PathParams,
+		TExtra extends object = Record<never, never>,
+		TBindings extends WebSocketBindings<P> = WebSocketBindings<P>,
+	>(
+		path: string,
+		options: BoundWebSocketRouteOptions<TLocals, P, TExtra, TBindings>,
+		handlers: WebSocketHandlers<BoundWebSocketData<TLocals, P, TExtra, TBindings>>,
+	): RouteBuilder<TLocals>;
+	<P extends PathParams = PathParams, TExtra extends object = Record<never, never>>(
+		path: string,
+		handlers: WebSocketHandlers<WebSocketData<TLocals, P, TExtra>>,
+		options?: WebSocketRouteOptions<TLocals, P, TExtra>,
+	): RouteBuilder<TLocals>;
 }
 
 /**
