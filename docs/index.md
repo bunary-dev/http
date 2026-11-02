@@ -30,7 +30,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 ## Installation
 
 ```bash
-bun add @bunary/http@^0.7.1
+bun add @bunary/http@^0.7.2
 ```
 
 `@bunary/core` is an optional peer, needed only for route validation and the
@@ -171,16 +171,22 @@ Routes match in registration order: the first route whose path (and
 constraints) matches wins, including for `HEAD`→`GET` fallback, `405` `Allow`
 headers and `OPTIONS` responses.
 
-Matching does not test every route on every request. At registration time each
-route is indexed by its first static path segment (`/api/users` → `api`), and
-routes whose first segment is a parameter, optional parameter or wildcard
-(`/:slug`, `/:id?`, `/*`) go in a fallback bucket. A request is only tested
-against the routes sharing its first segment plus the fallback routes, still
-in registration order, so an earlier `/:slug` still beats a later `/about`.
-Group prefixes and `basePath` are part of the indexed path. An app with
-hundreds of routes spread over several top-level prefixes tests only a
-fraction of them per request; routes behind a leading parameter
-(`/:tenant/...`) are still tested on every request. Run `bun bench/routes.ts` to compare.
+Matching does not test every route on every request. At registration time the
+routes are arranged in a trie of path segments: each literal segment
+(`api`, `users`) is a branch, and a required parameter (`:id`) at a given
+position is one shared parameter branch. A route is stored where that walk
+stops: at the end of its path, or just before its first optional parameter or
+wildcard (`/posts/:id?` under `posts`, `/files/*` under `files`), since those
+can cover a varying number of segments. A request walks the trie segment by
+segment, following both the literal branch and the parameter branch, and is
+only tested against the routes stored along the way (a route whose whole path
+is in the trie only if the request ends where it does), still in registration
+order, so an earlier `/:slug` still beats a later `/about` and an earlier
+`/api/:x` still beats a later `/api/users`. Group prefixes and `basePath` are
+part of the indexed path, so routes under one shared prefix (`/api`, nested
+groups like `/api/v1`) are told apart by their later segments too. Run
+`bun bench/routes.ts` to compare against a linear scan and the previous
+first-segment index.
 
 ### Path Parameters
 

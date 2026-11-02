@@ -142,7 +142,7 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 	// type checking at the public API boundary, not runtime behaviour.
 	const internalOpts = options as RouterOptions | undefined;
 
-	// Indexed by first static path segment at registration time (#12)
+	// Indexed by a segment trie at registration time (#12, #166)
 	const routes = new RouteIndex();
 	const middlewares: Middleware[] = [];
 	const namedRoutes: Map<string, Route> = new Map();

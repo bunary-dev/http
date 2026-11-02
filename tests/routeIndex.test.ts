@@ -1,5 +1,5 @@
 /**
- * Tests for the first-static-segment route index (#12).
+ * Tests for the route index (#12, trie since #166).
  *
  * The index is a pure performance change: every lookup through a RouteIndex
  * must return exactly what a linear scan of the same routes returns.
@@ -53,7 +53,7 @@ describe("RouteIndex", () => {
 		expect(indexOf(routes).routes).toEqual(routes);
 	});
 
-	it("returns static routes plus fallback routes, interleaved in registration order", () => {
+	it("returns only routes on the request's trie branches, interleaved in registration order", () => {
 		const a = makeRoute("GET", "/:slug");
 		const b = makeRoute("GET", "/api/users");
 		const c = makeRoute("GET", "/*");
@@ -61,7 +61,8 @@ describe("RouteIndex", () => {
 		const e = makeRoute("GET", "/health");
 		const index = indexOf([a, b, c, d, e]);
 
-		expect(index.candidates("/api/users")).toEqual([a, b, c, d]);
+		expect(index.candidates("/api/users")).toEqual([b, c]);
+		expect(index.candidates("/api/posts")).toEqual([c, d]);
 		expect(index.candidates("/health")).toEqual([a, c, e]);
 		expect(index.candidates("/unknown")).toEqual([a, c]);
 	});
