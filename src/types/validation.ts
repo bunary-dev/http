@@ -1,4 +1,5 @@
 import type { StandardSchemaV1 } from "@bunary/core";
+import type { BoundOf, RouteBindings } from "./binding.js";
 import type { BodyReader } from "./bodyReader.js";
 import type { HandlerResponse } from "./handlerResponse.js";
 import type { PathParams } from "./pathParams.js";
@@ -87,7 +88,22 @@ export interface RouteSchemas {
 	readonly query?: RouteSchema<QueryParams>;
 	/** Validates the request body, parsed by `content-type`. */
 	readonly body?: RouteSchema<unknown>;
+	/**
+	 * Route model binding (#158): resolvers keyed by path param name, whose
+	 * results the handler reads from `ctx.bound`. Each resolver gets the
+	 * validated param (or the raw string without a `params` schema) and the
+	 * request context; `null`/`undefined` is a 404.
+	 */
+	readonly bind?: RouteBindings;
 }
+
+/**
+ * {@link RouteSchemas} without `bind`: what the plain validated overload
+ * accepts, so a route with `bind` always gets the binding overload's checks.
+ *
+ * @internal
+ */
+export type UnboundRouteSchemas = RouteSchemas & { readonly bind?: undefined };
 
 /** `ctx.params` for a set of route schemas. */
 export type ParamsOf<TSchemas> = TSchemas extends { params: infer TSchema }
@@ -104,9 +120,15 @@ export type BodyOf<TSchemas> = TSchemas extends { body: infer TSchema }
 	? InferSchemaOutput<TSchema>
 	: BodyReader;
 
+/** `{ bound }` for a set of route schemas with `bind`, otherwise nothing. */
+export type BoundSlotOf<TSchemas> = TSchemas extends { bind: infer TBindings }
+	? { bound: BoundOf<TBindings> }
+	: unknown;
+
 /**
  * The request context a validated route's handler receives: each validated slot
- * replaced by the schema's output type, each unvalidated slot left alone.
+ * replaced by the schema's output type, each unvalidated slot left alone. With
+ * `bind`, `ctx.bound` holds the resolved bindings (#158).
  *
  * @typeParam TLocals — Shape of `ctx.locals`
  * @typeParam TSchemas — The route's {@link RouteSchemas}
@@ -116,7 +138,8 @@ export type ValidatedContext<TLocals extends object, TSchemas> = RequestContext<
 	ParamsOf<TSchemas>,
 	QueryOf<TSchemas>,
 	BodyOf<TSchemas>
->;
+> &
+	BoundSlotOf<TSchemas>;
 
 /**
  * A request context with any `params`, `query` and `body` shapes: the type to

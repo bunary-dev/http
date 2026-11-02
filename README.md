@@ -7,7 +7,7 @@ Requires Bun ≥ 1.4.0.
 ## Installation
 
 ```bash
-bun add @bunary/http@^0.5.0
+bun add @bunary/http@^0.6.0
 ```
 
 `@bunary/core` is an optional peer, needed only for route validation and the
@@ -83,6 +83,29 @@ becomes a `422` problem document listing every issue. Validation needs
 when a route declares schemas.
 A helper shared between validated and unvalidated handlers takes
 `AnyContext<TLocals>`, which both context types are assignable to.
+
+## Route Model Binding
+
+Declare `bind` next to the schemas to resolve path params to records. The
+handler reads them from a typed `ctx.bound`; a resolver returning `null` or
+`undefined` answers a `404` problem (`"user not found"`) without calling the
+handler.
+
+```typescript
+router.delete(
+  '/users/:user',
+  { params: z.object({ user: z.coerce.number() }), bind: { user: (id) => User.find(id) } },
+  async (ctx) => {
+    await ctx.bound.user.delete(); // User, never null
+    return new Response(null, { status: 204 });
+  },
+);
+```
+
+Bindings resolve after group middleware and validation, one at a time in path
+order, so a child resolver can scope its lookup to `ctx.bound` of its parent.
+Throw `abort()` from a resolver to customise "not found". See
+[the docs](./docs/index.md#route-model-binding).
 
 ## Using with @bunary/core
 

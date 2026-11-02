@@ -14,6 +14,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 - 📂 **Route Groups** - Organize routes with shared prefixes, middleware, and name prefixes
 - 🏷️ **Named Routes** - URL generation with route names
 - ✅ **Route Constraints** - Validate parameters with regex patterns
+- 🔗 **Route Model Binding** - Per-route `bind` resolves path params to records on a typed `ctx.bound`, with a 404 when one is missing
 - ❓ **Optional Parameters** - Flexible routes with optional path segments
 - 🌐 **Wildcard Routes** - Catch-all `/*` and `/**` patterns for SPA fallbacks and proxies
 - 🔀 **CORS** - Built-in CORS middleware with configurable origins, methods, headers, and credentials
@@ -29,7 +30,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 ## Installation
 
 ```bash
-bun add @bunary/http@^0.5.0
+bun add @bunary/http@^0.6.0
 ```
 
 `@bunary/core` is an optional peer, needed only for route validation and the
@@ -1184,6 +1185,133 @@ wins. A body that cannot be parsed at all (malformed JSON, bad form data) is a
 `BodyParseError` → `400`, not a `422`. A custom `onError` still overrides the
 whole mapping.
 
+## Route Model Binding
+
+Declare `bind` in a route's options object, alongside `params`, `query` and
+`body`, to turn a path param into the record it names. Each key is a path param
+and each value a plain resolver function; the handler reads the results from
+`ctx.bound`, already non-null.
+
+```typescript
+import { z } from 'zod';
+
+const findUser = (id: number) => User.find(id); // returns User | null
+
+router.delete(
+  '/users/:user',
+  { params: z.object({ user: z.coerce.number() }), bind: { user: findUser } },
+  async (ctx) => {
+    ctx.bound.user;   // User (never null)
+    ctx.params.user;  // number, from the params schema (a raw string when there is no schema)
+    await ctx.bound.user.delete();
+    return new Response(null, { status: 204 });
+  },
+).name('users.delete');
+```
+
+A resolver is `(value, ctx) => T | null | undefined | Promise<…>`:
+
+- **`value`** is the param after validation: the schema's output when the route
+  has a `params` schema (`number` above), and the raw decoded string otherwise.
+  Put `params` before `bind` in the object so an inline resolver's `value` is
+  typed from the schema.
+- **`ctx`** is the request context (`locals`, `params`, `query`, …) plus
+  `ctx.bound`, holding the bindings resolved so far.
+- **`null` or `undefined`** means missing: the route answers a `404` problem
+  with `detail: "user not found"` and the handler is not called. The detail
+  names the binding key, never the requested value, in debug and production
+  alike. `0`, `""` and `false` are real values and are bound.
+
+`ctx.bound` is typed from the resolvers: each key is the resolver's awaited
+return type without `null` and `undefined`. A route without `bind` has no
+`ctx.bound`, and its types are unchanged. `ctx.params` is never replaced by a
+binding.
+
+Every `bind` key must name a `:param` in the route's full path, group prefix
+included; otherwise registering the route throws, e.g.
+`bind key "user" has no ":user" in "/users/:id"`. Binding works on every method
+(`get`, `post`, `put`, `patch`, `delete`, and `HEAD` answered from a `GET`), in
+groups, and with `.where*()` constraints: a constraint failure is still a
+route-level 404 and the resolver is not called. WebSocket routes do not bind.
+
+Binding alone does not need `@bunary/core`; only a `params`, `query` or `body`
+schema does.
+
+### Scoped bindings
+
+Bindings resolve **one at a time, in the order their params appear in the
+path**, whatever order the `bind` object lists them in. A child resolver can
+therefore scope its lookup to its parent. Inside a resolver `ctx.bound` is
+`Record<string, unknown>`, so cast the parent once:
+
+```typescript
+router.get(
+  '/users/:user/posts/:post',
+  {
+    params: z.object({ user: z.coerce.number(), post: z.coerce.number() }),
+    bind: {
+      user: (id) => User.find(id),
+      post: (id, ctx) => {
+        const user = ctx.bound.user as User;
+        return Post.where({ id, userId: user.id }).first(); // another user's post → 404
+      },
+    },
+  },
+  (ctx) => ctx.json({ user: ctx.bound.user.name, post: ctx.bound.post.title }),
+);
+```
+
+If `user` is missing, the `post` resolver never runs.
+
+### Customising "not found"
+
+A resolver that throws goes through the normal error path, so throw instead of
+returning `null` to answer with something else:
+
+```typescript
+import { abort } from '@bunary/http';
+
+const findUser = async (id: number) =>
+  (await User.find(id)) ?? abort(404, 'No such member');
+
+const findActiveUser = async (id: number) => {
+  const user = await User.find(id);
+  if (user?.deletedAt) abort(410, 'That account was deleted'); // → 410
+  return user;
+};
+```
+
+Any `HttpError` keeps its status, `@bunary/orm`'s `findOrFail()` becomes a
+`404` through the default mapper, an unexpected error is a `500`, and a custom
+`onError` sees them all.
+
+### Order of steps
+
+1. Global middleware (`router.use()`), which wraps everything below
+2. Route matching, including `.where*()` constraints (404 / 405)
+3. Group middleware
+4. Validation of `params` → `query` → `body` (422)
+5. **Binding**, in path order (404 on a missing value)
+6. The handler
+
+Because group middleware runs first, an unauthenticated request is rejected
+before any lookup happens, so a 404 versus a 401 cannot be used to probe
+whether a record exists. And because validation runs first, a malformed id is
+a 422 that never reaches the database.
+
+### Coming from Laravel
+
+- Binding is **explicit and per route**: TypeScript has no runtime type hints,
+  so there is no implicit binding by parameter name and no router-wide
+  `Route::model()` / `Route::bind()` registry. Share a resolver by sharing the
+  function.
+- The bound value lives on **`ctx.bound`**, not in the handler's parameter list,
+  and `ctx.params` keeps the raw (or validated) param.
+- Scoping (`->scopeBindings()`) is written in the child resolver using
+  `ctx.bound`.
+- There is no `->missing()`: return `null` for the default 404, or throw
+  `abort()` / an `HttpError` from the resolver to customise it.
+
 ## Route Groups
 
 Group routes together with shared prefixes, middleware, and name prefixes.
@@ -1582,6 +1710,12 @@ import type {
   ValidatedContext,
   ValidatedRouteHandler,
   AnyContext,
+  RouteBindings,
+  BindResolver,
+  BindingContext,
+  BoundOf,
+  BoundContext,
+  RouteRegistration,
   WebSocketHandlers,
   WebSocketData,
   WebSocketRouteOptions,

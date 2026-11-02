@@ -1,4 +1,5 @@
 import { bindApp, getBoundApp } from "./appBinding.js";
+import { bindingOrder } from "./binding.js";
 import { createRequestContext } from "./context.js";
 import {
 	executeRoute,
@@ -177,6 +178,7 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 			middleware: groupMiddleware.length > 0 ? [...groupMiddleware] : undefined,
 			isWildcard: isWildcard || undefined,
 			schemas,
+			bindings: schemas?.bind ? bindingOrder(fullPath, paramNames, schemas.bind) : undefined,
 		};
 		routes.add(route);
 		return createRouteBuilder(route, namedRoutes, router);
