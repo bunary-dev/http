@@ -223,8 +223,11 @@ function sameRest(others: Bucket[]): boolean {
  * its registration index, at the node where that walk stops: the end of the
  * path, or just before the first optional parameter (`:id?`) or wildcard
  * (`*`, `**`), which can match a varying number of segments (everything from
- * there on is left to the regex). A path without a leading slash is stored at
- * the root. Group prefixes and `basePath` are already part of `route.path`.
+ * there on is left to the regex). If an optional parameter in that run has
+ * text after it in its segment (`/posts/:id?.json`), the route is stored one
+ * node higher, since leaving the parameters out joins that text onto the
+ * previous segment (`/posts.json`). A path without a leading slash is stored
+ * at the root. Group prefixes and `basePath` are already part of `route.path`.
  *
  * A request path is scanned once, then walked segment by segment, following
  * both the literal child and, for a non-empty segment, the dynamic child,
@@ -269,8 +272,21 @@ export class RouteIndex {
 		const nodes = [this.root];
 		let node = this.root;
 		let bucket: Bucket | null = null;
-		for (const segment of path.slice(1).split("/")) {
-			if (segment.includes("*") || OPTIONAL_SEGMENT.test(segment)) {
+		const segments = path.slice(1).split("/");
+		for (const [i, segment] of segments.entries()) {
+			if (segment.includes("*")) {
+				bucket = node.open;
+				break;
+			}
+			if (OPTIONAL_SEGMENT.test(segment)) {
+				// The slash sits inside the optional group, so when this and any
+				// following optional parameters are left out, text after one of
+				// them joins the previous segment (`/posts/:id?.json` matches
+				// `/posts.json`): then index up to the node before that segment
+				if (hasOptionalSuffix(segments, i) && nodes.length > 1) {
+					nodes.pop();
+					node = nodes[nodes.length - 1] as TrieNode;
+				}
 				bucket = node.open;
 				break;
 			}
@@ -316,6 +332,20 @@ export class RouteIndex {
 		}
 		return merged.routes;
 	}
+}
+
+/**
+ * Whether the run of optional-parameter segments starting at `segments[i]`
+ * has one with text after `:name?` (`:id?.json`). With every optional
+ * parameter up to it left out, that text joins the segment before the run.
+ */
+function hasOptionalSuffix(segments: string[], i: number): boolean {
+	for (let j = i; j < segments.length; j++) {
+		const optional = OPTIONAL_SEGMENT.exec(segments[j] as string);
+		if (!optional) return false;
+		if (optional[0].length < (segments[j] as string).length) return true;
+	}
+	return false;
 }
 
 /** The literal child of `node` for `segment`, created if missing. */

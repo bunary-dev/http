@@ -49,6 +49,61 @@ const get = (app: ReturnType<typeof createRouter>, path: string, method = "GET")
 	app.fetch(new Request(`http://localhost${path}`, { method }));
 
 describe("RouteIndex trie candidates", () => {
+	it("matches an optional parameter with a suffix in its segment when it is left out", () => {
+		// compilePath puts the slash inside the optional group, so without the
+		// parameter its suffix joins the previous segment: /posts.json
+		const json = makeRoute("GET", "/posts/:id?.json");
+		const v2 = makeRoute("GET", "/files/:name?-v2");
+		const lang = makeRoute("GET", "/:lang?.txt");
+		const nested = makeRoute("GET", "/api/:resource/:id?.xml");
+		const routes = [json, v2, lang, nested];
+		const index = indexOf(routes);
+
+		expect(findRoute(index, "GET", "/posts.json")?.route).toBe(json);
+		expect(findRoute(index, "GET", "/posts/7.json")?.params).toEqual({ id: "7" });
+		expect(findRoute(index, "GET", "/files-v2")?.route).toBe(v2);
+		expect(findRoute(index, "GET", "/files/readme-v2")?.params).toEqual({ name: "readme" });
+		// At the root the parameter takes the leading slash with it
+		expect(findRoute(index, "GET", ".txt")?.route).toBe(lang);
+		expect(findRoute(index, "GET", "/en.txt")?.params).toEqual({ lang: "en" });
+		expect(findRoute(index, "GET", "/api/users.xml")?.route).toBe(nested);
+		for (const path of [
+			"/posts.json",
+			"/files-v2",
+			".txt",
+			"/.txt",
+			"/en.txt",
+			"/api/users.xml",
+			"/x",
+		]) {
+			expect(resolveRoute(index, "GET", path)).toEqual(resolveRoute(routes, "GET", path));
+		}
+	});
+
+	it("matches a suffix after several left-out optional parameters", () => {
+		// Leaving out both :q? and :t? joins "-v2" to "c"
+		const route = makeRoute("GET", "/c/:q?/:t?-v2");
+		const routes = [route, makeRoute("GET", "/c/:q?/x/:t?-v2")];
+		const index = indexOf(routes);
+
+		expect(findRoute(index, "GET", "/c-v2")?.route).toBe(route);
+		// Greedy: :q? takes the segment, :t? is left out
+		expect(findRoute(index, "GET", "/c/1-v2")?.params).toEqual({ q: "1" });
+		expect(findRoute(index, "GET", "/c/1/2-v2")?.params).toEqual({ q: "1", t: "2" });
+		for (const path of ["/c-v2", "/c/1-v2", "/c/1/2-v2", "/c/x-v2", "/c/1/x-v2", "/c/1/x/2-v2"]) {
+			expect(resolveRoute(index, "GET", path)).toEqual(resolveRoute(routes, "GET", path));
+		}
+	});
+
+	it("serves an optional parameter with a suffix through the router", async () => {
+		const app = createRouter();
+		app.get("/posts/:id?.json", (ctx) => ({ id: ctx.params.id ?? null }));
+		app.get("/posts", () => ({ hit: "list" }));
+		expect(await (await get(app, "/posts.json")).json()).toEqual({ id: null });
+		expect(await (await get(app, "/posts/3.json")).json()).toEqual({ id: "3" });
+		expect(await (await get(app, "/posts")).json()).toEqual({ hit: "list" });
+	});
+
 	it("handles routes and requests deeper than 30 segments", () => {
 		const deep = (n: number, last = "s") =>
 			`/${Array.from({ length: n }, (_, i) => (i === n - 1 ? last : `s${i}`)).join("/")}`;
@@ -239,6 +294,13 @@ describe("trie equivalence with a linear scan over a mixed table", () => {
 
 	// Static, param-first, optional, wildcard and nested group routes, interleaved
 	add("GET", "/");
+	// Optional parameters with a suffix, early so they decide their requests
+	add("GET", "/posts/:id?.json");
+	add("GET", "/files/:name?-v2");
+	add("GET", "/api/:resource/:id?.xml");
+	add("GET", "/:lang?.txt");
+	add("GET", "/a/:x?/b");
+	add("GET", "/c/:q?/:t?-v2");
 	add("GET", "/:slug");
 	add("GET", "/health");
 	for (const [i, resource] of resources.entries()) {
@@ -315,6 +377,25 @@ describe("trie equivalence with a linear scan over a mixed table", () => {
 		"/api//double/",
 		"/api/users//",
 		"/:",
+		"/posts.json",
+		"/posts/7.json",
+		"/posts/.json",
+		"/posts.jsonx",
+		"/files-v2",
+		"/files/readme-v2",
+		"/files-v3",
+		"/api/users.xml",
+		"/api/users/9.xml",
+		"/api.xml",
+		"/.txt",
+		".txt",
+		"/en.txt",
+		"/a/b",
+		"/a/q/b",
+		"/c-v2",
+		"/c/x-v2",
+		"/c/x/y-v2",
+		"/c/x/y",
 	];
 	for (const resource of [...resources, "unknown"]) {
 		paths.push(
