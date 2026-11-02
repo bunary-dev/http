@@ -7,8 +7,25 @@ const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const read = (file: string) => readFileSync(join(root, file), "utf8");
 
 describe("release metadata", () => {
-	test("package version is 0.7.0", () => {
-		expect(pkg.version).toBe("0.7.0");
+	test("package version is 0.7.1", () => {
+		expect(pkg.version).toBe("0.7.1");
+	});
+
+	test("prepublishOnly cleans dist, then builds, before publishing", () => {
+		expect(pkg.scripts.clean).toBe("rm -rf dist");
+		const steps: string[] = pkg.scripts.prepublishOnly
+			.split("&&")
+			.map((step: string) => step.trim());
+		const clean = steps.indexOf("bun run clean");
+		const build = steps.indexOf("bun run build");
+		expect(clean).toBe(0);
+		expect(build).toBeGreaterThan(clean);
+		expect(steps).toContain("bun test");
+		expect(steps).toContain("bun run typecheck");
+	});
+
+	test("build starts from an empty dist", () => {
+		expect(pkg.scripts.build.startsWith("bun run clean && ")).toBe(true);
 	});
 
 	test("@bunary/core is an optional ^0.4.0 peer", () => {

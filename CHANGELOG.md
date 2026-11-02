@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-02
+
+### Fixed
+
+- 0.7.0 was published from a stale build and lacked route model binding and the ModelNotFoundError mapping; publishing now always rebuilds. `build` starts from an empty `dist` (new `clean` script), and a `prepublishOnly` script runs `clean`, `build`, `bun test` and `typecheck` before every `npm publish` (#163)
+
 ## [0.7.0] - 2026-11-02
 
 ### Added
