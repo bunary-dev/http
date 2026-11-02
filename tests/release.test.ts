@@ -7,8 +7,8 @@ const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const read = (file: string) => readFileSync(join(root, file), "utf8");
 
 describe("release metadata", () => {
-	test("package version is 0.7.1", () => {
-		expect(pkg.version).toBe("0.7.1");
+	test("package version is 0.7.2", () => {
+		expect(pkg.version).toBe("0.7.2");
 	});
 
 	test("prepublishOnly cleans dist, then builds, before publishing", () => {

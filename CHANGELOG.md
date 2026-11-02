@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-02
+
+### Changed
+
+- Performance: route matching uses a segment trie built at registration time instead of indexing routes by their first static path segment. A request is only tested against the routes along its trie branches (literal segments plus parameter branches), so routes under one shared prefix (`/api`, nested groups like `/api/v1`) and behind a leading parameter (`/:tenant/...`) no longer fall back to a linear scan. Matching results are unchanged: same route, params, `404`/`405`/`Allow` and `HEAD`/`OPTIONS` responses, first registered match still wins. `bun bench/routes.ts` now compares a linear scan, the previous first-segment index and the trie across four route-table shapes (#166)
+
 ## [0.7.1] - 2026-11-02
 
 ### Fixed
