@@ -29,7 +29,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 ## Installation
 
 ```bash
-bun add @bunary/http@^0.4.0
+bun add @bunary/http@^0.5.0
 ```
 
 `@bunary/core` is an optional peer, needed only for route validation and the
@@ -1430,6 +1430,24 @@ createRouter({ debug: false }); // never include detail, even in development or 
 
 // Mounted on core: detail follows app.debug, not app.env
 createApp({ config: { app: { name: "api", env: "development", debug: true } } });
+```
+
+The default handler maps some well-known errors to a more specific status:
+
+| Thrown error | Response |
+| --- | --- |
+| `HttpError` (and subclasses such as `NotFoundError`) | its own `status` and `headers`, with `details` as `errors` |
+| `ValidationError` from `@bunary/core` | `422`, listing every issue in `errors` (see [Validation](#validation)) |
+| `ModelNotFoundError` from `@bunary/orm`, e.g. from `findOrFail()` | `404 Not Found`; the message (e.g. `No row in "users" with primary key 5`) is sent as `detail` only in debug mode, so table names never leak |
+| `BodyParseError` | `400` |
+| anything else | `500`, with `detail` only in debug mode |
+
+`ValidationError` and `ModelNotFoundError` are recognised by shape (an `Error` with that `name`; a `ValidationError` also needs an `issues` array), so neither `@bunary/core` nor `@bunary/orm` has to be installed. A custom `onError` overrides all of these.
+
+```typescript
+router.get('/users/:id', async (ctx) => {
+  return await User.findOrFail(ctx.params.id); // missing row → 404 problem+json
+});
 ```
 
 For full control, use a custom `onError` handler:

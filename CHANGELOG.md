@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-02
+
+### Added
+
+- The default error mapper turns `@bunary/orm`'s `ModelNotFoundError` (e.g. from `findOrFail()`) into a `404` RFC 9457 problem instead of a `500`. It is matched by shape (an `Error` named `ModelNotFoundError`), so orm is not a dependency; the error message is sent as `detail` only in debug mode, and a custom `onError` still overrides it (#157)
+
 ## [0.4.0] - 2026-11-01
 
 Baseline release: every `@bunary/*` package moves to 0.4.0 together. This is the first npm release since 0.3.0, so it carries everything below that was previously tagged as `1.0.0-rc.1` and as an earlier, unpublished `0.4.0`. Works standalone or mounted on a `@bunary/core` 0.4.0 Application: `@bunary/core` is an optional peer at `^0.4.0`, and the dev dependency now comes from npm instead of a vendored tarball (#151)

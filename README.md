@@ -7,7 +7,7 @@ Requires Bun ≥ 1.4.0.
 ## Installation
 
 ```bash
-bun add @bunary/http@^0.4.0
+bun add @bunary/http@^0.5.0
 ```
 
 `@bunary/core` is an optional peer, needed only for route validation and the
