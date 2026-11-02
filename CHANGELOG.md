@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-02
+
+### Added
+
+- Route model binding: a route's options object takes `bind: { key: resolver }` alongside `params`/`query`/`body`, and the handler reads each resolved value from a new `ctx.bound`, typed as the resolver's awaited result without `null`/`undefined`. A resolver gets the validated param (the raw decoded string without a `params` schema) and the request context with the bindings resolved so far; bindings run after group middleware and validation, one at a time in path order, so a child can scope its lookup to its parent. `null`/`undefined` answers a `404` problem with `detail: "<key> not found"` (never the requested value) without calling the handler; a resolver that throws (e.g. `abort(410)`) takes the normal error path. A `bind` key with no matching `:key` in the full path throws at registration. Routes without `bind` keep their types and behaviour. New types `RouteBindings`, `BindResolver`, `BindingContext`, `BoundOf`, `BoundContext` and `RouteRegistration` (#158)
+
 ## [0.5.0] - 2026-11-02
 
 ### Added

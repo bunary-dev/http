@@ -29,4 +29,6 @@ export interface Route {
 	isWildcard?: boolean;
 	/** Validators declared for this route's params, query and body (#78) */
 	schemas?: RouteSchemas;
+	/** The route's `bind` keys in path order, when it declares bindings (#158) */
+	bindings?: string[];
 }

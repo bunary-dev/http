@@ -2,6 +2,13 @@
  * @bunary/http - Type Definitions
  */
 
+export type {
+	BindingContext,
+	BindResolver,
+	BoundContext,
+	BoundOf,
+	RouteBindings,
+} from "./binding.js";
 export type { BodyReader } from "./bodyReader.js";
 export type { BunaryServer } from "./bunaryServer.js";
 export type { GroupOptions } from "./groupOptions.js";
@@ -17,6 +24,7 @@ export type { Route } from "./route.js";
 export type { RouteBuilder } from "./routeBuilder.js";
 export type { RouteHandler } from "./routeHandler.js";
 export type { RouteInfo } from "./routeInfo.js";
+export type { RouteRegistration } from "./routeRegistration.js";
 export type { Router } from "./router.js";
 export type { RouterOptions } from "./routerOptions.js";
 export type {

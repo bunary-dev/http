@@ -5,9 +5,8 @@ import type { ListenOptions } from "./listenOptions.js";
 import type { Middleware } from "./middleware.js";
 import type { PathParams } from "./pathParams.js";
 import type { RouteBuilder } from "./routeBuilder.js";
-import type { RouteHandler } from "./routeHandler.js";
 import type { RouteInfo } from "./routeInfo.js";
-import type { RouteSchemas, ValidatedRouteHandler } from "./validation.js";
+import type { RouteRegistration } from "./routeRegistration.js";
 import type {
 	RouterWebSocketHandler,
 	WebSocketData,
@@ -43,10 +42,11 @@ export interface Router<TLocals extends object = Record<string, unknown>> {
 	 * An options object between the path and the handler declares validators
 	 * for `params`, `query` and `body`. Each is a Standard Schema object or a
 	 * plain function; a failure becomes a 422 problem document, and the
-	 * validated slots retype `ctx` (#78).
+	 * validated slots retype `ctx` (#78). `bind` resolves path params to values
+	 * on `ctx.bound` after validation (#158).
 	 *
 	 * @param path - URL path pattern (supports :param and :param? syntax)
-	 * @param schemas - Optional `{ params?, query?, body? }` validators
+	 * @param schemas - Optional `{ params?, query?, body?, bind? }` validators and bindings
 	 * @param handler - Function to handle requests
 	 *
 	 * @example
@@ -60,85 +60,35 @@ export interface Router<TLocals extends object = Record<string, unknown>> {
 	 * );
 	 * ```
 	 */
-	get: {
-		<P extends PathParams = PathParams>(
-			path: string,
-			handler: RouteHandler<TLocals, P>,
-		): RouteBuilder<TLocals>;
-		<S extends RouteSchemas>(
-			path: string,
-			schemas: S,
-			handler: ValidatedRouteHandler<TLocals, S>,
-		): RouteBuilder<TLocals>;
-	};
+	get: RouteRegistration<TLocals>;
 
 	/**
 	 * Register a POST route.
 	 * @param path - URL path pattern (supports :param and :param? syntax)
 	 * @param handler - Function to handle requests
 	 */
-	post: {
-		<P extends PathParams = PathParams>(
-			path: string,
-			handler: RouteHandler<TLocals, P>,
-		): RouteBuilder<TLocals>;
-		<S extends RouteSchemas>(
-			path: string,
-			schemas: S,
-			handler: ValidatedRouteHandler<TLocals, S>,
-		): RouteBuilder<TLocals>;
-	};
+	post: RouteRegistration<TLocals>;
 
 	/**
 	 * Register a PUT route.
 	 * @param path - URL path pattern (supports :param and :param? syntax)
 	 * @param handler - Function to handle requests
 	 */
-	put: {
-		<P extends PathParams = PathParams>(
-			path: string,
-			handler: RouteHandler<TLocals, P>,
-		): RouteBuilder<TLocals>;
-		<S extends RouteSchemas>(
-			path: string,
-			schemas: S,
-			handler: ValidatedRouteHandler<TLocals, S>,
-		): RouteBuilder<TLocals>;
-	};
+	put: RouteRegistration<TLocals>;
 
 	/**
 	 * Register a DELETE route.
 	 * @param path - URL path pattern (supports :param and :param? syntax)
 	 * @param handler - Function to handle requests
 	 */
-	delete: {
-		<P extends PathParams = PathParams>(
-			path: string,
-			handler: RouteHandler<TLocals, P>,
-		): RouteBuilder<TLocals>;
-		<S extends RouteSchemas>(
-			path: string,
-			schemas: S,
-			handler: ValidatedRouteHandler<TLocals, S>,
-		): RouteBuilder<TLocals>;
-	};
+	delete: RouteRegistration<TLocals>;
 
 	/**
 	 * Register a PATCH route.
 	 * @param path - URL path pattern (supports :param and :param? syntax)
 	 * @param handler - Function to handle requests
 	 */
-	patch: {
-		<P extends PathParams = PathParams>(
-			path: string,
-			handler: RouteHandler<TLocals, P>,
-		): RouteBuilder<TLocals>;
-		<S extends RouteSchemas>(
-			path: string,
-			schemas: S,
-			handler: ValidatedRouteHandler<TLocals, S>,
-		): RouteBuilder<TLocals>;
-	};
+	patch: RouteRegistration<TLocals>;
 
 	/**
 	 * Register a WebSocket route (#128).

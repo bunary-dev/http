@@ -1,8 +1,7 @@
 import type { GroupOptions } from "./groupOptions.js";
 import type { PathParams } from "./pathParams.js";
 import type { RouteBuilder } from "./routeBuilder.js";
-import type { RouteHandler } from "./routeHandler.js";
-import type { RouteSchemas, ValidatedRouteHandler } from "./validation.js";
+import type { RouteRegistration } from "./routeRegistration.js";
 import type { WebSocketData, WebSocketHandlers, WebSocketRouteOptions } from "./websocket.js";
 
 /**
@@ -12,66 +11,16 @@ import type { WebSocketData, WebSocketHandlers, WebSocketRouteOptions } from "./
  * @typeParam TLocals — Shape of `ctx.locals` (inherited from `createRouter<TLocals>()`)
  */
 export interface GroupRouter<TLocals extends object = Record<string, unknown>> {
-	/** Register a GET route, optionally with `{ params?, query?, body? }` schemas (#78) */
-	get: {
-		<P extends PathParams = PathParams>(
-			path: string,
-			handler: RouteHandler<TLocals, P>,
-		): RouteBuilder<TLocals>;
-		<S extends RouteSchemas>(
-			path: string,
-			schemas: S,
-			handler: ValidatedRouteHandler<TLocals, S>,
-		): RouteBuilder<TLocals>;
-	};
-	/** Register a POST route, optionally with `{ params?, query?, body? }` schemas (#78) */
-	post: {
-		<P extends PathParams = PathParams>(
-			path: string,
-			handler: RouteHandler<TLocals, P>,
-		): RouteBuilder<TLocals>;
-		<S extends RouteSchemas>(
-			path: string,
-			schemas: S,
-			handler: ValidatedRouteHandler<TLocals, S>,
-		): RouteBuilder<TLocals>;
-	};
-	/** Register a PUT route, optionally with `{ params?, query?, body? }` schemas (#78) */
-	put: {
-		<P extends PathParams = PathParams>(
-			path: string,
-			handler: RouteHandler<TLocals, P>,
-		): RouteBuilder<TLocals>;
-		<S extends RouteSchemas>(
-			path: string,
-			schemas: S,
-			handler: ValidatedRouteHandler<TLocals, S>,
-		): RouteBuilder<TLocals>;
-	};
-	/** Register a DELETE route, optionally with `{ params?, query?, body? }` schemas (#78) */
-	delete: {
-		<P extends PathParams = PathParams>(
-			path: string,
-			handler: RouteHandler<TLocals, P>,
-		): RouteBuilder<TLocals>;
-		<S extends RouteSchemas>(
-			path: string,
-			schemas: S,
-			handler: ValidatedRouteHandler<TLocals, S>,
-		): RouteBuilder<TLocals>;
-	};
-	/** Register a PATCH route, optionally with `{ params?, query?, body? }` schemas (#78) */
-	patch: {
-		<P extends PathParams = PathParams>(
-			path: string,
-			handler: RouteHandler<TLocals, P>,
-		): RouteBuilder<TLocals>;
-		<S extends RouteSchemas>(
-			path: string,
-			schemas: S,
-			handler: ValidatedRouteHandler<TLocals, S>,
-		): RouteBuilder<TLocals>;
-	};
+	/** Register a GET route, optionally with `{ params?, query?, body?, bind? }` (#78, #158) */
+	get: RouteRegistration<TLocals>;
+	/** Register a POST route, optionally with `{ params?, query?, body?, bind? }` (#78, #158) */
+	post: RouteRegistration<TLocals>;
+	/** Register a PUT route, optionally with `{ params?, query?, body?, bind? }` (#78, #158) */
+	put: RouteRegistration<TLocals>;
+	/** Register a DELETE route, optionally with `{ params?, query?, body?, bind? }` (#78, #158) */
+	delete: RouteRegistration<TLocals>;
+	/** Register a PATCH route, optionally with `{ params?, query?, body?, bind? }` (#78, #158) */
+	patch: RouteRegistration<TLocals>;
 	/** Register a WebSocket route; group middleware runs before the upgrade (#128) */
 	ws: <P extends PathParams = PathParams, TExtra extends object = Record<never, never>>(
 		path: string,

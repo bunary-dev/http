@@ -1,3 +1,4 @@
+import { applyRouteBindings } from "../binding.js";
 import { toResponse } from "../response.js";
 import type { RouteMatch } from "../routes/index.js";
 import type { HandlerResponse, Middleware, RequestContext } from "../types/index.js";
@@ -33,8 +34,8 @@ export function runMiddlewareChain(
 }
 
 /**
- * Execute a matched route: its group middleware, then validation, then its
- * handler.
+ * Execute a matched route: its group middleware, then validation, then route
+ * model binding, then its handler.
  *
  * Global middleware is *not* included — the router runs that around the whole
  * dispatcher so it also wraps 404/405/OPTIONS and error responses (#65).
@@ -43,6 +44,11 @@ export function runMiddlewareChain(
  * middleware still sees the raw `ctx.params`, `ctx.query` and `ctx.body`, while
  * the handler sees whatever the schemas produced. A rejected schema throws
  * core's `ValidationError` from here, and the error boundary maps it to 422.
+ *
+ * Binding (#158) comes after validation, so resolvers get validated params and
+ * an unauthenticated request is rejected by middleware before any lookup. A
+ * binding that resolves to `null` or `undefined` answers 404 without calling
+ * the handler.
  *
  * @param match - The resolved route and its params
  * @param ctx - The request context
@@ -54,9 +60,13 @@ export async function executeRoute(
 	ctx: RequestContext,
 	middleware: readonly Middleware[],
 ): Promise<Response> {
-	const { handler, schemas } = match.route;
+	const { handler, schemas, bindings } = match.route;
 	const result = await runMiddlewareChain(middleware, ctx, async () => {
 		if (schemas) await applyRouteValidation(ctx, schemas);
+		if (bindings && schemas?.bind) {
+			const missing = await applyRouteBindings(ctx, schemas.bind, bindings);
+			if (missing) return missing;
+		}
 		return await handler(ctx);
 	});
 	return toResponse(result, ctx.request);
