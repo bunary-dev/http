@@ -43,10 +43,9 @@ import type {
 	RouterOptions,
 	RouteSchemas,
 	WebSocketHandlers,
-	WebSocketRouteOptions,
 } from "./types/index.js";
 import { normalizeRouteArgs } from "./validation.js";
-import { createWebSocketRoute, websocketHandler } from "./websocket.js";
+import { type WebSocketRouteInit, webSocketRoute, websocketHandler } from "./websocket.js";
 
 /**
  * Append queued `Set-Cookie` header values onto a `Response`.
@@ -368,9 +367,12 @@ export function createRouter<TLocals extends object = Record<string, unknown>>(
 
 		ws: (
 			path: string,
-			handlers: WebSocketHandlers<unknown>,
-			options?: WebSocketRouteOptions<object, unknown, object>,
-		) => addRoute("GET", path, createWebSocketRoute(handlers, options)),
+			second: WebSocketHandlers<unknown> | WebSocketRouteInit,
+			third?: WebSocketHandlers<unknown> | WebSocketRouteInit,
+		) => {
+			const { handler, schemas } = webSocketRoute(second, third);
+			return addRoute("GET", path, handler, [], schemas);
+		},
 
 		websocket: websocketHandler,
 

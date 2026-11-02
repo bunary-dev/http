@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-02
+
+### Added
+
+- Route model binding on `ws()` routes: `router.ws(path, { bind, ...options }, handlers)` (options first, so the resolvers type the handlers) resolves path params with the same resolvers and rules as HTTP routes, after global and group middleware and before `upgrade(ctx)` and the upgrade. The values are on `ws.data.bound` in every handler, typed as `ctx.bound`, and on `ctx.bound` in `upgrade(ctx)`. A missing value rejects the upgrade with the same `404` problem (`"room not found"`) and no socket opens; a throwing resolver rejects it with its own error response; an unknown `bind` key throws at registration. `ws()` routes without `bind` keep the `(path, handlers, options?)` shape, behaviour and types. New types `WebSocketRegistration`, `WebSocketBindings`, `BoundWebSocketData` and `BoundWebSocketRouteOptions` (#159)
+
 ## [0.6.0] - 2026-11-02
 
 ### Added

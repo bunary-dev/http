@@ -7,8 +7,8 @@ const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const read = (file: string) => readFileSync(join(root, file), "utf8");
 
 describe("release metadata", () => {
-	test("package version is 0.6.0", () => {
-		expect(pkg.version).toBe("0.6.0");
+	test("package version is 0.7.0", () => {
+		expect(pkg.version).toBe("0.7.0");
 	});
 
 	test("@bunary/core is an optional ^0.4.0 peer", () => {

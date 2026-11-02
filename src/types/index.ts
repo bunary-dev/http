@@ -40,8 +40,12 @@ export type {
 	ValidatedRouteHandler,
 } from "./validation.js";
 export type {
+	BoundWebSocketData,
+	BoundWebSocketRouteOptions,
 	RouterWebSocketHandler,
+	WebSocketBindings,
 	WebSocketData,
 	WebSocketHandlers,
+	WebSocketRegistration,
 	WebSocketRouteOptions,
 } from "./websocket.js";

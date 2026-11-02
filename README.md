@@ -7,7 +7,7 @@ Requires Bun ≥ 1.4.0.
 ## Installation
 
 ```bash
-bun add @bunary/http@^0.6.0
+bun add @bunary/http@^0.7.0
 ```
 
 `@bunary/core` is an optional peer, needed only for route validation and the
@@ -104,7 +104,8 @@ router.delete(
 
 Bindings resolve after group middleware and validation, one at a time in path
 order, so a child resolver can scope its lookup to `ctx.bound` of its parent.
-Throw `abort()` from a resolver to customise "not found". See
+Throw `abort()` from a resolver to customise "not found". WebSocket routes bind
+the same way, `router.ws(path, { bind }, handlers)`, onto `ws.data.bound`. See
 [the docs](./docs/index.md#route-model-binding).
 
 ## Using with @bunary/core

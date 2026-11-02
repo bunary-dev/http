@@ -85,6 +85,8 @@ export type {
 	BodyReader,
 	BoundContext,
 	BoundOf,
+	BoundWebSocketData,
+	BoundWebSocketRouteOptions,
 	BunaryServer,
 	GroupCallback,
 	GroupOptions,
@@ -112,7 +114,9 @@ export type {
 	StandardSchemaLike,
 	ValidatedContext,
 	ValidatedRouteHandler,
+	WebSocketBindings,
 	WebSocketData,
 	WebSocketHandlers,
+	WebSocketRegistration,
 	WebSocketRouteOptions,
 } from "./types/index.js";

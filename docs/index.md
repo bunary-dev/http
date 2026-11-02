@@ -30,7 +30,7 @@ Part of the [Bunary](https://github.com/bunary-dev) ecosystem: a Bun-first backe
 ## Installation
 
 ```bash
-bun add @bunary/http@^0.6.0
+bun add @bunary/http@^0.7.0
 ```
 
 `@bunary/core` is an optional peer, needed only for route validation and the
@@ -965,7 +965,7 @@ Symlinks whose target stays inside `root` are served.
 
 ## WebSockets
 
-`router.ws(path, handlers, options?)` registers a WebSocket route. `handlers` is `{ open?, message?, close?, drain? }`; each receives Bun's [`ServerWebSocket`](https://bun.sh/docs/api/websockets), whose `ws.data` holds the route's `params` and the request's `locals`.
+`router.ws(path, handlers, options?)` registers a WebSocket route (`router.ws(path, { bind, ...options }, handlers)` with [route model binding](#binding-on-websocket-routes)). `handlers` is `{ open?, message?, close?, drain? }`; each receives Bun's [`ServerWebSocket`](https://bun.sh/docs/api/websockets), whose `ws.data` holds the route's `params` and the request's `locals`.
 
 ```typescript
 import { createRouter } from '@bunary/http';
@@ -1019,6 +1019,7 @@ Once middleware has passed, the router calls `server.upgrade(request, { data })`
 |--------|-------------|
 | `upgrade(ctx)` | Runs after middleware, just before the upgrade; the object it returns (or resolves to) is merged into `ws.data`. `params` and `locals` always win. |
 | `headers` | Extra headers for the `101 Switching Protocols` response. |
+| `bind` | Route model binding, onto `ws.data.bound`; pass the options before the handlers. See [Binding on WebSocket routes](#binding-on-websocket-routes). |
 
 ```typescript
 router.ws(
@@ -1033,6 +1034,37 @@ router.ws(
 ```
 
 Type the params with `router.ws<{ room: string }>(...)` as with `router.get`; `ws.data.locals` takes the router's `TLocals`.
+
+### Binding on WebSocket routes
+
+A WebSocket route takes [route model binding](#route-model-binding) too: pass an options object with `bind` **before** the handlers, `router.ws(path, { bind, ...options }, handlers)`. The options come first so the resolvers' results type the handlers. Bindings resolve after global and group middleware and before `upgrade(ctx)` and the upgrade itself, one at a time in path order, with the same resolver signature as HTTP routes. The resolved values are on `ws.data.bound` in `open`, `message`, `close` and `drain`, typed as `ctx.bound` is; `ws.data.params` and `ws.data.locals` are unchanged.
+
+```typescript
+const findRoom = (id: string | undefined) => Room.find(id); // Promise<Room | null>
+
+router.ws(
+  '/chat/:room',
+  {
+    bind: { room: findRoom },
+    upgrade: (ctx) => ({ topic: ctx.bound.room.topic }), // ctx.bound is typed here too
+  },
+  {
+    open(ws) {
+      ws.subscribe(ws.data.bound.room.id); // Room, never null
+    },
+    message(ws, message) {
+      ws.publish(ws.data.bound.room.id, message);
+    },
+  },
+);
+```
+
+- A resolver returning `null` or `undefined` rejects the upgrade with the same `404` problem as an HTTP route (`"room not found"`); no socket opens and no handler runs.
+- A resolver that throws (e.g. `abort(410)`) rejects the upgrade with its own error response.
+- Middleware that rejects the request does so before any resolver is called.
+- A `bind` key with no matching `:param` in the full path throws at registration.
+
+A route without `bind` keeps the `(path, handlers, options?)` shape and has no `ws.data.bound`. WebSocket routes take no `params` schema, so a resolver receives the raw decoded `string | undefined` param. Let the generics be inferred on a route with `bind`, since passing `router.ws<P>()` explicitly stops TypeScript inferring `ws.data.bound`.
 
 ### Using your own `Bun.serve`
 
@@ -1232,7 +1264,9 @@ included; otherwise registering the route throws, e.g.
 `bind key "user" has no ":user" in "/users/:id"`. Binding works on every method
 (`get`, `post`, `put`, `patch`, `delete`, and `HEAD` answered from a `GET`), in
 groups, and with `.where*()` constraints: a constraint failure is still a
-route-level 404 and the resolver is not called. WebSocket routes do not bind.
+route-level 404 and the resolver is not called. WebSocket routes bind too, with
+the options before the handlers; the values land on `ws.data.bound` (see
+[Binding on WebSocket routes](#binding-on-websocket-routes)).
 
 Binding alone does not need `@bunary/core`; only a `params`, `query` or `body`
 schema does.
