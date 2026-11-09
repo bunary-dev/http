@@ -60,7 +60,7 @@
 		"bun": ">=1.4.0"
 	},
 	"dependencies": {
-		"cookie": "2.0.1"
+		"cookie": "2.0.2"
 	},
 	"peerDependencies": {
 		"@bunary/core": "^0.4.0"
@@ -71,7 +71,7 @@
 		}
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.6.4",
+		"@biomejs/biome": "2.6.6",
 		"@bunary/core": "^0.4.0",
 		"@types/bun": "^1.4.2",
 		"typescript": "^7.0.2",
